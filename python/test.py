@@ -2,10 +2,12 @@ import build.pyimplot as plt
 
 def main():
 
-    while plt.wait():
-        print("Test")
+    i = 0
 
-    plt.show()
+    while plt.wait():
+        plt.plot()
+        print("Test", i)
+        i += 1
 
 if __name__ == "__main__":
     main()

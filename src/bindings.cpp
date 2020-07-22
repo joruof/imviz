@@ -75,8 +75,6 @@ PYBIND11_MODULE(pyimplot, m) {
 
     auto prepareUpdate = [&]() {
 
-        glfwPollEvents(); 
-
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.IniFilename = "./pyimplot.ini";
@@ -138,8 +136,15 @@ PYBIND11_MODULE(pyimplot, m) {
         glfwShowWindow(window);
 
         ImGui::Render();
+        
+        // background color take from the one-and-only:
+        // tomorrow-night theme
 
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClearColor(0.11372549019607843,
+                     0.12156862745098039,
+                     0.12941176470588237,
+                     1.0f);
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         int display_w, display_h;
@@ -153,20 +158,30 @@ PYBIND11_MODULE(pyimplot, m) {
         glfwMakeContextCurrent(window);
 
         glfwSwapBuffers(window);
-
-        prepareUpdate();
-
-        return !glfwWindowShouldClose(window);
     };
 
     m.def("wait", [&]() {
+        doUpdate();
         glfwWaitEvents();
-        return doUpdate();
+        prepareUpdate();
+        return !glfwWindowShouldClose(window);
     });
 
     m.def("show", [&]() {
-        while(doUpdate()) {
+        while(!glfwWindowShouldClose(window)) {
+            doUpdate();
             glfwWaitEvents();
+            prepareUpdate();
         }
     });
+
+    m.def("trigger", [&]() {
+        glfwPostEmptyEvent();
+    });
+
+    m.def("plot", [&](std::string title) {
+        ImGui::Begin(title.c_str());
+        ImGui::End();
+    },
+    pybind11::arg("title") = " ");
 }
