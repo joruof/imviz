@@ -299,17 +299,18 @@ PYBIND11_MODULE(pyimplot, m) {
 
             size_t yCount = y.shape()[0];
 
+            std::vector<float> indices;
             const float* xDataPtr = nullptr;
             const float* yDataPtr = nullptr;
             size_t count = 0;
 
             if (1 == x.ndim() && 0 == yCount) {
                 count = x.shape()[0];
-                std::vector<float> xs(count);
+                indices.resize(count);
                 for (size_t i = 0; i < count; ++i) {
-                    xs[i] = i;
+                    indices[i] = i;
                 }
-                xDataPtr = xs.data();
+                xDataPtr = indices.data();
                 yDataPtr = x.data();
             } else if (2 == x.ndim() && 0 == yCount) {
                 size_t len0 = x.shape()[0];
