@@ -1,3 +1,4 @@
+#include <regex>
 #include <functional>
 
 #include <GL/glew.h>
@@ -16,68 +17,82 @@
 
 namespace fs = std::experimental::filesystem;
 
-std::function<void()> updateFunc = nullptr; 
-GLFWwindow* window = nullptr;
+struct PyImPlot {
 
-PYBIND11_MODULE(pyimplot, m) {
+    GLFWwindow* window = nullptr;
 
-    if (!glfwInit()) {
-        std::cout << "Could not initialize GLFW!" << std::endl;
-        std::exit(-1);
-    }
+    bool hasCurrentFigure = false;
+    bool currentFigureOpen = false;
 
-    glfwWindowHint(GLFW_SAMPLES, 1);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+    size_t figureCounter = 1;
 
-    window = glfwCreateWindow(
-            800,
-            600,
-            "SpatzSim",
-            nullptr,
-            nullptr);
+    std::regex re{"(-)?(o|s|d|\\*|\\+)?(r|g|b|y|m|w)?"};
 
-    glfwMakeContextCurrent(window);
+    PyImPlot () {
 
-    glewExperimental = true;
+        if (!glfwInit()) {
+            std::cout << "Could not initialize GLFW!" << std::endl;
+            std::exit(-1);
+        }
 
-    if (GLEW_OK != glewInit()) {
-        std::cout << "GL Extension Wrangler initialization failed!" << std::endl;
-        std::exit(-1);
-    }
+        glfwWindowHint(GLFW_SAMPLES, 4);
+        glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
 
+        window = glfwCreateWindow(
+                800,
+                600,
+                "SpatzSim",
+                nullptr,
+                nullptr);
 
-    // basic imgui setup
+        glfwMakeContextCurrent(window);
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+        glewExperimental = true;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, false);
-    ImGui_ImplOpenGL3_Init("#version 330");
+        if (GLEW_OK != glewInit()) {
+            std::cout << "GL Extension Wrangler initialization failed!" << std::endl;
+            std::exit(-1);
+        }
 
-    ImGui::StyleColorsDark();
+        // basic imgui setup
 
-    // loading font
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
 
-    /*
-    fs::path fsResPath = "./"
-    fsResPath = fsResPath / "noto_sans_regular.ttf";
+        ImGui_ImplGlfw_InitForOpenGL(window, false);
+        ImGui_ImplOpenGL3_Init("#version 330");
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF(fsResPath.c_str(), 15.0);
-    */
+        ImGui::StyleColorsDark();
 
-    glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
-    glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
-    glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
-    glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
+        // loading font
 
-    auto prepareUpdate = [&]() {
+        /*
+        fs::path fsResPath = "./"
+        fsResPath = fsResPath / "noto_sans_regular.ttf";
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->AddFontFromFileTTF(fsResPath.c_str(), 15.0);
+        */
+
+        glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
+        glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
+        glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
+        glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
 
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.IniFilename = "./pyimplot.ini";
+
+        prepareUpdate();
+
+        glfwPostEmptyEvent();
+    }
+
+    void prepareUpdate() {
+
+        ImGuiIO& io = ImGui::GetIO();
 
         if (io.WantCaptureMouse) {
             // do something ... 
@@ -117,28 +132,32 @@ PYBIND11_MODULE(pyimplot, m) {
         ImGui::PopStyleVar();
 
         ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None
-                | ImGuiDockNodeFlags_NoDockingInCentralNode
                 | ImGuiDockNodeFlags_PassthruCentralNode;
 
         ImGui::DockSpace(1, ImVec2(0.0f, 0.0f), dockspace_flags);
 
         ImGui::End();
 
-        ImPlot::ShowDemoWindow();
-    };
+        //ImPlot::ShowDemoWindow();
+    }
 
-    prepareUpdate();
+    void doUpdate () {
 
-    glfwPostEmptyEvent();
+        if (hasCurrentFigure) {
+            if (currentFigureOpen) {
+                ImPlot::EndPlot();
+            }
+            ImGui::End();
+        }
 
-    auto doUpdate = [&]() {
+        hasCurrentFigure = false;
+        currentFigureOpen = false;
 
         glfwShowWindow(window);
 
         ImGui::Render();
         
-        // background color take from the one-and-only:
-        // tomorrow-night theme
+        // background color take from the one-and-only tomorrow-night theme
 
         glClearColor(0.11372549019607843,
                      0.12156862745098039,
@@ -158,15 +177,30 @@ PYBIND11_MODULE(pyimplot, m) {
         glfwMakeContextCurrent(window);
 
         glfwSwapBuffers(window);
-    };
+
+        figureCounter = 0;
+    }
+
+    void trigger () {
+
+        glfwPostEmptyEvent();
+    }
+};
+
+PyImPlot plt;
+
+PYBIND11_MODULE(pyimplot, m) {
 
     m.def("wait", [&]() {
-        doUpdate();
-        glfwWaitEvents();
-        prepareUpdate();
-        return !glfwWindowShouldClose(window);
+        plt.doUpdate();
+        glfwWaitEventsTimeout(1.0);
+        plt.prepareUpdate();
+        return !glfwWindowShouldClose(plt.window);
     });
 
+    /*
+     * This needs some work until functional.
+     *
     m.def("show", [&]() {
         while(!glfwWindowShouldClose(window)) {
             doUpdate();
@@ -174,14 +208,136 @@ PYBIND11_MODULE(pyimplot, m) {
             prepareUpdate();
         }
     });
+    */
 
     m.def("trigger", [&]() {
-        glfwPostEmptyEvent();
+        plt.trigger();
     });
 
-    m.def("plot", [&](std::string title) {
-        ImGui::Begin(title.c_str());
-        ImGui::End();
+    m.def("figure", [&](std::string title) {
+
+        if (title.empty()) {
+            title = "Figure " + std::to_string(plt.figureCounter);
+        }
+
+        if (plt.hasCurrentFigure) {
+            if (plt.currentFigureOpen) {
+                ImPlot::EndPlot();
+            }
+            ImGui::End();
+        }
+
+        if (ImGui::Begin(title.c_str())) {
+            ImPlot::BeginPlot(title.c_str(),
+                              NULL,
+                              NULL,
+                              ImGui::GetContentRegionAvail());
+            plt.currentFigureOpen = true;
+        } else {
+            plt.currentFigureOpen = false;
+        }
+
+        plt.hasCurrentFigure = true;
+        plt.figureCounter += 1;
     },
-    pybind11::arg("title") = " ");
+    pybind11::arg("title") = "");
+
+    m.def("plot", [&](pybind11::array_t<float, pybind11::array::c_style
+                        | pybind11::array::forcecast> x,
+                      pybind11::array_t<float, pybind11::array::c_style
+                        | pybind11::array::forcecast> y,
+                      std::string fmt,
+                      std::string label) {
+
+        std::string title;
+
+        if (!plt.hasCurrentFigure) {
+
+            title = "Figure " + std::to_string(plt.figureCounter);
+
+            if (ImGui::Begin(title.c_str())) {
+                ImPlot::BeginPlot(title.c_str(),
+                                  NULL,
+                                  NULL,
+                                  ImGui::GetContentRegionAvail());
+                plt.currentFigureOpen = true;
+            } else {
+                plt.currentFigureOpen = false;
+            }
+
+            plt.hasCurrentFigure = true;
+            plt.figureCounter += 1;
+        }
+
+        if (plt.currentFigureOpen) {
+
+            std::smatch match;
+            std::regex_search(fmt, match, plt.re);
+
+            std::vector<std::string> groups;
+            for (auto m : match) {
+                if (m.matched) {
+                    groups.push_back(m.str());
+                } else {
+                    groups.push_back("");
+                }
+            }
+
+            if (groups[2] == "o") {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
+            } else if (groups[2] == "s") {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Square);
+            } else if (groups[2] == "d") {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Diamond);
+            } else if (groups[2] == "+") {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Cross);
+            } else if (groups[2] == "*") {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Asterisk);
+            } else {
+                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
+            }
+
+            size_t yCount = y.shape()[0];
+
+            const float* xDataPtr = nullptr;
+            const float* yDataPtr = nullptr;
+            size_t count = 0;
+
+            if (1 == x.ndim() && 0 == yCount) {
+                count = x.shape()[0];
+                std::vector<float> xs(count);
+                for (size_t i = 0; i < count; ++i) {
+                    xs[i] = i;
+                }
+                xDataPtr = xs.data();
+                yDataPtr = x.data();
+            } else if (2 == x.ndim() && 0 == yCount) {
+                size_t len0 = x.shape()[0];
+                size_t len1 = x.shape()[1];
+                if (len0 == 2) {
+                    xDataPtr = x.data();
+                    yDataPtr = x.data() + len1;
+                    count = len1;
+                }
+            } else if (1 == x.ndim() && 1 == y.ndim()) {
+                count = std::min(x.shape()[0], y.shape()[0]);
+                xDataPtr = x.data();
+                yDataPtr = y.data();
+            } 
+
+            if (count == 0) {
+                std::cout << "Cannot plot " << title << std::endl;
+            } else if (groups[1] == "-") {
+                ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
+            } else {
+                ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
+            }
+
+            ImPlot::PopStyleVar(1);
+        }
+    },
+    pybind11::arg("x"),
+    pybind11::arg("y") = pybind11::array(),
+    pybind11::arg("fmt") = "-",
+    pybind11::arg("label") = "line");
 }
