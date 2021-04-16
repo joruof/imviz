@@ -5,6 +5,8 @@ set(PY_TARGET_NAME "py${PROJECT_NAME}")
 
 # ---[ Check for OpenGL (mandatory) ]---
 
+set(OpenGL_GL_PREFERENCE GLVND)
+
 find_package(OpenGL QUIET)
 if(OPENGL_FOUND)
     message(STATUS "Found OpenGL: " ${OPENGL_LIBRARIES})
@@ -40,20 +42,53 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_STATIC_LIBS OFF CACHE BOOL "" FORCE)
 set(GLM_TEST_ENABLE OFF CACHE BOOL "" FORCE)
 
-add_subdirectory(extern/pybind_pybind11 EXCLUDE_FROM_ALL)
+include(FetchContent)
+
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY "https://github.com/ocornut/imgui"
+    GIT_TAG "34d4bc620d8316f8a69ce25a75fce493fdddef5d"
+)
+
+FetchContent_Declare(
+    implot
+    GIT_REPOSITORY "https://github.com/epezent/implot"
+    GIT_TAG "555ff688a8134bc0c602123149abe9c17d577475"
+)
+
+FetchContent_Declare(
+    pybind
+    GIT_REPOSITORY "https://github.com/pybind/pybind11"
+    GIT_TAG "59a2ac2745d8a57ac94c6accced73620d59fb844"
+)
+
+message(STATUS "Loading imgui ...")
+FetchContent_MakeAvailable(imgui)
+
+message(STATUS "Loading implot ...")
+FetchContent_MakeAvailable(implot)
+
+message(STATUS "Loading pybind ...")
+FetchContent_MakeAvailable(pybind)
+
+message(STATUS "")
+message(STATUS "All dependencies loaded.")
+message(STATUS "")
 
 # Collect files.
 
 set(SOURCE_FILES
-    ./extern/ocornut_imgui/imgui.cpp
-    ./extern/ocornut_imgui/imgui_draw.cpp
-    ./extern/ocornut_imgui/imgui_demo.cpp
-    ./extern/ocornut_imgui/imgui_impl_glfw.cpp
-    ./extern/ocornut_imgui/imgui_widgets.cpp
-    ./extern/ocornut_imgui/imgui_impl_opengl3.cpp
-    ./extern/ocornut_imgui/imgui_stdlib.cpp
-    ./extern/ocornut_imgui/implot.cpp
-    ./extern/ocornut_imgui/implot_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+    ${implot_SOURCE_DIR}/implot.cpp
+    ${implot_SOURCE_DIR}/implot_demo.cpp
+    ${implot_SOURCE_DIR}/implot_items.cpp
     ./src/bindings.cpp
    )
 
@@ -74,10 +109,11 @@ target_link_libraries(${PY_TARGET_NAME} PUBLIC
                       pybind11::embed
                       glfw)
 
-target_include_directories(${PY_TARGET_NAME}
-                           PUBLIC src/
-                           PUBLIC extern/
-                           PUBLIC ${OPENGL_INCLUDE_DIR})
+target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
+                           ${imgui_SOURCE_DIR}
+                           ${implot_SOURCE_DIR})
+
+target_include_directories(${PY_TARGET_NAME} PUBLIC src/)
 
 target_compile_options(${PY_TARGET_NAME} PUBLIC
                         -Wall

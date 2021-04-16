@@ -11,11 +11,9 @@
 
 #include <experimental/filesystem>
 
-#include "ocornut_imgui/imgui_impl_glfw.h"
-#include "ocornut_imgui/imgui_impl_opengl3.h"
-#include "ocornut_imgui/implot.h"
-
-namespace fs = std::experimental::filesystem;
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
+#include "implot.h"
 
 struct PyImPlot {
 
@@ -60,21 +58,12 @@ struct PyImPlot {
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+        ImPlot::CreateContext();
 
         ImGui_ImplGlfw_InitForOpenGL(window, false);
         ImGui_ImplOpenGL3_Init("#version 330");
 
         ImGui::StyleColorsDark();
-
-        // loading font
-
-        /*
-        fs::path fsResPath = "./"
-        fsResPath = fsResPath / "noto_sans_regular.ttf";
-
-        ImGuiIO& io = ImGui::GetIO();
-        io.Fonts->AddFontFromFileTTF(fsResPath.c_str(), 15.0);
-        */
 
         glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
         glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
@@ -84,6 +73,13 @@ struct PyImPlot {
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.IniFilename = "./pyimplot.ini";
+
+        // loading font
+
+        //fs::path fsResPath = "./";
+        //fsResPath = fsResPath / "noto_sans_regular.ttf";
+
+        //io.Fonts->AddFontFromFileTTF(fsResPath.c_str(), 15.0);
 
         prepareUpdate();
 
@@ -117,8 +113,8 @@ struct PyImPlot {
             | ImGuiWindowFlags_NoNavFocus;
 
         ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->GetWorkPos());
-        ImGui::SetNextWindowSize(viewport->GetWorkSize());
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -327,7 +323,7 @@ PYBIND11_MODULE(pyimplot, m) {
             } 
 
             if (count == 0) {
-                std::cout << "Cannot plot " << title << std::endl;
+                //std::cout << "Cannot plot " << title << std::endl;
             } else if (groups[1] == "-") {
                 ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
             } else {
