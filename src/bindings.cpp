@@ -1,3 +1,4 @@
+#include <imgui.h>
 #include <regex>
 #include <functional>
 
@@ -14,6 +15,8 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "implot.h"
+
+#include "SourceSansPro.h"
 
 struct PyImPlot {
 
@@ -41,7 +44,7 @@ struct PyImPlot {
         window = glfwCreateWindow(
                 800,
                 600,
-                "SpatzSim",
+                "pyimplot",
                 nullptr,
                 nullptr);
 
@@ -63,8 +66,6 @@ struct PyImPlot {
         ImGui_ImplGlfw_InitForOpenGL(window, false);
         ImGui_ImplOpenGL3_Init("#version 330");
 
-        ImGui::StyleColorsDark();
-
         glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
         glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
         glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
@@ -74,16 +75,17 @@ struct PyImPlot {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.IniFilename = "./pyimplot.ini";
 
+        ImPlot::GetStyle().AntiAliasedLines = true;
+
+
         // loading font
 
-        //fs::path fsResPath = "./";
-        //fsResPath = fsResPath / "noto_sans_regular.ttf";
-
-        //io.Fonts->AddFontFromFileTTF(fsResPath.c_str(), 15.0);
+        io.Fonts->AddFontFromMemoryCompressedTTF(
+                getSourceSansProData(),
+                getSourceSansProSize(),
+                20.0);
 
         prepareUpdate();
-
-        glfwPostEmptyEvent();
     }
 
     void prepareUpdate() {
@@ -100,6 +102,27 @@ struct PyImPlot {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        static bool lightTheme = false;
+
+        if (ImGui::BeginMainMenuBar()) {
+
+            if (ImGui::BeginMenu("Show")) {
+
+                ImGui::MenuItem("Light Theme", NULL, &lightTheme);
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
+
+        if (lightTheme) {
+            ImGui::StyleColorsLight();
+            ImPlot::StyleColorsLight();
+        } else {
+            ImGui::StyleColorsDark();
+            ImPlot::StyleColorsDark();
+        }
 
         // dock space
 
@@ -134,7 +157,7 @@ struct PyImPlot {
 
         ImGui::End();
 
-        //ImPlot::ShowDemoWindow();
+        ImPlot::ShowDemoWindow();
     }
 
     void doUpdate () {
@@ -189,7 +212,7 @@ PYBIND11_MODULE(pyimplot, m) {
 
     m.def("wait", [&]() {
         plt.doUpdate();
-        glfwWaitEventsTimeout(1.0);
+        glfwPollEvents();
         plt.prepareUpdate();
         return !glfwWindowShouldClose(plt.window);
     });
@@ -235,6 +258,8 @@ PYBIND11_MODULE(pyimplot, m) {
 
         plt.hasCurrentFigure = true;
         plt.figureCounter += 1;
+
+        return plt.currentFigureOpen;
     },
     pybind11::arg("title") = "");
 
