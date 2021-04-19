@@ -103,20 +103,24 @@ struct PyImPlot {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        static bool lightTheme = false;
+        static bool showLightTheme = false;
+        static bool showImGuiDemo = false;
+        static bool showImPlotDemo = false;
 
         if (ImGui::BeginMainMenuBar()) {
 
             if (ImGui::BeginMenu("Show")) {
 
-                ImGui::MenuItem("Light Theme", NULL, &lightTheme);
+                ImGui::MenuItem("Light Theme", NULL, &showLightTheme);
+                ImGui::MenuItem("ImGui Demo", NULL, &showImGuiDemo);
+                ImGui::MenuItem("ImPlot Demo", NULL, &showImPlotDemo);
                 ImGui::EndMenu();
             }
 
             ImGui::EndMainMenuBar();
         }
 
-        if (lightTheme) {
+        if (showLightTheme) {
             ImGui::StyleColorsLight();
             ImPlot::StyleColorsLight();
         } else {
@@ -157,7 +161,13 @@ struct PyImPlot {
 
         ImGui::End();
 
-        ImPlot::ShowDemoWindow();
+        if (showImGuiDemo) {
+            ImGui::ShowDemoWindow(&showImGuiDemo);
+        }
+
+        if (showImPlotDemo) {
+            ImPlot::ShowDemoWindow(&showImPlotDemo);
+        }
     }
 
     void doUpdate () {
