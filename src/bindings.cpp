@@ -1,4 +1,7 @@
 #include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <pybind11/cast.h>
+#include <pybind11/detail/common.h>
 #include <regex>
 #include <functional>
 
@@ -17,6 +20,8 @@
 #include "implot.h"
 
 #include "SourceSansPro.h"
+
+namespace py = pybind11;
 
 struct PyImPlot {
 
@@ -271,12 +276,157 @@ PYBIND11_MODULE(pyimplot, m) {
 
         return plt.currentFigureOpen;
     },
-    pybind11::arg("title") = "");
+    py::arg("title") = "");
 
-    m.def("plot", [&](pybind11::array_t<float, pybind11::array::c_style
-                        | pybind11::array::forcecast> x,
-                      pybind11::array_t<float, pybind11::array::c_style
-                        | pybind11::array::forcecast> y,
+    m.def("begin", [&](std::string title, bool* open) {
+
+        return ImGui::Begin(title.c_str(), open);
+    },
+    py::arg("title") = "",
+    py::arg("open") = true);
+
+    m.def("end", [&]() {
+
+        ImGui::End();
+    });
+
+    m.def("button", [&](std::string title) {
+
+        return ImGui::Button(title.c_str());
+    },
+    py::arg("title"));
+
+    m.def("text", [&](std::string str, std::vector<float> c) {
+
+        if (c.size() == 3) {
+            ImGui::TextColored(ImVec4(c[0], c[1], c[2], 1.0), "%s", str.c_str());
+        } else if (c.size() == 4) {
+            ImGui::TextColored(ImVec4(c[0], c[1], c[2], c[3]), "%s", str.c_str());
+        } else {
+            ImGui::Text("%s", str.c_str());
+        }
+    },
+    py::arg("str"),
+    py::arg("color") = std::vector<float>{});
+
+    m.def("input", [&](std::string title, std::string& obj) {
+        
+        bool mod = ImGui::InputText(title.c_str(), &obj);
+        return py::make_tuple(mod, obj);
+    }, 
+    py::arg("title"),
+    py::arg("obj"));
+
+    m.def("input", [&](std::string title, int& obj) {
+        
+        bool mod = ImGui::InputInt(title.c_str(), &obj);
+        return py::make_tuple(mod, obj);
+    }, 
+    py::arg("title"),
+    py::arg("obj"));
+
+    m.def("input", [&](std::string title, float& obj) {
+        
+        bool mod = ImGui::InputFloat(title.c_str(), &obj);
+        return py::make_tuple(obj, mod);
+    }, 
+    py::arg("title"),
+    py::arg("obj"));
+
+    m.def("input", [&](std::string title, double& obj) {
+        
+        bool mod = ImGui::InputDouble(title.c_str(), &obj);
+        return py::make_tuple(obj, mod);
+    }, 
+    py::arg("title"),
+    py::arg("obj"));
+
+    m.def("checkbox", [&](std::string title, bool& obj) {
+        
+        bool mod = ImGui::Checkbox(title.c_str(), &obj);
+        return py::make_tuple(obj, mod);
+    }, 
+    py::arg("title"),
+    py::arg("obj"));
+
+    m.def("dataframe", [&](
+                py::object frame,
+                std::string title,
+                py::list selection) {
+
+        py::list keys = frame.attr("keys")();
+        py::function itemFunc = frame.attr("__getitem__");
+        py::array index = frame.attr("index");
+
+        size_t columnCount = 2 + py::len(keys);
+
+        ImGuiTableFlags flags =
+            ImGuiTableFlags_Borders
+            | ImGuiTableFlags_RowBg
+            | ImGuiTableFlags_Resizable
+            | ImGuiTableFlags_Reorderable
+            | ImGuiTableFlags_ScrollX
+            | ImGuiTableFlags_ScrollY;
+
+        if (ImGui::BeginTable(title.c_str(), columnCount, flags)) {
+
+            std::vector<py::function> getColDataFuncs;
+            getColDataFuncs.push_back(index.attr("__getitem__"));
+
+            ImGui::TableSetupColumn("");
+            ImGui::TableSetupColumn("ID");
+
+            for (const py::handle& o : keys) {
+
+                std::string key = py::cast<std::string>(o);
+
+                getColDataFuncs.push_back(
+                        itemFunc(key)
+                        .attr("astype")("str")
+                        .attr("__getitem__"));
+
+                ImGui::TableSetupColumn(key.c_str());
+            }
+
+            ImGui::TableHeadersRow();
+
+            for (ssize_t r = 0; r < index.size(); ++r) {
+                ImGui::TableNextRow();
+
+                bool state = selection.contains(r);
+
+                ImGui::TableSetColumnIndex(0);
+
+                ImGui::PushID(r);
+                
+                if (ImGui::Checkbox("###marked", &state)) {
+                    if (state) {
+                        selection.append(r);
+                    } else if (selection.contains(r)) {
+                        selection.attr("remove")(r);
+                    }
+                }
+
+                ImGui::PopID();
+
+                for (size_t c = 0; c < getColDataFuncs.size(); ++c) {
+                    ImGui::TableSetColumnIndex(c + 1);
+                    std::string txt{py::str(getColDataFuncs[c](r))};
+                    ImGui::Text("%s", txt.c_str());
+                }
+            }
+
+            ImGui::EndTable();
+        }
+    },
+    py::arg("frame"),
+    py::arg("title") = "",
+    py::arg("selection") = py::list{});
+
+    m.def("plot", [&](py::array_t<float, py::array::c_style
+                        | py::array::forcecast> x,
+                      py::array_t<float, py::array::c_style
+                        | py::array::forcecast> y,
                       std::string fmt,
                       std::string label) {
 
@@ -368,8 +518,8 @@ PYBIND11_MODULE(pyimplot, m) {
             ImPlot::PopStyleVar(1);
         }
     },
-    pybind11::arg("x"),
-    pybind11::arg("y") = pybind11::array(),
-    pybind11::arg("fmt") = "-",
-    pybind11::arg("label") = "line");
+    py::arg("x"),
+    py::arg("y") = py::array(),
+    py::arg("fmt") = "-",
+    py::arg("label") = "line");
 }
