@@ -3,7 +3,7 @@
 Pythonic bindings for the great [imgui](https://github.com/ocornut/imgui) and
 [implot](https://github.com/epezent/implot) libraries.
 
-**This is work an progress and at a very early state.**
+**This is work in progress and at a very early state.**
 
 ## What?
 
@@ -32,4 +32,4 @@ utterly incapable (also me) to deal with application state management in PyQt
 
 ## How?
 
-[pybind11][https://github.com/pybind/pybind11], baby.
+[pybind11](https://github.com/pybind/pybind11), baby.
