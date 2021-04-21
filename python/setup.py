@@ -1,8 +1,8 @@
 from setuptools import setup
 
-setup(name="pyimplot",
+setup(name="imviz",
       version="0.1",
-      description="Python bindings for implot with similarity to matplotlib.",
+      description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/pyimplot",
       author="Jona Ruof",
       author_email="jona.ruof@uni-ulm.de",
@@ -10,6 +10,6 @@ setup(name="pyimplot",
       zip_safe=True,
       packages=[''],
       package_dir={'': 'build'},
-      package_data={'': ["pyimplot.cpython-38-x86_64-linux-gnu.so"]},
+      package_data={'': ["imviz.cpython-38-x86_64-linux-gnu.so"]},
     )
 

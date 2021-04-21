@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
-project(implot)
+project(imviz)
 
-set(PY_TARGET_NAME "py${PROJECT_NAME}")
+set(PY_TARGET_NAME "${PROJECT_NAME}")
 
 # ---[ Check for OpenGL (mandatory) ]---
 
