@@ -19,9 +19,9 @@ different python bindings of imgui/implot somewhat unsatisfactory, because:
 * [pyimgui](https://github.com/hoffstadt/DearPyGui) maps the api but does not
   include implot
 * [imgui\_datascience](https://github.com/pthom/imgui_datascience) seems
-  abandoned and does not not include implot
+  abandoned and does not include implot
 * [dearpygui](https://github.com/hoffstadt/DearPyGui) includes implot, but
-  does no replicate the immediate mode paradigm in python
+  does not replicate the immediate mode paradigm in python
 
 ## Who?
 
