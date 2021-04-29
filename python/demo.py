@@ -54,7 +54,7 @@ def main():
 
             viz.dataframe(frame, "TestFrame", frame_selection)
 
-            viz.end()
+        viz.end()
 
 
 if __name__ == "__main__":

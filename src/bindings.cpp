@@ -248,7 +248,9 @@ PYBIND11_MODULE(imviz, m) {
         viz.trigger();
     });
 
-    m.def("figure", [&](std::string title) {
+    m.def("figure", [&](std::string title,
+                        std::string xLabel,
+                        std::string yLabel) {
 
         if (title.empty()) {
             title = "Figure " + std::to_string(viz.figureCounter);
@@ -262,11 +264,11 @@ PYBIND11_MODULE(imviz, m) {
         }
 
         if (ImGui::Begin(title.c_str())) {
-            ImPlot::BeginPlot(title.c_str(),
-                              NULL,
-                              NULL,
+            viz.currentFigureOpen = 
+                ImPlot::BeginPlot(title.c_str(),
+                              xLabel.c_str(),
+                              yLabel.c_str(),
                               ImGui::GetContentRegionAvail());
-            viz.currentFigureOpen = true;
         } else {
             viz.currentFigureOpen = false;
         }
@@ -276,7 +278,9 @@ PYBIND11_MODULE(imviz, m) {
 
         return viz.currentFigureOpen;
     },
-    py::arg("title") = "");
+    py::arg("title") = "",
+    py::arg("x_label") = "",
+    py::arg("y_label") = "");
 
     m.def("begin", [&](std::string title, bool* open) {
 
@@ -357,6 +361,7 @@ PYBIND11_MODULE(imviz, m) {
         py::list keys = frame.attr("keys")();
         py::function itemFunc = frame.attr("__getitem__");
         py::array index = frame.attr("index");
+        py::function indexGetFunc = index.attr("__getitem__");
 
         size_t columnCount = 2 + py::len(keys);
 
@@ -371,10 +376,10 @@ PYBIND11_MODULE(imviz, m) {
         if (ImGui::BeginTable(title.c_str(), columnCount, flags)) {
 
             std::vector<py::function> getColDataFuncs;
-            getColDataFuncs.push_back(index.attr("__getitem__"));
+            getColDataFuncs.push_back(indexGetFunc);
 
             ImGui::TableSetupColumn("");
-            ImGui::TableSetupColumn("ID");
+            ImGui::TableSetupColumn("index");
 
             for (const py::handle& o : keys) {
 
@@ -393,7 +398,8 @@ PYBIND11_MODULE(imviz, m) {
             for (ssize_t r = 0; r < index.size(); ++r) {
                 ImGui::TableNextRow();
 
-                bool state = selection.contains(r);
+                py::object rowIndex = indexGetFunc(r);
+                bool state = selection.contains(rowIndex);
 
                 ImGui::TableSetColumnIndex(0);
 
@@ -401,9 +407,9 @@ PYBIND11_MODULE(imviz, m) {
                 
                 if (ImGui::Checkbox("###marked", &state)) {
                     if (state) {
-                        selection.append(r);
-                    } else if (selection.contains(r)) {
-                        selection.attr("remove")(r);
+                        selection.append(rowIndex);
+                    } else if (selection.contains(rowIndex)) {
+                        selection.attr("remove")(rowIndex);
                     }
                 }
 
@@ -428,7 +434,9 @@ PYBIND11_MODULE(imviz, m) {
                       py::array_t<float, py::array::c_style
                         | py::array::forcecast> y,
                       std::string fmt,
-                      std::string label) {
+                      std::string label,
+                      std::string xLabel,
+                      std::string yLabel) {
 
         std::string title;
 
@@ -437,11 +445,11 @@ PYBIND11_MODULE(imviz, m) {
             title = "Figure " + std::to_string(viz.figureCounter);
 
             if (ImGui::Begin(title.c_str())) {
-                ImPlot::BeginPlot(title.c_str(),
-                                  NULL,
-                                  NULL,
+                viz.currentFigureOpen = 
+                    ImPlot::BeginPlot(title.c_str(),
+                                  xLabel.c_str(),
+                                  yLabel.c_str(),
                                   ImGui::GetContentRegionAvail());
-                viz.currentFigureOpen = true;
             } else {
                 viz.currentFigureOpen = false;
             }
@@ -521,5 +529,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("fmt") = "-",
-    py::arg("label") = "line");
+    py::arg("label") = "line",
+    py::arg("x_label") = "",
+    py::arg("y_label") = "");
 }
