@@ -175,7 +175,7 @@ struct ImViz {
         }
     }
 
-    void doUpdate () {
+    void doUpdate (bool useVsync) {
 
         if (hasCurrentFigure) {
             if (currentFigureOpen) {
@@ -210,6 +210,7 @@ struct ImViz {
 
         glfwMakeContextCurrent(window);
 
+        glfwSwapInterval(useVsync);
         glfwSwapBuffers(window);
 
         figureCounter = 0;
@@ -225,12 +226,13 @@ ImViz viz;
 
 PYBIND11_MODULE(imviz, m) {
 
-    m.def("wait", [&]() {
-        viz.doUpdate();
+    m.def("wait", [&](bool vsync) {
+        viz.doUpdate(vsync);
         glfwPollEvents();
         viz.prepareUpdate();
         return !glfwWindowShouldClose(viz.window);
-    });
+    },
+    py::arg("vsync") = true);
 
     /*
      * This needs some work until functional.
@@ -307,7 +309,19 @@ PYBIND11_MODULE(imviz, m) {
 
         return ImGui::Button(title.c_str());
     },
-    py::arg("title"));
+    py::arg("title") = "");
+
+    m.def("begin", [&](std::string title, bool* open) {
+
+        return ImGui::Begin(title.c_str(), open);
+    },
+    py::arg("title") = "",
+    py::arg("open") = true);
+
+    m.def("end", [&]() {
+
+        ImGui::End();
+    });
 
     m.def("text", [&](std::string str, std::vector<float> c) {
 
@@ -361,6 +375,20 @@ PYBIND11_MODULE(imviz, m) {
     }, 
     py::arg("title"),
     py::arg("obj"));
+
+    m.def("slider", [&](std::string title, float& value, float min, float max) {
+        
+        bool mod = ImGui::SliderFloat(title.c_str(), &value, min, max);
+        return py::make_tuple(value, mod);
+    }, 
+    py::arg("title"),
+    py::arg("value"),
+    py::arg("min") = 0.0,
+    py::arg("max") = 1.0);
+
+    m.def("same_line", []() {
+        ImGui::SameLine();
+    });
 
     m.def("dataframe", [&](
                 py::object frame,
