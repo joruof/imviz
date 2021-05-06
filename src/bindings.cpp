@@ -23,7 +23,7 @@
 
 namespace py = pybind11;
 
-struct PyImPlot {
+struct ImViz {
 
     GLFWwindow* window = nullptr;
 
@@ -34,7 +34,7 @@ struct PyImPlot {
 
     std::regex re{"(-)?(o|s|d|\\*|\\+)?(r|g|b|y|m|w)?"};
 
-    PyImPlot () {
+    ImViz () {
 
         if (!glfwInit()) {
             std::cout << "Could not initialize GLFW!" << std::endl;
@@ -49,7 +49,7 @@ struct PyImPlot {
         window = glfwCreateWindow(
                 800,
                 600,
-                "imvis",
+                "imviz",
                 nullptr,
                 nullptr);
 
@@ -78,7 +78,7 @@ struct PyImPlot {
 
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.IniFilename = "./pyimplot.ini";
+        io.IniFilename = "./imviz.ini";
 
         ImPlot::GetStyle().AntiAliasedLines = true;
 
@@ -222,15 +222,15 @@ struct PyImPlot {
     }
 };
 
-PyImPlot plt;
+ImViz viz;
 
-PYBIND11_MODULE(pyimplot, m) {
+PYBIND11_MODULE(imviz, m) {
 
     m.def("wait", [&](bool vsync) {
-        plt.doUpdate(vsync);
+        viz.doUpdate(vsync);
         glfwPollEvents();
-        plt.prepareUpdate();
-        return !glfwWindowShouldClose(plt.window);
+        viz.prepareUpdate();
+        return !glfwWindowShouldClose(viz.window);
     },
     py::arg("vsync") = true);
 
@@ -247,17 +247,17 @@ PYBIND11_MODULE(pyimplot, m) {
     */
 
     m.def("trigger", [&]() {
-        plt.trigger();
+        viz.trigger();
     });
 
     m.def("figure", [&](std::string title) {
 
         if (title.empty()) {
-            title = "Figure " + std::to_string(plt.figureCounter);
+            title = "Figure " + std::to_string(viz.figureCounter);
         }
 
-        if (plt.hasCurrentFigure) {
-            if (plt.currentFigureOpen) {
+        if (viz.hasCurrentFigure) {
+            if (viz.currentFigureOpen) {
                 ImPlot::EndPlot();
             }
             ImGui::End();
@@ -268,15 +268,15 @@ PYBIND11_MODULE(pyimplot, m) {
                               NULL,
                               NULL,
                               ImGui::GetContentRegionAvail());
-            plt.currentFigureOpen = true;
+            viz.currentFigureOpen = true;
         } else {
-            plt.currentFigureOpen = false;
+            viz.currentFigureOpen = false;
         }
 
-        plt.hasCurrentFigure = true;
-        plt.figureCounter += 1;
+        viz.hasCurrentFigure = true;
+        viz.figureCounter += 1;
 
-        return plt.currentFigureOpen;
+        return viz.currentFigureOpen;
     },
     py::arg("title") = "");
 
@@ -296,7 +296,19 @@ PYBIND11_MODULE(pyimplot, m) {
 
         return ImGui::Button(title.c_str());
     },
-    py::arg("title"));
+    py::arg("title") = "");
+
+    m.def("begin", [&](std::string title, bool* open) {
+
+        return ImGui::Begin(title.c_str(), open);
+    },
+    py::arg("title") = "",
+    py::arg("open") = true);
+
+    m.def("end", [&]() {
+
+        ImGui::End();
+    });
 
     m.def("text", [&](std::string str, std::vector<float> c) {
 
@@ -444,32 +456,35 @@ PYBIND11_MODULE(pyimplot, m) {
                       py::array_t<float, py::array::c_style
                         | py::array::forcecast> y,
                       std::string fmt,
-                      std::string label) {
+                      std::string label,
+                      py::array_t<float, py::array::c_style
+                        | py::array::forcecast> shade,
+                      float shadeAlpha) {
 
         std::string title;
 
-        if (!plt.hasCurrentFigure) {
+        if (!viz.hasCurrentFigure) {
 
-            title = "Figure " + std::to_string(plt.figureCounter);
+            title = "Figure " + std::to_string(viz.figureCounter);
 
             if (ImGui::Begin(title.c_str())) {
                 ImPlot::BeginPlot(title.c_str(),
                                   NULL,
                                   NULL,
                                   ImGui::GetContentRegionAvail());
-                plt.currentFigureOpen = true;
+                viz.currentFigureOpen = true;
             } else {
-                plt.currentFigureOpen = false;
+                viz.currentFigureOpen = false;
             }
 
-            plt.hasCurrentFigure = true;
-            plt.figureCounter += 1;
+            viz.hasCurrentFigure = true;
+            viz.figureCounter += 1;
         }
 
-        if (plt.currentFigureOpen) {
+        if (viz.currentFigureOpen) {
 
             std::smatch match;
-            std::regex_search(fmt, match, plt.re);
+            std::regex_search(fmt, match, viz.re);
 
             std::vector<std::string> groups;
             for (auto m : match) {
@@ -531,11 +546,26 @@ PYBIND11_MODULE(pyimplot, m) {
                 ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
             }
 
+            size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
+
+            if (shadeCount != 0) {
+                if (1 == shade.ndim()) {
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
+                    auto mean = py::cast<py::array_t<float>>(y[py::slice(0, shadeCount, 1)]);
+                    py::array_t<float> upper = mean + shade;
+                    py::array_t<float> lower = mean - shade;
+                    ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
+                    ImPlot::PopStyleVar();
+                }
+            }
+
             ImPlot::PopStyleVar(1);
         }
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("fmt") = "-",
-    py::arg("label") = "line");
+    py::arg("label") = "line",
+    py::arg("shade") = py::array(),
+    py::arg("shade_alpha") = 0.3f);
 }
