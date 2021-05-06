@@ -250,7 +250,8 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("figure", [&](std::string title,
                         std::string xLabel,
-                        std::string yLabel) {
+                        std::string yLabel,
+                        bool equalAxis) {
 
         if (title.empty()) {
             title = "Figure " + std::to_string(viz.figureCounter);
@@ -263,12 +264,19 @@ PYBIND11_MODULE(imviz, m) {
             ImGui::End();
         }
 
+        ImPlotFlags flags = 0;
+
+        if (equalAxis) {
+            flags |= ImPlotFlags_Equal;
+        }
+
         if (ImGui::Begin(title.c_str())) {
             viz.currentFigureOpen = 
                 ImPlot::BeginPlot(title.c_str(),
                               xLabel.c_str(),
                               yLabel.c_str(),
-                              ImGui::GetContentRegionAvail());
+                              ImGui::GetContentRegionAvail(),
+                              flags);
         } else {
             viz.currentFigureOpen = false;
         }
@@ -280,7 +288,8 @@ PYBIND11_MODULE(imviz, m) {
     },
     py::arg("title") = "",
     py::arg("x_label") = "",
-    py::arg("y_label") = "");
+    py::arg("y_label") = "",
+    py::arg("equal_axis") = false);
 
     m.def("begin", [&](std::string title, bool* open) {
 
@@ -436,7 +445,10 @@ PYBIND11_MODULE(imviz, m) {
                       std::string fmt,
                       std::string label,
                       std::string xLabel,
-                      std::string yLabel) {
+                      std::string yLabel,
+                      py::array_t<float, py::array::c_style
+                        | py::array::forcecast> shade,
+                      float shadeAlpha) {
 
         std::string title;
 
@@ -523,6 +535,19 @@ PYBIND11_MODULE(imviz, m) {
                 ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
             }
 
+            size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
+
+            if (shadeCount != 0) {
+                if (1 == shade.ndim()) {
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
+                    auto mean = py::cast<py::array_t<float>>(y[py::slice(0, shadeCount, 1)]);
+                    py::array_t<float> upper = mean + shade;
+                    py::array_t<float> lower = mean - shade;
+                    ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
+                    ImPlot::PopStyleVar();
+                }
+            }
+
             ImPlot::PopStyleVar(1);
         }
     },
@@ -531,5 +556,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("fmt") = "-",
     py::arg("label") = "line",
     py::arg("x_label") = "",
-    py::arg("y_label") = "");
+    py::arg("y_label") = "",
+    py::arg("shade") = py::array(),
+    py::arg("shade_alpha") = 0.3f);
 }

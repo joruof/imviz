@@ -6,7 +6,7 @@ import build.imviz as viz
 """
 
 Inspired by the imgui/implot demo files this file demonstrates the usage of
-imviz by example. 
+imviz by example.
 
 """
 
@@ -28,7 +28,7 @@ def main():
     while viz.wait():
 
         if viz.figure("Test"):
-            viz.plot([1, 2, 3], [1, 2, 3], "o")
+            viz.plot([1, 2, 3], [1, 2, 3], shade=[0.2, 0.1, 0.3], fmt="-o")
 
         if viz.figure("Test2"):
             viz.plot(xs, ys, "-o")
