@@ -390,6 +390,47 @@ PYBIND11_MODULE(imviz, m) {
         ImGui::SameLine();
     });
 
+    m.def("multiselect", [&](
+                std::string label,
+                py::list& values,
+                py::list& selection) {
+
+        bool modified = false;
+
+        if (ImGui::BeginPopup(label.c_str())) {
+
+            for (py::handle o : values) {
+                std::string ostr = py::str(o);
+
+                bool inList = selection.contains(o);
+
+                // this will be modified by the checkbox
+                bool selected = inList;
+
+                if (ImGui::Checkbox(ostr.c_str(), &selected)) {
+                    if (selected && !inList) {
+                        selection.append(o);
+                    } else if (!selected && inList) {
+                        selection.attr("remove")(o);
+                    }
+
+                    modified = true;
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::Button(label.c_str())) {
+            ImGui::OpenPopup(label.c_str());
+        }
+
+        return modified;
+    },
+    py::arg("label"),
+    py::arg("values"),
+    py::arg("selection"));
+
     m.def("dataframe", [&](
                 py::object frame,
                 std::string title,

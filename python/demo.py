@@ -20,6 +20,8 @@ def main():
 
     frame_selection = []
 
+    multi_selection = []
+
     test_string: str = "This is a test"
     steering_angle: float = 0.0
 
@@ -53,6 +55,13 @@ def main():
                 print(asdf)
 
             viz.dataframe(frame, "TestFrame", frame_selection)
+
+            if (viz.multiselect(
+                    "Select something",
+                    ["values", "blub", "test"],
+                    multi_selection)):
+
+                print("Multiselection changed!")
 
         viz.end()
 
