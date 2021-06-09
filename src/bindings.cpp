@@ -386,6 +386,80 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
+    m.def("range", [&](std::string title, py::tuple range, int min, int max, float speed) {
+
+        int minVal = py::cast<int>(range[0]);
+        int maxVal = py::cast<int>(range[1]);
+        
+        bool mod = ImGui::DragIntRange2(title.c_str(), &minVal, &maxVal, speed, min, max);
+
+        if (ImGui::BeginPopupContextItem(title.c_str())) {
+
+            if (ImGui::MenuItem("Expand range")) {
+                minVal = min;
+                maxVal = max;
+            }
+            if (ImGui::MenuItem("Expand min")) {
+                minVal = min;
+            }
+            if (ImGui::MenuItem("Expand max")) {
+                maxVal = max;
+            }
+            if (ImGui::MenuItem("Collapse to min")) {
+                maxVal = minVal;
+            }
+            if (ImGui::MenuItem("Collapse to max")) {
+                minVal = maxVal;
+            }
+
+            ImGui::EndPopup();
+        }
+
+        return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
+    }, 
+    py::arg("title"),
+    py::arg("range"),
+    py::arg("min") = 0,
+    py::arg("max") = 0,
+    py::arg("speed") = 1.0f);
+
+    m.def("range", [&](std::string title, py::tuple range, float min, float max, float speed) {
+
+        float minVal = py::cast<float>(range[0]);
+        float maxVal = py::cast<float>(range[1]);
+        
+        bool mod = ImGui::DragFloatRange2(title.c_str(), &minVal, &maxVal, speed, min, max);
+
+        if (ImGui::BeginPopupContextItem(title.c_str())) {
+
+            if (ImGui::MenuItem("Expand range")) {
+                minVal = min;
+                maxVal = max;
+            }
+            if (ImGui::MenuItem("Expand min")) {
+                minVal = min;
+            }
+            if (ImGui::MenuItem("Expand max")) {
+                maxVal = max;
+            }
+            if (ImGui::MenuItem("Collapse to min")) {
+                maxVal = minVal;
+            }
+            if (ImGui::MenuItem("Collapse to max")) {
+                minVal = maxVal;
+            }
+
+            ImGui::EndPopup();
+        }
+
+        return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
+    }, 
+    py::arg("title"),
+    py::arg("range"),
+    py::arg("min") = 0,
+    py::arg("max") = 0,
+    py::arg("speed") = 1.0f);
+
     m.def("same_line", []() {
         ImGui::SameLine();
     });
