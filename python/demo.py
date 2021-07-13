@@ -27,6 +27,12 @@ def main():
 
     asdf: bool = False
 
+    img = np.random.rand(240, 320)
+    img = img.astype("float32")
+
+    display_width = 0.0
+    display_height = 0.0
+
     while viz.wait():
 
         if viz.figure("Test"):
@@ -62,6 +68,29 @@ def main():
                     multi_selection)):
 
                 print("Multiselection changed!")
+
+        viz.end()
+
+        if viz.begin("Tab Test"):
+            if viz.begin_tab_bar("TabBar"):
+                if viz.begin_tab_item("TestItem"):
+                    viz.text("Hello")
+                    viz.end_tab_item()
+                if viz.begin_tab_item("TestItem2"):
+                    viz.text("Hello2")
+                    viz.end_tab_item()
+                viz.end_tab_bar()
+
+        viz.end()
+
+        if viz.begin("Image test"):
+            display_width, mod = viz.slider("Display Width", display_width, 0.0, 1000)
+            display_height, mod = viz.slider("Display Height", display_height, 0.0, 1000)
+
+            viz.imshow("test_image",
+                       img,
+                       int(display_width),
+                       int(display_height))
 
         viz.end()
 

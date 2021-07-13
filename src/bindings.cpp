@@ -14,6 +14,8 @@
 #include <pybind11/pybind11.h>
 
 #include <experimental/filesystem>
+#include <stdexcept>
+#include <unordered_map>
 
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -33,6 +35,8 @@ struct ImViz {
     size_t figureCounter = 1;
 
     std::regex re{"(-)?(o|s|d|\\*|\\+)?(r|g|b|y|m|w)?"};
+
+    std::unordered_map<std::string, GLuint> textureCache;
 
     ImViz () {
 
@@ -505,6 +509,109 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("values"),
     py::arg("selection"));
 
+    m.def("imshow", [&](
+                std::string id,
+                py::array& image,
+                int displayWidth,
+                int displayHeight) {
+
+        // determine image parameters
+
+        int imageWidth = 0;
+        int imageHeight = 0;
+        int channels = 0;
+        GLenum format = 0;
+        GLenum datatype = 0;
+
+        if (image.ndim() == 2) {
+            imageWidth = image.shape(1);
+            imageHeight = image.shape(0);
+            channels = 1;
+        } else if (image.ndim() == 3) {
+            imageWidth = image.shape(1);
+            imageHeight = image.shape(0);
+            channels = image.shape(2);
+        } else {
+            throw std::runtime_error("Image format not understood");
+        }
+
+        if (channels == 1) {
+            format = GL_RED;
+        } else if (channels == 3) {
+            format = GL_RGB;
+        } else if (channels == 4) {
+            format = GL_RGBA;
+        } else {
+            throw std::runtime_error("Channel count not understood");
+        }
+
+        if (image.dtype().is(py::dtype("uint8"))) {
+            datatype = GL_UNSIGNED_BYTE;
+        } else if (image.dtype().is(py::dtype("float32"))) {
+            datatype = GL_FLOAT;
+        } else {
+            throw std::runtime_error("Pixel datatype not supported");
+        }
+
+        // create a texture if necessary
+        if (viz.textureCache.find(id) == viz.textureCache.end()) {
+
+            GLuint textureId;
+
+            glGenTextures(1, &textureId);
+            glBindTexture(GL_TEXTURE_2D, textureId);
+
+            // setup filtering parameters for display
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            viz.textureCache[id] = textureId;
+        }
+
+        // upload texture
+
+        GLuint textureId = viz.textureCache[id];
+
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        if (format == GL_RED) {
+            GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+        }
+
+        glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                format,
+                imageWidth,
+                imageHeight,
+                0,
+                format,
+                datatype,
+                image.data());
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        // display texture
+
+        if (displayWidth < 1) {
+            displayWidth = imageWidth;
+        }
+        if (displayHeight < 1) {
+            displayHeight = imageHeight;
+        }
+
+        ImGui::Image((void*)(intptr_t)textureId, ImVec2(displayWidth, displayHeight));
+    },
+    py::arg("id"),
+    py::arg("image"),
+    py::arg("width") = 0,
+    py::arg("height") = 0);
+
     m.def("dataframe", [&](
                 py::object frame,
                 std::string title,
@@ -580,6 +687,16 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("frame"),
     py::arg("title") = "",
     py::arg("selection") = py::list{});
+
+    m.def("begin_tab_bar", [&](std::string& name) {
+        return ImGui::BeginTabBar(name.c_str());
+    });
+    m.def("end_tab_bar", ImGui::EndTabBar);
+
+    m.def("begin_tab_item", [&](std::string& name) {
+        return ImGui::BeginTabItem(name.c_str());
+    });
+    m.def("end_tab_item", ImGui::EndTabItem);
 
     m.def("plot", [&](py::array_t<float, py::array::c_style
                         | py::array::forcecast> x,
