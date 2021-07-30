@@ -87,10 +87,12 @@ def main():
             display_width, mod = viz.slider("Display Width", display_width, 0.0, 1000)
             display_height, mod = viz.slider("Display Height", display_height, 0.0, 1000)
 
-            viz.imshow("test_image",
-                       img,
-                       int(display_width),
-                       int(display_height))
+            if viz.figure("Test ImageFigure"):
+
+                viz.imshow("test_image",
+                           img,
+                           int(display_width),
+                           int(display_height))
 
         viz.end()
 
