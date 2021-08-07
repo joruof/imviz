@@ -33,12 +33,16 @@ def main():
     display_width = 0.0
     display_height = 0.0
 
+    target_pos = (0.0, 0.0)
+
     while viz.wait():
 
         if viz.figure("Test"):
             viz.plot([1, 2, 3], [1, 2, 3], shade=[0.2, 0.1, 0.3], fmt="-o")
 
         if viz.figure("Test2"):
+
+            target_pos, mod = viz.drag_point("dst", target_pos, True, [1.0, 0.0, 0.0], 20)
             viz.plot(xs, ys, "-o")
 
         if viz.begin("Other"):
@@ -84,15 +88,16 @@ def main():
         viz.end()
 
         if viz.begin("Image test"):
+
             display_width, mod = viz.slider("Display Width", display_width, 0.0, 1000)
             display_height, mod = viz.slider("Display Height", display_height, 0.0, 1000)
 
-            if viz.figure("Test ImageFigure"):
+                #viz.plot([1, 2, 3], [1, 2, 3])
 
-                viz.imshow("test_image",
-                           img,
-                           int(display_width),
-                           int(display_height))
+                #viz.imshow("test_image",
+                #           img,
+                #           int(display_width),
+                #           int(display_height))
 
         viz.end()
 

@@ -843,4 +843,47 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("shade") = py::array(),
     py::arg("shade_alpha") = 0.3f,
     py::arg("line_weight") = 1.0f);
+
+    m.def("drag_point", [&](std::string label,
+                            py::array_t<float, py::array::c_style
+                                | py::array::forcecast> point,
+                            bool showLabel,
+                            py::array_t<float, py::array::c_style
+                                | py::array::forcecast> color,
+                            float radius) {
+
+        double x = point.data()[0];
+        double y = point.data()[1];
+
+        size_t colorLength = color.shape()[0];
+
+        ImVec4 c(0, 0, 0, 1);
+
+        if (colorLength == 1) {
+            c.x = color.data()[0];
+            c.y = color.data()[0];
+            c.z = color.data()[0];
+        } else if (colorLength == 3) {
+            c.x = color.data()[0];
+            c.y = color.data()[1];
+            c.z = color.data()[2];
+        } else if (colorLength == 4) {
+            c.x = color.data()[0];
+            c.y = color.data()[1];
+            c.z = color.data()[2];
+            c.w = color.data()[3];
+        } else {
+            c = IMPLOT_AUTO_COL;
+        }
+
+        bool mod = ImPlot::DragPoint(label.c_str(), &x, &y, showLabel, c, radius);
+
+        return py::make_tuple(py::make_tuple(x, y), mod);
+    },
+    py::arg("label"),
+    py::arg("point"),
+    py::arg("show_label") = false,
+    py::arg("color") = py::array_t<float>(),
+    py::arg("radius") = 4.0f) ;
+
 }
