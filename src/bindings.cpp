@@ -257,7 +257,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("figure", [&](std::string title,
                         std::string xLabel,
                         std::string yLabel,
-                        bool equalAxis) {
+                        bool equalAxis,
+                        bool autoFitX,
+                        bool autoFitY) {
 
         if (title.empty()) {
             title = "Figure " + std::to_string(viz.figureCounter);
@@ -276,13 +278,26 @@ PYBIND11_MODULE(imviz, m) {
             flags |= ImPlotFlags_Equal;
         }
 
+        ImPlotAxisFlags xFlags = 0;
+        ImPlotAxisFlags yFlags = 0;
+
+        if (autoFitX) { 
+            xFlags |= ImPlotAxisFlags_AutoFit;
+        }
+
+        if (autoFitY) { 
+            yFlags |= ImPlotAxisFlags_AutoFit;
+        }
+
         if (ImGui::Begin(title.c_str())) {
             viz.currentFigureOpen = 
                 ImPlot::BeginPlot(title.c_str(),
                               xLabel.c_str(),
                               yLabel.c_str(),
                               ImGui::GetContentRegionAvail(),
-                              flags);
+                              flags,
+                              xFlags,
+                              yFlags);
         } else {
             viz.currentFigureOpen = false;
         }
@@ -295,7 +310,9 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("title") = "",
     py::arg("x_label") = "",
     py::arg("y_label") = "",
-    py::arg("equal_axis") = false);
+    py::arg("equal_axis") = false,
+    py::arg("auto_fit_x") = false,
+    py::arg("auto_fit_y") = false);
 
     m.def("begin", [&](std::string title, bool* open) {
 
@@ -545,9 +562,9 @@ PYBIND11_MODULE(imviz, m) {
             throw std::runtime_error("Channel count not understood");
         }
 
-        if (image.dtype().is(py::dtype("uint8"))) {
+        if (py::str(image.dtype()).equal(py::str("uint8"))) {
             datatype = GL_UNSIGNED_BYTE;
-        } else if (image.dtype().is(py::dtype("float32"))) {
+        } else if (py::str(image.dtype()).equal(py::str("float32"))) {
             datatype = GL_FLOAT;
         } else {
             throw std::runtime_error("Pixel datatype not supported");
@@ -605,7 +622,10 @@ PYBIND11_MODULE(imviz, m) {
             displayHeight = imageHeight;
         }
 
-        ImGui::Image((void*)(intptr_t)textureId, ImVec2(displayWidth, displayHeight));
+        ImPlotPoint boundsMin(0, 0);
+        ImPlotPoint boundsMax(imageWidth, imageHeight);
+
+        ImPlot::PlotImage(id.c_str(), (void*)(intptr_t)textureId, boundsMin, boundsMax);
     },
     py::arg("id"),
     py::arg("image"),
@@ -708,7 +728,8 @@ PYBIND11_MODULE(imviz, m) {
                       std::string yLabel,
                       py::array_t<float, py::array::c_style
                         | py::array::forcecast> shade,
-                      float shadeAlpha) {
+                      float shadeAlpha,
+                      float lineWeight) {
 
         std::string title;
 
@@ -743,6 +764,8 @@ PYBIND11_MODULE(imviz, m) {
                     groups.push_back("");
                 }
             }
+
+            ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
 
             if (groups[2] == "o") {
                 ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
@@ -808,7 +831,7 @@ PYBIND11_MODULE(imviz, m) {
                 }
             }
 
-            ImPlot::PopStyleVar(1);
+            ImPlot::PopStyleVar(2);
         }
     },
     py::arg("x"),
@@ -818,5 +841,6 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("x_label") = "",
     py::arg("y_label") = "",
     py::arg("shade") = py::array(),
-    py::arg("shade_alpha") = 0.3f);
+    py::arg("shade_alpha") = 0.3f,
+    py::arg("line_weight") = 1.0f);
 }
