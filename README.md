@@ -32,4 +32,4 @@ utterly incapable (also me) to deal with application state management in PyQt
 
 ## How?
 
-[pybind11](https://github.com/pybind/pybind11), baby.
+[pybind11](https://github.com/pybind/pybind11).
