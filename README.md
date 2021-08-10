@@ -36,10 +36,6 @@ utterly incapable (also me) to deal with application state management in PyQt
 
 ## Installation
 
-The ```setup.py``` script configures and builds the project via cmake, which in
-turn downloads further required dependencies. An internet connection is
-therefore necessary at build time.
-
 OpenGL libraries and GLEW are mandatory dependencies and are expected
 to be installed on the system.
 
@@ -49,6 +45,21 @@ installed with:
 ```
 sudo apt-get install -y libglew-dev
 ```
+
+### Via PyPI
+
+For convenience a bundeled source distribution is available on PyPI. Install
+via pip:
+
+```
+python3 -m pip install imviz
+```
+
+### From Source
+
+The ```setup.py``` script configures and builds the project via cmake, which in
+turn downloads further required dependencies. An internet connection is
+therefore necessary at build time.
 
 The project can then be installed by executing the following command in the
 project root directory:
