@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-import build.imviz as viz
+import imviz as viz
 
 """
 

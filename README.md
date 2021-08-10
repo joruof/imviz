@@ -33,3 +33,26 @@ utterly incapable (also me) to deal with application state management in PyQt
 ## How?
 
 [pybind11](https://github.com/pybind/pybind11).
+
+## Installation
+
+The ```setup.py``` script configures and builds the project via cmake, which in
+turn downloads further required dependencies. An internet connection is
+therefore necessary at build time.
+
+OpenGL libraries and GLEW are mandatory dependencies and are expected
+to be installed on the system.
+
+On Ubuntu 20.04 OpenGL libraries are already installed and GLEW can be
+installed with:
+
+```
+sudo apt-get install -y libglew-dev
+```
+
+The project can then be installed by executing the following command in the
+project root directory:
+
+```
+python3 -m pip install .
+```

@@ -1,3 +1,5 @@
 build
 imviz.ini
 .cache
+*.egg-info
+*.so
