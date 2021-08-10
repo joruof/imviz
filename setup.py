@@ -9,7 +9,6 @@ from pathlib import Path
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 
-
 # Setuptools calls cmake, which takes care of further
 # C++ dependency resolution and the extension build.
 
@@ -92,15 +91,23 @@ class CMakeBuild(build_ext):
             self.copy_file(source_path, dest_path)
 
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    readme = fh.read()
+
+
 setup(name="imviz",
-      version="0.1",
+      version="0.1.1",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
       author_email="jona.ruof@uni-ulm.de",
       license="MIT",
       zip_safe=False,
+      long_description=readme,
+      long_description_content_type="text/markdown",
+      python_requires=">=3.6",
       packages=find_packages(),
       ext_modules=[CMakeExtension("imviz")],
       cmdclass=dict(build_ext=CMakeBuild),
+      include_package_data=True,
       )
