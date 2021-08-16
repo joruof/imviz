@@ -87,17 +87,12 @@ def main():
 
         viz.end()
 
-        if viz.begin("Image test"):
+        if viz.begin("Slider drag test"):
 
             display_width, mod = viz.slider("Display Width", display_width, 0.0, 1000)
             display_height, mod = viz.slider("Display Height", display_height, 0.0, 1000)
 
-                #viz.plot([1, 2, 3], [1, 2, 3])
-
-                #viz.imshow("test_image",
-                #           img,
-                #           int(display_width),
-                #           int(display_height))
+            display_height, mod = viz.drag("Drag test", display_height, 0.01, 0.0, 1000)
 
         viz.end()
 

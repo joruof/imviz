@@ -400,6 +400,7 @@ PYBIND11_MODULE(imviz, m) {
     m.def("slider", [&](std::string title, float& value, float min, float max) {
         
         bool mod = ImGui::SliderFloat(title.c_str(), &value, min, max);
+
         return py::make_tuple(value, mod);
     }, 
     py::arg("title"),
@@ -407,7 +408,19 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
-    m.def("range", [&](std::string title, py::tuple range, int min, int max, float speed) {
+    m.def("drag", [&](std::string title, float& value, float speed, float min, float max) {
+        
+        bool mod = ImGui::DragFloat(title.c_str(), &value, speed, min, max);
+
+        return py::make_tuple(value, mod);
+    }, 
+    py::arg("title"),
+    py::arg("value"),
+    py::arg("speed") = 0.1,
+    py::arg("min") = 0.0,
+    py::arg("max") = 0.0);
+
+    m.def("range", [&](std::string title, py::tuple range, float speed, int min, int max) {
 
         int minVal = py::cast<int>(range[0]);
         int maxVal = py::cast<int>(range[1]);
@@ -420,10 +433,10 @@ PYBIND11_MODULE(imviz, m) {
                 minVal = min;
                 maxVal = max;
             }
-            if (ImGui::MenuItem("Expand min")) {
+            if (ImGui::MenuItem("Expand to min")) {
                 minVal = min;
             }
-            if (ImGui::MenuItem("Expand max")) {
+            if (ImGui::MenuItem("Expand to max")) {
                 maxVal = max;
             }
             if (ImGui::MenuItem("Collapse to min")) {
@@ -440,11 +453,11 @@ PYBIND11_MODULE(imviz, m) {
     }, 
     py::arg("title"),
     py::arg("range"),
+    py::arg("speed") = 1.0f,
     py::arg("min") = 0,
-    py::arg("max") = 0,
-    py::arg("speed") = 1.0f);
+    py::arg("max") = 0);
 
-    m.def("range", [&](std::string title, py::tuple range, float min, float max, float speed) {
+    m.def("range", [&](std::string title, py::tuple range, float speed, float min, float max) {
 
         float minVal = py::cast<float>(range[0]);
         float maxVal = py::cast<float>(range[1]);
@@ -457,10 +470,10 @@ PYBIND11_MODULE(imviz, m) {
                 minVal = min;
                 maxVal = max;
             }
-            if (ImGui::MenuItem("Expand min")) {
+            if (ImGui::MenuItem("Expand to min")) {
                 minVal = min;
             }
-            if (ImGui::MenuItem("Expand max")) {
+            if (ImGui::MenuItem("Expand to max")) {
                 maxVal = max;
             }
             if (ImGui::MenuItem("Collapse to min")) {
@@ -477,9 +490,9 @@ PYBIND11_MODULE(imviz, m) {
     }, 
     py::arg("title"),
     py::arg("range"),
+    py::arg("speed") = 1.0f,
     py::arg("min") = 0,
-    py::arg("max") = 0,
-    py::arg("speed") = 1.0f);
+    py::arg("max") = 0);
 
     m.def("same_line", []() {
         ImGui::SameLine();
