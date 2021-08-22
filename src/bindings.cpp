@@ -325,6 +325,30 @@ PYBIND11_MODULE(imviz, m) {
         ImGui::End();
     });
 
+    m.def("begin_menu_bar", ImGui::BeginMenuBar);
+    m.def("end_menu_bar", ImGui::EndMenuBar);
+
+    m.def("begin_main_menu_bar", ImGui::BeginMainMenuBar);
+    m.def("end_main_menu_bar", ImGui::EndMainMenuBar);
+
+    m.def("begin_menu", [&](std::string label, bool enabled) {
+
+        return ImGui::BeginMenu(label.c_str(), enabled);
+    },
+    py::arg("label"),
+    py::arg("enabled") = true);
+
+    m.def("end_menu", ImGui::EndMenu);
+
+    m.def("menu_item", [&](std::string label, std::string shortcut, bool selected, bool enabled) {
+        
+        return ImGui::MenuItem(label.c_str(), shortcut.c_str(), selected, enabled);
+    },
+    py::arg("label"),
+    py::arg("shortcut") = "",
+    py::arg("selected") = false,
+    py::arg("enabled") = true);
+
     m.def("button", [&](std::string title) {
 
         return ImGui::Button(title.c_str());
@@ -359,7 +383,7 @@ PYBIND11_MODULE(imviz, m) {
     m.def("input", [&](std::string title, std::string& obj) {
         
         bool mod = ImGui::InputText(title.c_str(), &obj);
-        return py::make_tuple(mod, obj);
+        return py::make_tuple(obj, mod);
     }, 
     py::arg("title"),
     py::arg("obj"));
@@ -367,7 +391,7 @@ PYBIND11_MODULE(imviz, m) {
     m.def("input", [&](std::string title, int& obj) {
         
         bool mod = ImGui::InputInt(title.c_str(), &obj);
-        return py::make_tuple(mod, obj);
+        return py::make_tuple(obj, mod);
     }, 
     py::arg("title"),
     py::arg("obj"));
