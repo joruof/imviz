@@ -86,7 +86,6 @@ struct ImViz {
 
         ImPlot::GetStyle().AntiAliasedLines = true;
 
-
         // loading font
 
         io.Fonts->AddFontFromMemoryCompressedTTF(
@@ -195,7 +194,7 @@ struct ImViz {
 
         ImGui::Render();
         
-        // background color take from the one-and-only tomorrow-night theme
+        // background color taken from the one-and-only tomorrow-night theme
 
         glClearColor(0.11372549019607843,
                      0.12156862745098039,
@@ -718,15 +717,15 @@ PYBIND11_MODULE(imviz, m) {
     });
     m.def("end_tab_item", ImGui::EndTabItem);
 
-    m.def("plot", [&](py::array_t<float, py::array::c_style
+    m.def("plot", [&](py::array_t<double, py::array::c_style
                         | py::array::forcecast> x,
-                      py::array_t<float, py::array::c_style
+                      py::array_t<double, py::array::c_style
                         | py::array::forcecast> y,
                       std::string fmt,
                       std::string label,
                       std::string xLabel,
                       std::string yLabel,
-                      py::array_t<float, py::array::c_style
+                      py::array_t<double, py::array::c_style
                         | py::array::forcecast> shade,
                       float shadeAlpha,
                       float lineWeight) {
@@ -783,9 +782,9 @@ PYBIND11_MODULE(imviz, m) {
 
             size_t yCount = y.shape()[0];
 
-            std::vector<float> indices;
-            const float* xDataPtr = nullptr;
-            const float* yDataPtr = nullptr;
+            std::vector<double> indices;
+            const double* xDataPtr = nullptr;
+            const double* yDataPtr = nullptr;
             size_t count = 0;
 
             if (1 == x.ndim() && 0 == yCount) {
@@ -823,9 +822,9 @@ PYBIND11_MODULE(imviz, m) {
             if (shadeCount != 0) {
                 if (1 == shade.ndim()) {
                     ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
-                    auto mean = py::cast<py::array_t<float>>(y[py::slice(0, shadeCount, 1)]);
-                    py::array_t<float> upper = mean + shade;
-                    py::array_t<float> lower = mean - shade;
+                    auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
+                    py::array_t<double> upper = mean + shade;
+                    py::array_t<double> lower = mean - shade;
                     ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
                     ImPlot::PopStyleVar();
                 }
@@ -845,12 +844,12 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("line_weight") = 1.0f);
 
     m.def("drag_point", [&](std::string label,
-                            py::array_t<float, py::array::c_style
+                            py::array_t<double, py::array::c_style
                                 | py::array::forcecast> point,
                             bool showLabel,
-                            py::array_t<float, py::array::c_style
+                            py::array_t<double, py::array::c_style
                                 | py::array::forcecast> color,
-                            float radius) {
+                            double radius) {
 
         double x = point.data()[0];
         double y = point.data()[1];
@@ -883,7 +882,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label"),
     py::arg("point"),
     py::arg("show_label") = false,
-    py::arg("color") = py::array_t<float>(),
-    py::arg("radius") = 4.0f) ;
+    py::arg("color") = py::array_t<double>(),
+    py::arg("radius") = 4.0) ;
 
 }
