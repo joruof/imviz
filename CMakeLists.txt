@@ -25,6 +25,15 @@ else(GLEW_FOUND)
     message(FATAL_ERROR "${ColourBoldRed}GLEW missing.${ColourReset}")
 endif()
 
+# ---[ Check for GLFW3 (mandatory) ]---
+
+find_package(glfw3 QUIET)
+if(glfw3_FOUND)
+    message(STATUS "Found GLFW3")
+else(glfw3_FOUND)
+    message(FATAL_ERROR "${ColourBoldRed}GLFW3 missing.${ColourReset}")
+endif()
+
 # --- [ External libs ]---
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
@@ -37,12 +46,6 @@ set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_DOCS OFF)
 
 include(FetchContent)
-
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY "https://github.com/glfw/glfw"
-    GIT_TAG "813edfa494f1f694bfe2b6d27bb731da2e277d5a"
-)
 
 FetchContent_Declare(
     imgui
@@ -61,9 +64,6 @@ FetchContent_Declare(
     GIT_REPOSITORY "https://github.com/pybind/pybind11"
     GIT_TAG "59a2ac2745d8a57ac94c6accced73620d59fb844"
 )
-
-message(STATUS "Loading glfw ...")
-FetchContent_MakeAvailable(glfw)
 
 message(STATUS "Loading imgui ...")
 FetchContent_MakeAvailable(imgui)
