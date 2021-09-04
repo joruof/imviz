@@ -313,6 +313,14 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("auto_fit_x") = false,
     py::arg("auto_fit_y") = false);
 
+    m.def("tree_node", [&](std::string label) {
+
+        return ImGui::TreeNode(label.c_str());
+    },
+    py::arg("label") = "");
+
+    m.def("tree_pop", ImGui::TreePop);
+
     m.def("begin", [&](std::string title, bool* open) {
 
         return ImGui::Begin(title.c_str(), open);
@@ -349,11 +357,41 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("selected") = false,
     py::arg("enabled") = true);
 
-    m.def("button", [&](std::string title) {
+    m.def("button", [&](std::string label) {
 
-        return ImGui::Button(title.c_str());
+        return ImGui::Button(label.c_str());
     },
-    py::arg("title") = "");
+    py::arg("label"));
+
+    m.def("combo", [&](std::string label, py::list items, py::handle selection) {
+
+        size_t len = items.size();
+
+        std::vector<std::string> objStr(len);
+        std::vector<const char*> objPtr(len);
+
+        int selectionIndex = 0;
+
+        int i = 0;
+        for (const py::handle& o : items) {
+
+            objStr[i] = py::str(o);
+            objPtr[i] = objStr[i].c_str();
+
+            if (o.equal(selection)) {
+                selectionIndex = i;
+            }
+
+            i += 1;
+        }
+
+        bool mod = ImGui::Combo(label.c_str(), &selectionIndex, objPtr.data(), len);
+
+        return py::make_tuple(items[selectionIndex], mod);
+    },
+    py::arg("label"),
+    py::arg("items"),
+    py::arg("selection") = py::none());
 
     m.def("begin", [&](std::string title, bool* open) {
 

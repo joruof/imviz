@@ -16,7 +16,7 @@ visualization heavy ones, meaning plots and stuff) becomes easy.
 While writing visualization tools for research, I (personally) found the
 different python bindings of imgui/implot somewhat unsatisfactory, because:
 
-* [pyimgui](https://github.com/hoffstadt/DearPyGui) maps the api but does not
+* [pyimgui](https://github.com/pyimgui/pyimgui) maps the api but does not
   include implot
 * [imgui\_datascience](https://github.com/pthom/imgui_datascience) seems
   abandoned and does not include implot
@@ -49,7 +49,7 @@ sudo apt-get install -y libglew-dev
 
 ### Via PyPI
 
-For convenience a bundeled source distribution is available on PyPI. Install
+For convenience a source distribution is available on PyPI. Install
 via pip:
 
 ```
