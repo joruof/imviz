@@ -434,14 +434,6 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("title"),
     py::arg("obj"));
 
-    m.def("input", [&](std::string title, float& obj) {
-        
-        bool mod = ImGui::InputFloat(title.c_str(), &obj);
-        return py::make_tuple(obj, mod);
-    }, 
-    py::arg("title"),
-    py::arg("obj"));
-
     m.def("input", [&](std::string title, double& obj) {
         
         bool mod = ImGui::InputDouble(title.c_str(), &obj);
@@ -458,9 +450,10 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("title"),
     py::arg("obj"));
 
-    m.def("slider", [&](std::string title, float& value, float min, float max) {
+    m.def("slider", [&](std::string title, double& value, double min, double max) {
         
-        bool mod = ImGui::SliderFloat(title.c_str(), &value, min, max);
+        bool mod = ImGui::SliderScalar(
+                title.c_str(), ImGuiDataType_Double, &value, &min, &max);
 
         return py::make_tuple(value, mod);
     }, 
@@ -469,9 +462,10 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
-    m.def("drag", [&](std::string title, float& value, float speed, float min, float max) {
+    m.def("drag", [&](std::string title, double& value, float speed, double min, double max) {
         
-        bool mod = ImGui::DragFloat(title.c_str(), &value, speed, min, max);
+        bool mod = ImGui::DragScalar(title.c_str(),
+                ImGuiDataType_Double, &value, speed, &min, &max);
 
         return py::make_tuple(value, mod);
     }, 
