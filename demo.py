@@ -61,28 +61,32 @@ def main():
 
     while viz.wait():
 
+        write_to_svg = False
+
         if viz.begin_main_menu_bar():
 
             if viz.begin_menu("Useless"):
+                if viz.menu_item("write to svg"):
+                    write_to_svg = True
                 if viz.menu_item("blub"):
                     print("Execute")
                 viz.end_menu()
 
             viz.end_main_menu_bar()
 
-        if viz.figure("Test"):
+        viz.activate_svg()
 
-            viz.plot([1, 2, 3], [1, 2, 3], shade=[0.2, 0.1, 0.3], fmt="-o")
+        if viz.begin("Plot Test"):
 
-        if viz.figure("Test2"):
+            if viz.begin_plot("Test"):
 
-            target_pos, mod = viz.drag_point("dst",
-                                             state.target_pos,
-                                             True,
-                                             [1.0, 0.0, 0.0],
-                                             20)
+                viz.plot([1, 2, 3], [1, 2, 3], shade=[0.2, 0.1, 0.3], fmt="-o")
 
-            viz.plot(state.xs, state.ys, "-o")
+                viz.end_plot()
+
+        viz.end()
+
+        svg_code = viz.get_svg()
 
         if viz.begin("Other"):
 
@@ -108,6 +112,14 @@ def main():
                     state.multi_selection)):
 
                 print("Multiselection changed!")
+
+
+        if write_to_svg:
+
+            svg_code = f"<svg>\n{svg_code}\n</svg>"
+
+            with open("test.svg", "w+") as fd:
+                fd.write(svg_code)
 
         viz.end()
 

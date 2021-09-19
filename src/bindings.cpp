@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <ios>
 #include <misc/cpp/imgui_stdlib.h>
 #include <pybind11/cast.h>
 #include <pybind11/detail/common.h>
@@ -14,12 +15,15 @@
 #include <pybind11/pybind11.h>
 
 #include <experimental/filesystem>
+#include <sstream>
+#include <iomanip>
 #include <stdexcept>
 #include <unordered_map>
 
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "implot.h"
+#include "imgui_internal.h"
 
 #include "SourceSansPro.h"
 
@@ -99,6 +103,8 @@ struct ImViz {
     void prepareUpdate() {
 
         ImGuiIO& io = ImGui::GetIO();
+
+
 
         if (io.WantCaptureMouse) {
             // do something ... 
@@ -227,6 +233,32 @@ struct ImViz {
 
 ImViz viz;
 
+template<typename T>
+ImVec4 interpretColor(T& color) {
+
+    ImVec4 c(0, 0, 0, 1);
+    size_t colorLength = color.shape()[0];
+
+    if (colorLength == 1) {
+        c.x = color.data()[0];
+        c.y = color.data()[0];
+        c.z = color.data()[0];
+    } else if (colorLength == 3) {
+        c.x = color.data()[0];
+        c.y = color.data()[1];
+        c.z = color.data()[2];
+    } else if (colorLength == 4) {
+        c.x = color.data()[0];
+        c.y = color.data()[1];
+        c.z = color.data()[2];
+        c.w = color.data()[3];
+    } else {
+        c = IMPLOT_AUTO_COL;
+    }
+
+    return c;
+}
+
 PYBIND11_MODULE(imviz, m) {
 
     m.def("wait", [&](bool vsync) {
@@ -237,31 +269,19 @@ PYBIND11_MODULE(imviz, m) {
     },
     py::arg("vsync") = true);
 
-    /*
-     * This needs some work until functional.
-     *
-    m.def("show", [&]() {
-        while(!glfwWindowShouldClose(window)) {
-            doUpdate();
-            glfwWaitEvents();
-            prepareUpdate();
-        }
-    });
-    */
-
     m.def("trigger", [&]() {
         viz.trigger();
     });
 
-    m.def("figure", [&](std::string title,
+    m.def("figure", [&](std::string label,
                         std::string xLabel,
                         std::string yLabel,
                         bool equalAxis,
                         bool autoFitX,
                         bool autoFitY) {
 
-        if (title.empty()) {
-            title = "Figure " + std::to_string(viz.figureCounter);
+        if (label.empty()) {
+            label = "Figure " + std::to_string(viz.figureCounter);
         }
 
         if (viz.hasCurrentFigure) {
@@ -288,9 +308,9 @@ PYBIND11_MODULE(imviz, m) {
             yFlags |= ImPlotAxisFlags_AutoFit;
         }
 
-        if (ImGui::Begin(title.c_str())) {
+        if (ImGui::Begin(label.c_str())) {
             viz.currentFigureOpen = 
-                ImPlot::BeginPlot(title.c_str(),
+                ImPlot::BeginPlot(label.c_str(),
                               xLabel.c_str(),
                               yLabel.c_str(),
                               ImGui::GetContentRegionAvail(),
@@ -306,18 +326,59 @@ PYBIND11_MODULE(imviz, m) {
 
         return viz.currentFigureOpen;
     },
-    py::arg("title") = "",
+    py::arg("label") = "",
     py::arg("x_label") = "",
     py::arg("y_label") = "",
     py::arg("equal_axis") = false,
     py::arg("auto_fit_x") = false,
     py::arg("auto_fit_y") = false);
 
-    m.def("begin", [&](std::string title, bool* open) {
+    m.def("begin_plot", [&](std::string label,
+                            std::string xLabel,
+                            std::string yLabel,
+                            bool equalAxis,
+                            bool autoFitX,
+                            bool autoFitY) {
 
-        return ImGui::Begin(title.c_str(), open);
+        ImPlotFlags flags = 0;
+
+        if (equalAxis) {
+            flags |= ImPlotFlags_Equal;
+        }
+
+        ImPlotAxisFlags xFlags = 0;
+        ImPlotAxisFlags yFlags = 0;
+
+        if (autoFitX) { 
+            xFlags |= ImPlotAxisFlags_AutoFit;
+        }
+
+        if (autoFitY) { 
+            yFlags |= ImPlotAxisFlags_AutoFit;
+        }
+
+        return ImPlot::BeginPlot(label.c_str(),
+                      xLabel.c_str(),
+                      yLabel.c_str(),
+                      ImGui::GetContentRegionAvail(),
+                      flags,
+                      xFlags,
+                      yFlags);
     },
-    py::arg("title") = "",
+    py::arg("label") = "",
+    py::arg("x_label") = "",
+    py::arg("y_label") = "",
+    py::arg("equal_axis") = false,
+    py::arg("auto_fit_x") = false,
+    py::arg("auto_fit_y") = false);
+
+    m.def("end_plot", &ImPlot::EndPlot);
+
+    m.def("begin", [&](std::string label, bool* open) {
+
+        return ImGui::Begin(label.c_str(), open);
+    },
+    py::arg("label") = "",
     py::arg("open") = true);
 
     m.def("end", [&]() {
@@ -349,17 +410,17 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("selected") = false,
     py::arg("enabled") = true);
 
-    m.def("button", [&](std::string title) {
+    m.def("button", [&](std::string label) {
 
-        return ImGui::Button(title.c_str());
+        return ImGui::Button(label.c_str());
     },
-    py::arg("title") = "");
+    py::arg("label") = "");
 
-    m.def("begin", [&](std::string title, bool* open) {
+    m.def("begin", [&](std::string label, bool* open) {
 
-        return ImGui::Begin(title.c_str(), open);
+        return ImGui::Begin(label.c_str(), open);
     },
-    py::arg("title") = "",
+    py::arg("label") = "",
     py::arg("open") = true);
 
     m.def("end", [&]() {
@@ -367,90 +428,92 @@ PYBIND11_MODULE(imviz, m) {
         ImGui::End();
     });
 
-    m.def("text", [&](std::string str, std::vector<float> c) {
+    m.def("text", [&](std::string str,
+                      py::array_t<double, py::array::c_style
+                          | py::array::forcecast> color) {
 
-        if (c.size() == 3) {
-            ImGui::TextColored(ImVec4(c[0], c[1], c[2], 1.0), "%s", str.c_str());
-        } else if (c.size() == 4) {
-            ImGui::TextColored(ImVec4(c[0], c[1], c[2], c[3]), "%s", str.c_str());
+        ImVec4 c = interpretColor(color);
+
+        if (c.w >= 0) {
+            ImGui::TextColored(c, "%s", str.c_str());
         } else {
             ImGui::Text("%s", str.c_str());
         }
     },
     py::arg("str"),
-    py::arg("color") = std::vector<float>{});
+    py::arg("color") = py::array_t<double>());
 
-    m.def("input", [&](std::string title, std::string& obj) {
+    m.def("input", [&](std::string label, std::string& obj) {
         
-        bool mod = ImGui::InputText(title.c_str(), &obj);
+        bool mod = ImGui::InputText(label.c_str(), &obj);
         return py::make_tuple(obj, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("obj"));
 
-    m.def("input", [&](std::string title, int& obj) {
+    m.def("input", [&](std::string label, int& obj) {
         
-        bool mod = ImGui::InputInt(title.c_str(), &obj);
+        bool mod = ImGui::InputInt(label.c_str(), &obj);
         return py::make_tuple(obj, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("obj"));
 
-    m.def("input", [&](std::string title, float& obj) {
+    m.def("input", [&](std::string label, float& obj) {
         
-        bool mod = ImGui::InputFloat(title.c_str(), &obj);
+        bool mod = ImGui::InputFloat(label.c_str(), &obj);
         return py::make_tuple(obj, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("obj"));
 
-    m.def("input", [&](std::string title, double& obj) {
+    m.def("input", [&](std::string label, double& obj) {
         
-        bool mod = ImGui::InputDouble(title.c_str(), &obj);
+        bool mod = ImGui::InputDouble(label.c_str(), &obj);
         return py::make_tuple(obj, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("obj"));
 
-    m.def("checkbox", [&](std::string title, bool& obj) {
+    m.def("checkbox", [&](std::string label, bool& obj) {
         
-        bool mod = ImGui::Checkbox(title.c_str(), &obj);
+        bool mod = ImGui::Checkbox(label.c_str(), &obj);
         return py::make_tuple(obj, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("obj"));
 
-    m.def("slider", [&](std::string title, float& value, float min, float max) {
+    m.def("slider", [&](std::string label, float& value, float min, float max) {
         
-        bool mod = ImGui::SliderFloat(title.c_str(), &value, min, max);
+        bool mod = ImGui::SliderFloat(label.c_str(), &value, min, max);
 
         return py::make_tuple(value, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("value"),
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
-    m.def("drag", [&](std::string title, float& value, float speed, float min, float max) {
+    m.def("drag", [&](std::string label, float& value, float speed, float min, float max) {
         
-        bool mod = ImGui::DragFloat(title.c_str(), &value, speed, min, max);
+        bool mod = ImGui::DragFloat(label.c_str(), &value, speed, min, max);
 
         return py::make_tuple(value, mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("value"),
     py::arg("speed") = 0.1,
     py::arg("min") = 0.0,
     py::arg("max") = 0.0);
 
-    m.def("range", [&](std::string title, py::tuple range, float speed, int min, int max) {
+    m.def("range", [&](std::string label, py::tuple range, float speed, int min, int max) {
 
         int minVal = py::cast<int>(range[0]);
         int maxVal = py::cast<int>(range[1]);
         
-        bool mod = ImGui::DragIntRange2(title.c_str(), &minVal, &maxVal, speed, min, max);
+        bool mod = ImGui::DragIntRange2(label.c_str(), &minVal, &maxVal, speed, min, max);
 
-        if (ImGui::BeginPopupContextItem(title.c_str())) {
+        if (ImGui::BeginPopupContextItem(label.c_str())) {
 
             if (ImGui::MenuItem("Expand range")) {
                 minVal = min;
@@ -474,20 +537,20 @@ PYBIND11_MODULE(imviz, m) {
 
         return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("range"),
     py::arg("speed") = 1.0f,
     py::arg("min") = 0,
     py::arg("max") = 0);
 
-    m.def("range", [&](std::string title, py::tuple range, float speed, float min, float max) {
+    m.def("range", [&](std::string label, py::tuple range, float speed, float min, float max) {
 
         float minVal = py::cast<float>(range[0]);
         float maxVal = py::cast<float>(range[1]);
         
-        bool mod = ImGui::DragFloatRange2(title.c_str(), &minVal, &maxVal, speed, min, max);
+        bool mod = ImGui::DragFloatRange2(label.c_str(), &minVal, &maxVal, speed, min, max);
 
-        if (ImGui::BeginPopupContextItem(title.c_str())) {
+        if (ImGui::BeginPopupContextItem(label.c_str())) {
 
             if (ImGui::MenuItem("Expand range")) {
                 minVal = min;
@@ -511,7 +574,7 @@ PYBIND11_MODULE(imviz, m) {
 
         return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
     }, 
-    py::arg("title"),
+    py::arg("label"),
     py::arg("range"),
     py::arg("speed") = 1.0f,
     py::arg("min") = 0,
@@ -670,7 +733,7 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("dataframe", [&](
                 py::object frame,
-                std::string title,
+                std::string label,
                 py::list selection) {
 
         py::list keys = frame.attr("keys")();
@@ -688,7 +751,7 @@ PYBIND11_MODULE(imviz, m) {
             | ImGuiTableFlags_ScrollX
             | ImGuiTableFlags_ScrollY;
 
-        if (ImGui::BeginTable(title.c_str(), columnCount, flags)) {
+        if (ImGui::BeginTable(label.c_str(), columnCount, flags)) {
 
             std::vector<py::function> getColDataFuncs;
             getColDataFuncs.push_back(indexGetFunc);
@@ -741,7 +804,7 @@ PYBIND11_MODULE(imviz, m) {
         }
     },
     py::arg("frame"),
-    py::arg("title") = "",
+    py::arg("label") = "",
     py::arg("selection") = py::list{});
 
     m.def("begin_tab_bar", [&](std::string& name) {
@@ -760,122 +823,97 @@ PYBIND11_MODULE(imviz, m) {
                         | py::array::forcecast> y,
                       std::string fmt,
                       std::string label,
-                      std::string xLabel,
-                      std::string yLabel,
                       py::array_t<double, py::array::c_style
                         | py::array::forcecast> shade,
                       float shadeAlpha,
                       float lineWeight) {
 
-        std::string title;
+        std::smatch match;
+        std::regex_search(fmt, match, viz.re);
 
-        if (!viz.hasCurrentFigure) {
-
-            title = "Figure " + std::to_string(viz.figureCounter);
-
-            if (ImGui::Begin(title.c_str())) {
-                viz.currentFigureOpen = 
-                    ImPlot::BeginPlot(title.c_str(),
-                                  xLabel.c_str(),
-                                  yLabel.c_str(),
-                                  ImGui::GetContentRegionAvail());
+        std::vector<std::string> groups;
+        for (auto m : match) {
+            if (m.matched) {
+                groups.push_back(m.str());
             } else {
-                viz.currentFigureOpen = false;
+                groups.push_back("");
             }
-
-            viz.hasCurrentFigure = true;
-            viz.figureCounter += 1;
         }
 
-        if (viz.currentFigureOpen) {
+        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
 
-            std::smatch match;
-            std::regex_search(fmt, match, viz.re);
+        if (groups[2] == "o") {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
+        } else if (groups[2] == "s") {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Square);
+        } else if (groups[2] == "d") {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Diamond);
+        } else if (groups[2] == "+") {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Cross);
+        } else if (groups[2] == "*") {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Asterisk);
+        } else {
+            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
+        }
 
-            std::vector<std::string> groups;
-            for (auto m : match) {
-                if (m.matched) {
-                    groups.push_back(m.str());
-                } else {
-                    groups.push_back("");
-                }
+        size_t yCount = y.shape()[0];
+
+        std::vector<double> indices;
+        const double* xDataPtr = nullptr;
+        const double* yDataPtr = nullptr;
+        size_t count = 0;
+
+        if (1 == x.ndim() && 0 == yCount) {
+            count = x.shape()[0];
+            indices.resize(count);
+            for (size_t i = 0; i < count; ++i) {
+                indices[i] = i;
             }
-
-            ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
-
-            if (groups[2] == "o") {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
-            } else if (groups[2] == "s") {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Square);
-            } else if (groups[2] == "d") {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Diamond);
-            } else if (groups[2] == "+") {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Cross);
-            } else if (groups[2] == "*") {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Asterisk);
-            } else {
-                ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
-            }
-
-            size_t yCount = y.shape()[0];
-
-            std::vector<double> indices;
-            const double* xDataPtr = nullptr;
-            const double* yDataPtr = nullptr;
-            size_t count = 0;
-
-            if (1 == x.ndim() && 0 == yCount) {
-                count = x.shape()[0];
-                indices.resize(count);
-                for (size_t i = 0; i < count; ++i) {
-                    indices[i] = i;
-                }
-                xDataPtr = indices.data();
-                yDataPtr = x.data();
-            } else if (2 == x.ndim() && 0 == yCount) {
-                size_t len0 = x.shape()[0];
-                size_t len1 = x.shape()[1];
-                if (len0 == 2) {
-                    xDataPtr = x.data();
-                    yDataPtr = x.data() + len1;
-                    count = len1;
-                }
-            } else if (1 == x.ndim() && 1 == y.ndim()) {
-                count = std::min(x.shape()[0], y.shape()[0]);
+            xDataPtr = indices.data();
+            yDataPtr = x.data();
+        } else if (2 == x.ndim() && 0 == yCount) {
+            size_t len0 = x.shape()[0];
+            size_t len1 = x.shape()[1];
+            if (len0 == 2) {
                 xDataPtr = x.data();
-                yDataPtr = y.data();
-            } 
-
-            if (count == 0) {
-                //std::cout << "Cannot plot " << title << std::endl;
-            } else if (groups[1] == "-") {
-                ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
-            } else {
-                ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
+                yDataPtr = x.data() + len1;
+                count = len1;
             }
+        } else if (1 == x.ndim() && 1 == y.ndim()) {
+            count = std::min(x.shape()[0], y.shape()[0]);
+            xDataPtr = x.data();
+            yDataPtr = y.data();
+        } 
 
-            size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
-
-            if (shadeCount != 0) {
-                if (1 == shade.ndim()) {
-                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
-                    auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
-                    py::array_t<double> upper = mean + shade;
-                    py::array_t<double> lower = mean - shade;
-                    ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
-                    ImPlot::PopStyleVar();
-                }
-            }
-
-            ImPlot::PopStyleVar(2);
+        if (count == 0) {
+            throw std::runtime_error("Data format could not be interpreted");
         }
+
+        if (groups[1] == "-") {
+            ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
+        } else {
+            ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
+        }
+
+        size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
+
+        if (shadeCount != 0) {
+            if (1 == shade.ndim()) {
+                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
+                auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
+                py::array_t<double> upper = mean + shade;
+                py::array_t<double> lower = mean - shade;
+                ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
+                ImPlot::PopStyleVar();
+            }
+        }
+
+        ImPlot::PopStyleVar(2);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("fmt") = "-",
-    py::arg("label") = "line",
-    py::arg("x_label") = "",
-    py::arg("y_label") = "",
+    py::arg("label") = "",
     py::arg("shade") = py::array(),
     py::arg("shade_alpha") = 0.3f,
     py::arg("line_weight") = 1.0f);
@@ -891,26 +929,7 @@ PYBIND11_MODULE(imviz, m) {
         double x = point.data()[0];
         double y = point.data()[1];
 
-        size_t colorLength = color.shape()[0];
-
-        ImVec4 c(0, 0, 0, 1);
-
-        if (colorLength == 1) {
-            c.x = color.data()[0];
-            c.y = color.data()[0];
-            c.z = color.data()[0];
-        } else if (colorLength == 3) {
-            c.x = color.data()[0];
-            c.y = color.data()[1];
-            c.z = color.data()[2];
-        } else if (colorLength == 4) {
-            c.x = color.data()[0];
-            c.y = color.data()[1];
-            c.z = color.data()[2];
-            c.w = color.data()[3];
-        } else {
-            c = IMPLOT_AUTO_COL;
-        }
+        ImVec4 c = interpretColor(color);
 
         bool mod = ImPlot::DragPoint(label.c_str(), &x, &y, showLabel, c, radius);
 
@@ -922,4 +941,19 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0) ;
 
+    m.def("activate_svg", [&]() {
+
+        ImDrawList::svg = new std::stringstream();
+    });
+
+    m.def("get_svg", [&]() {
+
+        std::stringstream* svg = ImDrawList::svg;
+        std::string result = svg->str();
+
+        delete svg;
+        ImDrawList::svg = nullptr;
+
+        return result;
+    });
 }
