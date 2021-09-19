@@ -374,9 +374,17 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("end_plot", &ImPlot::EndPlot);
 
-    m.def("begin", [&](std::string label, bool* open) {
+    m.def("tree_node", [&](std::string label) {
 
-        return ImGui::Begin(label.c_str(), open);
+        return ImGui::TreeNode(label.c_str());
+    },
+    py::arg("label") = "");
+
+    m.def("tree_pop", ImGui::TreePop);
+
+    m.def("begin", [&](std::string label, bool& open) {
+
+        return ImGui::Begin(label.c_str(), &open);
     },
     py::arg("label") = "",
     py::arg("open") = true);
@@ -414,7 +422,37 @@ PYBIND11_MODULE(imviz, m) {
 
         return ImGui::Button(label.c_str());
     },
-    py::arg("label") = "");
+    py::arg("label"));
+
+    m.def("combo", [&](std::string label, py::list items, py::handle selection) {
+
+        size_t len = items.size();
+
+        std::vector<std::string> objStr(len);
+        std::vector<const char*> objPtr(len);
+
+        int selectionIndex = 0;
+
+        int i = 0;
+        for (const py::handle& o : items) {
+
+            objStr[i] = py::str(o);
+            objPtr[i] = objStr[i].c_str();
+
+            if (o.equal(selection)) {
+                selectionIndex = i;
+            }
+
+            i += 1;
+        }
+
+        bool mod = ImGui::Combo(label.c_str(), &selectionIndex, objPtr.data(), len);
+
+        return py::make_tuple(items[selectionIndex], mod);
+    },
+    py::arg("label"),
+    py::arg("items"),
+    py::arg("selection") = py::none());
 
     m.def("begin", [&](std::string label, bool* open) {
 
@@ -459,14 +497,6 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label"),
     py::arg("obj"));
 
-    m.def("input", [&](std::string label, float& obj) {
-        
-        bool mod = ImGui::InputFloat(label.c_str(), &obj);
-        return py::make_tuple(obj, mod);
-    }, 
-    py::arg("label"),
-    py::arg("obj"));
-
     m.def("input", [&](std::string label, double& obj) {
         
         bool mod = ImGui::InputDouble(label.c_str(), &obj);
@@ -483,9 +513,10 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label"),
     py::arg("obj"));
 
-    m.def("slider", [&](std::string label, float& value, float min, float max) {
+    m.def("slider", [&](std::string title, double& value, double min, double max) {
         
-        bool mod = ImGui::SliderFloat(label.c_str(), &value, min, max);
+        bool mod = ImGui::SliderScalar(
+                title.c_str(), ImGuiDataType_Double, &value, &min, &max);
 
         return py::make_tuple(value, mod);
     }, 
@@ -494,9 +525,10 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
-    m.def("drag", [&](std::string label, float& value, float speed, float min, float max) {
+    m.def("drag", [&](std::string title, double& value, float speed, double min, double max) {
         
-        bool mod = ImGui::DragFloat(label.c_str(), &value, speed, min, max);
+        bool mod = ImGui::DragScalar(title.c_str(),
+                ImGuiDataType_Double, &value, speed, &min, &max);
 
         return py::make_tuple(value, mod);
     }, 
@@ -939,7 +971,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("point"),
     py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
-    py::arg("radius") = 4.0) ;
+    py::arg("radius") = 4.0);
 
     m.def("activate_svg", [&]() {
 

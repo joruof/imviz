@@ -16,7 +16,7 @@ visualization heavy ones, meaning plots and stuff) becomes easy.
 While writing visualization tools for research, I (personally) found the
 different python bindings of imgui/implot somewhat unsatisfactory, because:
 
-* [pyimgui](https://github.com/hoffstadt/DearPyGui) maps the api but does not
+* [pyimgui](https://github.com/pyimgui/pyimgui) maps the api but does not
   include implot
 * [imgui\_datascience](https://github.com/pthom/imgui_datascience) seems
   abandoned and does not include implot
@@ -36,19 +36,20 @@ utterly incapable (also me) to deal with application state management in PyQt
 
 ## Installation
 
-OpenGL libraries and GLEW are mandatory dependencies and are expected
+OpenGL libraries, GLFW, and GLEW are mandatory dependencies and are expected
 to be installed on the system.
 
-On Ubuntu 20.04 OpenGL libraries are already installed and GLEW can be
+On Ubuntu 20.04 OpenGL libraries are already installed and GLFW, GLEW can be
 installed with:
 
 ```
+sudo apt-get install -y libglfw3-dev
 sudo apt-get install -y libglew-dev
 ```
 
 ### Via PyPI
 
-For convenience a bundeled source distribution is available on PyPI. Install
+For convenience a source distribution is available on PyPI. Install
 via pip:
 
 ```

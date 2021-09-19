@@ -54,6 +54,9 @@ class State:
 
     target_pos = (0.0, 0.0)
 
+    selection = ""
+    items = ["blub", "blab", "bah"]
+
 
 def main():
 
@@ -152,6 +155,21 @@ def main():
                                            0.01,
                                            0.0,
                                            1000)
+
+        viz.end()
+
+        if viz.begin("Combo test"):
+
+            state.selection, mod = viz.combo(
+                    "Combo Box Selection",
+                    state.items,
+                    state.selection)
+
+            if viz.tree_node("blub"):
+
+                viz.text("Test")
+
+                viz.tree_pop()
 
         viz.end()
 
