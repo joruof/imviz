@@ -29,150 +29,180 @@ imviz by example.
 """
 
 
-@dataclass
 class State:
 
-    xs = np.arange(0.0, 100.0, 0.1)
-    ys = np.random.rand(1000)
+    def __init__(self):
 
-    frame = pd.DataFrame({"xs": xs, "ys": ys})
+        # window state
 
-    frame_selection = []
+        self.show_overlay = True
+        self.show_demo = True
 
-    multi_selection = []
+        # input values
 
-    test_string: str = "This is a test"
-    steering_angle: float = 0.0
+        self.input_string = "This is a test"
+        self.input_int = 0
+        self.input_float = 0.0
 
-    asdf: bool = False
+        self.range = (0.0, 10.0)
 
-    img = np.random.rand(240, 320)
-    img = img.astype("float32")
+        self.checkbox = False
 
-    display_width = 0.0
-    display_height = 0.0
+        self.color_rgb = [1.0, 1.0, 0.0]
+        self.color_rgba = [1.0, 1.0, 0.0, 0.0]
 
-    target_pos = (0.0, 0.0)
+        # selection
 
-    selection = ""
-    items = ["blub", "blab", "bah"]
+        self.items = ["mars", "venus", "apollo", "zeus", "hera"]
+        self.selection = ""
+        self.multi_selection = []
+
+        # dataframes
+
+        self.xs = np.arange(0.0, 100.0, 0.1)
+        self.ys = np.random.rand(1000)
+
+        self.frame_selection = []
+        self.frame = pd.DataFrame({"xs": self.xs, "ys": self.ys})
+
+        # plotting
+
+        self.img = np.random.rand(240, 320, 3).astype("float32")
+        self.target_pos = (0.0, 0.0)
+
+        self.drag_point = (0, 1)
 
 
 def main():
 
-    state = State()
+    s = State()
 
-    while viz.wait():
+    while viz.wait(vsync=True):
 
-        write_to_svg = False
+        # menus
 
         if viz.begin_main_menu_bar():
 
-            if viz.begin_menu("Useless"):
-                if viz.menu_item("write to svg"):
-                    write_to_svg = True
-                if viz.menu_item("blub"):
-                    print("Execute")
+            if viz.begin_menu("File"):
+
+                if viz.menu_item("Reset"):
+                    s = State()
+
+                viz.end_menu()
+
+            if viz.begin_menu("Show"):
+
+                if viz.menu_item("Show overlay",
+                                 selected=s.show_overlay):
+                    s.show_overlay = not s.show_overlay
+                if viz.menu_item("Show demo",
+                                 selected=s.show_demo):
+                    s.show_demo = not s.show_demo
+                viz.menu_item("Disabled demo", enabled=False)
+                viz.menu_item("Shortcut demo", shortcut="Ctrl+Z")
+
                 viz.end_menu()
 
             viz.end_main_menu_bar()
 
-        viz.activate_svg()
+        # window options
+        
+        if s.show_overlay:
 
-        if viz.begin("Plot Test"):
+            if viz.begin_window("Overlay",
+                                s.show_overlay,
+                                position=(6, 32),
+                                size=(100, 100),
+                                title_bar=False,
+                                move=False,
+                                resize=False):
 
-            if viz.begin_plot("Test"):
+                viz.text("Overlay")
 
-                viz.plot([1, 2, 3], [1, 2, 3], shade=[0.2, 0.1, 0.3], fmt="-o")
+            viz.end_window()
 
-                viz.end_plot()
+        # widgets
 
-        viz.end()
+        if viz.begin_window("Demo"):
 
-        svg_code = viz.get_svg()
+            if viz.tree_node("Input"):
 
-        if viz.begin("Other"):
+                s.input_string = viz.input("input string", s.input_string)
+                s.input_int = viz.input("input int", s.input_int)
+                s.input_float = viz.input("input float", s.input_float)
 
-            viz.text("Test", color=(1.0, 0.0, 0.0))
+                s.checkbox = viz.checkbox("checkbox", s.checkbox)
 
-            test_string, mod = viz.input("InputTest", state.test_string)
-            if mod:
-                print(test_string)
-
-            steering_angle, mod = viz.input("Input2", state.steering_angle)
-            if mod:
-                print(steering_angle)
-
-            asdf, mod = viz.checkbox("TestBool", state.asdf)
-            if mod:
-                print(asdf)
-
-            viz.dataframe(state.frame, "TestFrame", state.frame_selection)
-
-            if (viz.multiselect(
-                    "Select something",
-                    ["values", "blub", "test"],
-                    state.multi_selection)):
-
-                print("Multiselection changed!")
-
-
-        if write_to_svg:
-
-            svg_code = f"<svg>\n{svg_code}\n</svg>"
-
-            with open("test.svg", "w+") as fd:
-                fd.write(svg_code)
-
-        viz.end()
-
-        if viz.begin("Tab Test"):
-            if viz.begin_tab_bar("TabBar"):
-                if viz.begin_tab_item("TestItem"):
-                    viz.text("Hello")
-                    viz.end_tab_item()
-                if viz.begin_tab_item("TestItem2"):
-                    viz.text("Hello2")
-                    viz.end_tab_item()
-                viz.end_tab_bar()
-
-        viz.end()
-
-        if viz.begin("Slider drag test"):
-
-            display_width, mod = viz.slider("Display Width",
-                                            state.display_width,
-                                            0.0,
-                                            1000)
-
-            display_height, mod = viz.slider("Display Height",
-                                             state.display_height,
-                                             0.0,
-                                             1000)
-
-            display_height, mod = viz.drag("Drag test",
-                                           display_height,
-                                           0.01,
+                s.input_float = viz.slider("slider",
+                                           s.input_float,
                                            0.0,
                                            1000)
 
-        viz.end()
+                s.input_float = viz.drag("drag",
+                                          s.input_float,
+                                          0.01,
+                                          0.0,
+                                          1000)
 
-        if viz.begin("Combo test"):
+                s.color_rgb = viz.color_edit("color rgb", s.color_rgb)
+                s.color_rgba = viz.color_edit("color rgba", s.color_rgba)
 
-            state.selection, mod = viz.combo(
-                    "Combo Box Selection",
-                    state.items,
-                    state.selection)
-
-            if viz.tree_node("blub"):
-
-                viz.text("Test")
+                s.range = viz.range("range", s.range)
 
                 viz.tree_pop()
 
-        viz.end()
+            if viz.tree_node("Selection"):
 
+                s.selection = viz.combo("combo", s.items, s.selection)
+
+                s.multi_selection = viz.multiselect("multiselect",
+                                                    s.items,
+                                                    s.multi_selection)
+
+                viz.tree_pop()
+
+            if viz.tree_node("Dataframe"):
+
+                viz.dataframe(s.frame, "dataframe", s.frame_selection)
+
+                viz.tree_pop()
+
+            if viz.tree_node("Plotting"):
+
+                if viz.begin_plot("Plot"):
+
+                    viz.plot_image("image",
+                                   s.img,
+                                   x=0, y=0,
+                                   width=1, height=1)
+
+                    viz.plot([1, 2, 3],
+                             [1, 2, 3],
+                             shade=[2, 1, 3],
+                             fmt="-o",
+                             label="line_with_dots")
+
+                    viz.plot(np.array([1, 2, 3]) * 2,
+                             fmt="*",
+                             label="starts")
+
+                    viz.plot([1, 2, 3],
+                             np.array([1, 2, 3])**2,
+                             line_weight=3,
+                             fmt="-s",
+                             label="small_squares")
+
+                    s.drag_point = viz.drag_point("draggable",
+                                                  s.drag_point,
+                                                  show_label=True,
+                                                  color=(1.0, 0.0, 0.0),
+                                                  radius=10)
+
+                    viz.end_plot()
+
+                viz.tree_pop()
+            
+        viz.end_window()
 
 if __name__ == "__main__":
     main()

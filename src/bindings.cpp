@@ -33,10 +33,10 @@ struct ImViz {
 
     GLFWwindow* window = nullptr;
 
-    bool hasCurrentFigure = false;
-    bool currentFigureOpen = false;
+    bool currentWindowOpen = false;
 
-    size_t figureCounter = 1;
+    bool mod = false;
+    bool mod_any = false;
 
     std::regex re{"(-)?(o|s|d|\\*|\\+)?(r|g|b|y|m|w)?"};
 
@@ -103,8 +103,6 @@ struct ImViz {
     void prepareUpdate() {
 
         ImGuiIO& io = ImGui::GetIO();
-
-
 
         if (io.WantCaptureMouse) {
             // do something ... 
@@ -186,15 +184,7 @@ struct ImViz {
 
     void doUpdate (bool useVsync) {
 
-        if (hasCurrentFigure) {
-            if (currentFigureOpen) {
-                ImPlot::EndPlot();
-            }
-            ImGui::End();
-        }
-
-        hasCurrentFigure = false;
-        currentFigureOpen = false;
+        currentWindowOpen = false;
 
         glfwShowWindow(window);
 
@@ -221,15 +211,85 @@ struct ImViz {
 
         glfwSwapInterval(useVsync);
         glfwSwapBuffers(window);
-
-        figureCounter = 0;
     }
 
     void trigger () {
 
         glfwPostEmptyEvent();
     }
+
+    void setMod(bool m) {
+
+        mod = m;
+        mod_any |= m;
+    }
+
 };
+
+/**
+ * Some helpers to make handling arrays easier.
+ */
+
+template <typename T>
+using array_like = py::array_t<T, py::array::c_style | py::array::forcecast>;
+
+void assertArrayShape(std::string name,
+                      py::array& array,
+                      std::vector<std::vector<int>> shapes) {
+
+    bool foundShape = false;
+
+    for (auto& shape : shapes) { 
+        if ((int)shape.size() != array.ndim()) {
+            continue;
+        }
+        bool ok = true;
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (shape[i] == -1) {
+                continue;
+            }
+            ok &= shape[i] == array.shape()[i];
+        }
+        if (ok) { 
+            foundShape = true;
+            break;
+        }
+    }
+
+    if (!foundShape) {
+        std::stringstream ss;
+        ss << "Expected shape of \"" + name + "\" to fit ";
+
+        for (size_t i = 0; i < shapes.size(); ++i) { 
+            ss << "(";
+            auto& shape = shapes[i];
+            for (size_t k = 0; k < shape.size(); ++k) { 
+                ss << shape[k]; 
+                if (k != shape.size() - 1) { 
+                    ss <<  ", ";
+                }
+            }
+            ss << ")";
+            if (i != shapes.size() - 1) { 
+                ss << " | ";
+            }
+        }
+
+        ss << ", but found (";
+
+        for (int k = 0; k < array.ndim(); ++k) { 
+            ss << array.shape()[k]; 
+            if (k != array.ndim() - 1) { 
+                ss <<  ", ";
+            }
+        }
+        ss << ")";
+
+        throw std::runtime_error(ss.str());
+    }
+}
+
+#define assert_shape(array, ...) assertArrayShape(#array, array, __VA_ARGS__)
 
 ImViz viz;
 
@@ -259,7 +319,113 @@ ImVec4 interpretColor(T& color) {
     return c;
 }
 
+struct ImageInfo {
+
+    int imageWidth = 0;
+    int imageHeight = 0;
+    GLuint textureId = 0;
+};
+
+ImageInfo processImage(std::string& id, py::array& image) {
+
+    assert_shape(image, {{-1, -1}, {-1, -1, 1}, {-1, -1, 3}, {-1, -1, 4}});
+
+    // determine image parameters
+
+    int imageWidth = 0;
+    int imageHeight = 0;
+    int channels = 0;
+    GLenum format = 0;
+    GLenum datatype = 0;
+
+    if (image.ndim() == 2) {
+        imageWidth = image.shape(1);
+        imageHeight = image.shape(0);
+        channels = 1;
+    } else if (image.ndim() == 3) {
+        imageWidth = image.shape(1);
+        imageHeight = image.shape(0);
+        channels = image.shape(2);
+    }
+
+    if (channels == 1) {
+        format = GL_RED;
+    } else if (channels == 3) {
+        format = GL_RGB;
+    } else if (channels == 4) {
+        format = GL_RGBA;
+    } 
+
+    if (py::str(image.dtype()).equal(py::str("uint8"))) {
+        datatype = GL_UNSIGNED_BYTE;
+    } else if (py::str(image.dtype()).equal(py::str("float32"))) {
+        datatype = GL_FLOAT;
+    } else {
+        throw std::runtime_error(
+                "Pixel datatype "
+                + std::string(py::str(image.dtype()))
+                + " not supported. "
+                + "Supported datatypes are uint8 and float32.");
+    }
+
+    // create a texture if necessary
+    if (viz.textureCache.find(id) == viz.textureCache.end()) {
+
+        GLuint textureId;
+
+        glGenTextures(1, &textureId);
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        // setup filtering parameters for display
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        viz.textureCache[id] = textureId;
+    }
+
+    // upload texture
+
+    GLuint textureId = viz.textureCache[id];
+
+    glBindTexture(GL_TEXTURE_2D, textureId);
+
+    if (format == GL_RED) {
+        GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+        glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+    }
+
+    glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            format,
+            imageWidth,
+            imageHeight,
+            0,
+            format,
+            datatype,
+            image.data());
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // return info
+
+    ImageInfo info;
+    info.imageWidth = imageWidth;
+    info.imageHeight = imageHeight;
+    info.textureId = textureId;
+
+    return info;
+}
+
 PYBIND11_MODULE(imviz, m) {
+
+    m.def("mod", [&]() { return viz.mod; });
+    m.def("mod_any", [&]() { return viz.mod_any; });
+    m.def("clear_mod_any", [&]() { viz.mod_any = false; });
 
     m.def("wait", [&](bool vsync) {
         viz.doUpdate(vsync);
@@ -273,65 +439,60 @@ PYBIND11_MODULE(imviz, m) {
         viz.trigger();
     });
 
-    m.def("figure", [&](std::string label,
-                        std::string xLabel,
-                        std::string yLabel,
-                        bool equalAxis,
-                        bool autoFitX,
-                        bool autoFitY) {
+    m.def("begin_window", [&](std::string label,
+                       bool open,
+                       array_like<float> position, 
+                       array_like<float> size, 
+                       bool title_bar,
+                       bool resize,
+                       bool move,
+                       bool scrollbar,
+                       bool scrollWithMouse,
+                       bool collapse,
+                       bool autoResize) {
 
-        if (label.empty()) {
-            label = "Figure " + std::to_string(viz.figureCounter);
+        if (position.shape()[0] > 0) { 
+            assert_shape(position, {{2}});
+            const float* data = position.data();
+            ImGui::SetNextWindowPos({data[0], data[1]});
+        }
+        if (size.shape()[0] > 0) {
+            assert_shape(size, {{2}});
+            const float* data = size.data();
+            ImGui::SetNextWindowSize({data[0], data[1]});
         }
 
-        if (viz.hasCurrentFigure) {
-            if (viz.currentFigureOpen) {
-                ImPlot::EndPlot();
-            }
-            ImGui::End();
-        }
+        ImGuiWindowFlags flags = ImGuiWindowFlags_None;
 
-        ImPlotFlags flags = 0;
+        flags |= ImGuiWindowFlags_NoTitleBar * !title_bar;
+        flags |= ImGuiWindowFlags_NoResize * !resize;
+        flags |= ImGuiWindowFlags_NoMove * !move;
+        flags |= ImGuiWindowFlags_NoScrollbar * !scrollbar;
+        flags |= ImGuiWindowFlags_NoScrollWithMouse * !scrollWithMouse;
+        flags |= ImGuiWindowFlags_NoCollapse * !collapse;
+        flags |= ImGuiWindowFlags_AlwaysAutoResize * autoResize;
 
-        if (equalAxis) {
-            flags |= ImPlotFlags_Equal;
-        }
+        viz.currentWindowOpen = open;
 
-        ImPlotAxisFlags xFlags = 0;
-        ImPlotAxisFlags yFlags = 0;
+        bool show = ImGui::Begin(label.c_str(), &viz.currentWindowOpen, flags);
 
-        if (autoFitX) { 
-            xFlags |= ImPlotAxisFlags_AutoFit;
-        }
-
-        if (autoFitY) { 
-            yFlags |= ImPlotAxisFlags_AutoFit;
-        }
-
-        if (ImGui::Begin(label.c_str())) {
-            viz.currentFigureOpen = 
-                ImPlot::BeginPlot(label.c_str(),
-                              xLabel.c_str(),
-                              yLabel.c_str(),
-                              ImGui::GetContentRegionAvail(),
-                              flags,
-                              xFlags,
-                              yFlags);
-        } else {
-            viz.currentFigureOpen = false;
-        }
-
-        viz.hasCurrentFigure = true;
-        viz.figureCounter += 1;
-
-        return viz.currentFigureOpen;
+        return show;
     },
-    py::arg("label") = "",
-    py::arg("x_label") = "",
-    py::arg("y_label") = "",
-    py::arg("equal_axis") = false,
-    py::arg("auto_fit_x") = false,
-    py::arg("auto_fit_y") = false);
+    py::arg("label"),
+    py::arg("open") = true,
+    py::arg("position") = py::array(),
+    py::arg("size") = py::array(),
+    py::arg("title_bar") = true,
+    py::arg("resize") = true,
+    py::arg("move") = true,
+    py::arg("scrollbar") = true,
+    py::arg("scroll_with_mouse") = true,
+    py::arg("collapse") = true,
+    py::arg("auto_resize") = false);
+
+    m.def("end_window", ImGui::End);
+
+    m.def("window_open", [&]() { return viz.currentWindowOpen; });
 
     m.def("begin_plot", [&](std::string label,
                             std::string xLabel,
@@ -381,18 +542,6 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label") = "");
 
     m.def("tree_pop", ImGui::TreePop);
-
-    m.def("begin", [&](std::string label, bool& open) {
-
-        return ImGui::Begin(label.c_str(), &open);
-    },
-    py::arg("label") = "",
-    py::arg("open") = true);
-
-    m.def("end", [&]() {
-
-        ImGui::End();
-    });
 
     m.def("begin_menu_bar", ImGui::BeginMenuBar);
     m.def("end_menu_bar", ImGui::EndMenuBar);
@@ -447,28 +596,15 @@ PYBIND11_MODULE(imviz, m) {
         }
 
         bool mod = ImGui::Combo(label.c_str(), &selectionIndex, objPtr.data(), len);
+        viz.setMod(mod);
 
-        return py::make_tuple(items[selectionIndex], mod);
+        return items[selectionIndex];
     },
     py::arg("label"),
     py::arg("items"),
     py::arg("selection") = py::none());
 
-    m.def("begin", [&](std::string label, bool* open) {
-
-        return ImGui::Begin(label.c_str(), open);
-    },
-    py::arg("label") = "",
-    py::arg("open") = true);
-
-    m.def("end", [&]() {
-
-        ImGui::End();
-    });
-
-    m.def("text", [&](std::string str,
-                      py::array_t<double, py::array::c_style
-                          | py::array::forcecast> color) {
+    m.def("text", [&](std::string str, array_like<double> color) {
 
         ImVec4 c = interpretColor(color);
 
@@ -484,7 +620,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("input", [&](std::string label, std::string& obj) {
         
         bool mod = ImGui::InputText(label.c_str(), &obj);
-        return py::make_tuple(obj, mod);
+        viz.setMod(mod);
+
+        return obj;
     }, 
     py::arg("label"),
     py::arg("obj"));
@@ -492,7 +630,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("input", [&](std::string label, int& obj) {
         
         bool mod = ImGui::InputInt(label.c_str(), &obj);
-        return py::make_tuple(obj, mod);
+        viz.setMod(mod);
+
+        return obj;
     }, 
     py::arg("label"),
     py::arg("obj"));
@@ -500,7 +640,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("input", [&](std::string label, double& obj) {
         
         bool mod = ImGui::InputDouble(label.c_str(), &obj);
-        return py::make_tuple(obj, mod);
+        viz.setMod(mod);
+
+        return obj;
     }, 
     py::arg("label"),
     py::arg("obj"));
@@ -508,7 +650,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("checkbox", [&](std::string label, bool& obj) {
         
         bool mod = ImGui::Checkbox(label.c_str(), &obj);
-        return py::make_tuple(obj, mod);
+        viz.setMod(mod);
+
+        return obj;
     }, 
     py::arg("label"),
     py::arg("obj"));
@@ -517,8 +661,9 @@ PYBIND11_MODULE(imviz, m) {
         
         bool mod = ImGui::SliderScalar(
                 title.c_str(), ImGuiDataType_Double, &value, &min, &max);
+        viz.setMod(mod);
 
-        return py::make_tuple(value, mod);
+        return value;
     }, 
     py::arg("label"),
     py::arg("value"),
@@ -529,51 +674,15 @@ PYBIND11_MODULE(imviz, m) {
         
         bool mod = ImGui::DragScalar(title.c_str(),
                 ImGuiDataType_Double, &value, speed, &min, &max);
+        viz.setMod(mod);
 
-        return py::make_tuple(value, mod);
+        return value;
     }, 
     py::arg("label"),
     py::arg("value"),
     py::arg("speed") = 0.1,
     py::arg("min") = 0.0,
     py::arg("max") = 0.0);
-
-    m.def("range", [&](std::string label, py::tuple range, float speed, int min, int max) {
-
-        int minVal = py::cast<int>(range[0]);
-        int maxVal = py::cast<int>(range[1]);
-        
-        bool mod = ImGui::DragIntRange2(label.c_str(), &minVal, &maxVal, speed, min, max);
-
-        if (ImGui::BeginPopupContextItem(label.c_str())) {
-
-            if (ImGui::MenuItem("Expand range")) {
-                minVal = min;
-                maxVal = max;
-            }
-            if (ImGui::MenuItem("Expand to min")) {
-                minVal = min;
-            }
-            if (ImGui::MenuItem("Expand to max")) {
-                maxVal = max;
-            }
-            if (ImGui::MenuItem("Collapse to min")) {
-                maxVal = minVal;
-            }
-            if (ImGui::MenuItem("Collapse to max")) {
-                minVal = maxVal;
-            }
-
-            ImGui::EndPopup();
-        }
-
-        return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
-    }, 
-    py::arg("label"),
-    py::arg("range"),
-    py::arg("speed") = 1.0f,
-    py::arg("min") = 0,
-    py::arg("max") = 0);
 
     m.def("range", [&](std::string label, py::tuple range, float speed, float min, float max) {
 
@@ -604,13 +713,40 @@ PYBIND11_MODULE(imviz, m) {
             ImGui::EndPopup();
         }
 
-        return py::make_tuple(py::make_tuple(minVal, maxVal), mod);
+        viz.setMod(mod);
+
+        return py::make_tuple(minVal, maxVal);
     }, 
     py::arg("label"),
     py::arg("range"),
     py::arg("speed") = 1.0f,
     py::arg("min") = 0,
     py::arg("max") = 0);
+
+    m.def("color_edit", [&](std::string label, array_like<float> color) {
+
+        if (color.ndim() != 1) {
+            throw std::runtime_error("Color must have 1 dimension but has "
+                    + std::to_string(color.ndim()) + ".");
+        }
+
+        bool mod = false;
+
+        size_t colorSize = color.shape()[0];
+        if (colorSize == 3) {
+            mod = ImGui::ColorEdit3(label.c_str(), color.mutable_data());
+        } else if (colorSize == 4) {
+            mod = ImGui::ColorEdit4(label.c_str(), color.mutable_data());
+        } else {
+            throw std::runtime_error(
+                    "Color must have 3 or 4 elements but has "
+                    + std::to_string(colorSize) + ".");
+        }
+
+        viz.setMod(mod);
+
+        return color;
+    });
 
     m.def("same_line", []() {
         ImGui::SameLine();
@@ -619,9 +755,9 @@ PYBIND11_MODULE(imviz, m) {
     m.def("multiselect", [&](
                 std::string label,
                 py::list& values,
-                py::list& selection) {
+                py::list selection) {
 
-        bool modified = false;
+        bool mod = false;
 
         if (ImGui::BeginPopup(label.c_str())) {
 
@@ -640,7 +776,7 @@ PYBIND11_MODULE(imviz, m) {
                         selection.attr("remove")(o);
                     }
 
-                    modified = true;
+                    mod = true;
                 }
             }
 
@@ -651,117 +787,72 @@ PYBIND11_MODULE(imviz, m) {
             ImGui::OpenPopup(label.c_str());
         }
 
-        return modified;
+        viz.setMod(mod);
+
+        return selection;
     },
     py::arg("label"),
     py::arg("values"),
     py::arg("selection"));
 
-    m.def("imshow", [&](
+    m.def("image", [&](
                 std::string id,
                 py::array& image,
                 int displayWidth,
                 int displayHeight) {
 
-        // determine image parameters
+        ImageInfo info = processImage(id, image);
 
-        int imageWidth = 0;
-        int imageHeight = 0;
-        int channels = 0;
-        GLenum format = 0;
-        GLenum datatype = 0;
-
-        if (image.ndim() == 2) {
-            imageWidth = image.shape(1);
-            imageHeight = image.shape(0);
-            channels = 1;
-        } else if (image.ndim() == 3) {
-            imageWidth = image.shape(1);
-            imageHeight = image.shape(0);
-            channels = image.shape(2);
-        } else {
-            throw std::runtime_error("Image format not understood");
+        if (displayWidth < 0) {
+            displayWidth = info.imageWidth;
+        }
+        if (displayHeight < 0) {
+            displayHeight = info.imageHeight;
         }
 
-        if (channels == 1) {
-            format = GL_RED;
-        } else if (channels == 3) {
-            format = GL_RGB;
-        } else if (channels == 4) {
-            format = GL_RGBA;
-        } else {
-            throw std::runtime_error("Channel count not understood");
-        }
-
-        if (py::str(image.dtype()).equal(py::str("uint8"))) {
-            datatype = GL_UNSIGNED_BYTE;
-        } else if (py::str(image.dtype()).equal(py::str("float32"))) {
-            datatype = GL_FLOAT;
-        } else {
-            throw std::runtime_error("Pixel datatype not supported");
-        }
-
-        // create a texture if necessary
-        if (viz.textureCache.find(id) == viz.textureCache.end()) {
-
-            GLuint textureId;
-
-            glGenTextures(1, &textureId);
-            glBindTexture(GL_TEXTURE_2D, textureId);
-
-            // setup filtering parameters for display
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-
-            viz.textureCache[id] = textureId;
-        }
-
-        // upload texture
-
-        GLuint textureId = viz.textureCache[id];
-
-        glBindTexture(GL_TEXTURE_2D, textureId);
-
-        if (format == GL_RED) {
-            GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
-            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
-        }
-
-        glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                format,
-                imageWidth,
-                imageHeight,
-                0,
-                format,
-                datatype,
-                image.data());
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        // display texture
-
-        if (displayWidth < 1) {
-            displayWidth = imageWidth;
-        }
-        if (displayHeight < 1) {
-            displayHeight = imageHeight;
-        }
-
-        ImPlotPoint boundsMin(0, 0);
-        ImPlotPoint boundsMax(imageWidth, imageHeight);
-
-        ImPlot::PlotImage(id.c_str(), (void*)(intptr_t)textureId, boundsMin, boundsMax);
+        ImGui::Image(
+                (void*)(intptr_t)info.textureId,
+                ImVec2(displayWidth, displayHeight));
     },
     py::arg("id"),
     py::arg("image"),
-    py::arg("width") = 0,
-    py::arg("height") = 0);
+    py::arg("width") = -1,
+    py::arg("height") = -1);
+
+    m.def("plot_image", [&](
+                std::string id,
+                py::array& image,
+                double x,
+                double y,
+                double displayWidth,
+                double displayHeight) {
+
+        ImageInfo info = processImage(id, image);
+
+        // display texture
+
+        if (displayWidth < 0) {
+            displayWidth = info.imageWidth;
+        }
+        if (displayHeight < 0) {
+            displayHeight = info.imageHeight;
+        }
+
+        ImPlotPoint boundsMin(x, y);
+        ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImPlot::PlotImage(
+                id.c_str(),
+                (void*)(intptr_t)info.textureId,
+                boundsMin,
+                boundsMax);
+    },
+    py::arg("id"),
+    py::arg("image"),
+    py::arg("x") = 0,
+    py::arg("y") = 0,
+    py::arg("width") = -1,
+    py::arg("height") = -1);
 
     m.def("dataframe", [&](
                 py::object frame,
@@ -834,6 +925,8 @@ PYBIND11_MODULE(imviz, m) {
 
             ImGui::EndTable();
         }
+
+        return selection;
     },
     py::arg("frame"),
     py::arg("label") = "",
@@ -849,14 +942,11 @@ PYBIND11_MODULE(imviz, m) {
     });
     m.def("end_tab_item", ImGui::EndTabItem);
 
-    m.def("plot", [&](py::array_t<double, py::array::c_style
-                        | py::array::forcecast> x,
-                      py::array_t<double, py::array::c_style
-                        | py::array::forcecast> y,
+    m.def("plot", [&](array_like<double> x,
+                      array_like<double> y,
                       std::string fmt,
                       std::string label,
-                      py::array_t<double, py::array::c_style
-                        | py::array::forcecast> shade,
+                      array_like<double> shade,
                       float shadeAlpha,
                       float lineWeight) {
 
@@ -951,11 +1041,9 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("line_weight") = 1.0f);
 
     m.def("drag_point", [&](std::string label,
-                            py::array_t<double, py::array::c_style
-                                | py::array::forcecast> point,
+                            array_like<double> point,
                             bool showLabel,
-                            py::array_t<double, py::array::c_style
-                                | py::array::forcecast> color,
+                            array_like<double> color,
                             double radius) {
 
         double x = point.data()[0];
@@ -964,8 +1052,9 @@ PYBIND11_MODULE(imviz, m) {
         ImVec4 c = interpretColor(color);
 
         bool mod = ImPlot::DragPoint(label.c_str(), &x, &y, showLabel, c, radius);
+        viz.setMod(mod);
 
-        return py::make_tuple(py::make_tuple(x, y), mod);
+        return py::make_tuple(x, y);
     },
     py::arg("label"),
     py::arg("point"),
@@ -975,11 +1064,12 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("activate_svg", [&]() {
 
-        ImDrawList::svg = new std::stringstream();
+        //ImDrawList::svg = new std::stringstream();
     });
 
     m.def("get_svg", [&]() {
 
+        /*
         std::stringstream* svg = ImDrawList::svg;
         std::string result = svg->str();
 
@@ -987,5 +1077,6 @@ PYBIND11_MODULE(imviz, m) {
         ImDrawList::svg = nullptr;
 
         return result;
+        */
     });
 }
