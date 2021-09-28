@@ -71,6 +71,8 @@ class State:
         self.target_pos = (0.0, 0.0)
 
         self.drag_point = (0, 1)
+        self.drag_vline = 2.0
+        self.drag_hline = 2.0
 
 
 def main():
@@ -169,6 +171,8 @@ def main():
 
             if viz.tree_node("Plotting"):
 
+                viz.next_plot_limits(0, 10, 0, 10, viz.ONCE)
+
                 if viz.begin_plot("Plot"):
 
                     viz.plot_image("image",
@@ -184,7 +188,9 @@ def main():
 
                     viz.plot(np.array([1, 2, 3]) * 2,
                              fmt="*",
-                             label="starts")
+                             label="big stars",
+                             marker_size=6,
+                             marker_weight=2)
 
                     viz.plot([1, 2, 3],
                              np.array([1, 2, 3])**2,
@@ -197,6 +203,21 @@ def main():
                                                   show_label=True,
                                                   color=(1.0, 0.0, 0.0),
                                                   radius=10)
+
+                    s.drag_vline = viz.drag_vline("vline",
+                                                  s.drag_vline,
+                                                  show_label=True,
+                                                  color=(0.0, 1.0, 0.0),
+                                                  width=2)
+
+                    s.drag_hline = viz.drag_hline("hline",
+                                                  s.drag_hline,
+                                                  show_label=True,
+                                                  color=(0.0, 1.0, 0.0),
+                                                  width=2)
+
+                    viz.annotate(5, 5, "foo")
+                    viz.annotate(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
                     viz.end_plot()
 

@@ -423,6 +423,14 @@ ImageInfo processImage(std::string& id, py::array& image) {
 
 PYBIND11_MODULE(imviz, m) {
 
+    py::enum_<ImGuiCond_>(m, "Cond")
+        .value("NONE", ImGuiCond_None)
+        .value("ALWAYS", ImGuiCond_Always)
+        .value("ONCE", ImGuiCond_Once)
+        .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
+        .value("APPEARING", ImGuiCond_Appearing)
+        .export_values();
+
     m.def("mod", [&]() { return viz.mod; });
     m.def("mod_any", [&]() { return viz.mod_any; });
     m.def("clear_mod_any", [&]() { viz.mod_any = false; });
@@ -440,7 +448,7 @@ PYBIND11_MODULE(imviz, m) {
     });
 
     m.def("begin_window", [&](std::string label,
-                       bool open,
+                       bool opened,
                        array_like<float> position, 
                        array_like<float> size, 
                        bool title_bar,
@@ -472,14 +480,14 @@ PYBIND11_MODULE(imviz, m) {
         flags |= ImGuiWindowFlags_NoCollapse * !collapse;
         flags |= ImGuiWindowFlags_AlwaysAutoResize * autoResize;
 
-        viz.currentWindowOpen = open;
+        viz.currentWindowOpen = opened;
 
         bool show = ImGui::Begin(label.c_str(), &viz.currentWindowOpen, flags);
 
         return show;
     },
     py::arg("label"),
-    py::arg("open") = true,
+    py::arg("opened") = true,
     py::arg("position") = py::array(),
     py::arg("size") = py::array(),
     py::arg("title_bar") = true,
@@ -854,6 +862,21 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("width") = -1,
     py::arg("height") = -1);
 
+    m.def("next_plot_limits", [&](
+                double xmin,
+                double xmax,
+                double ymin,
+                double ymax,
+                ImGuiCond_ cond) {
+
+        ImPlot::SetNextPlotLimits(xmin, xmax, ymin, ymax, cond);
+    },
+    py::arg("xmin"),
+    py::arg("xmax"),
+    py::arg("ymin"),
+    py::arg("ymax"),
+    py::arg("cond") = ImGuiCond_Once);
+
     m.def("dataframe", [&](
                 py::object frame,
                 std::string label,
@@ -948,7 +971,9 @@ PYBIND11_MODULE(imviz, m) {
                       std::string label,
                       array_like<double> shade,
                       float shadeAlpha,
-                      float lineWeight) {
+                      float lineWeight,
+                      float markerSize,
+                      float markerWeight) {
 
         std::smatch match;
         std::regex_search(fmt, match, viz.re);
@@ -963,6 +988,8 @@ PYBIND11_MODULE(imviz, m) {
         }
 
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
 
         if (groups[2] == "o") {
             ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
@@ -1030,7 +1057,7 @@ PYBIND11_MODULE(imviz, m) {
             }
         }
 
-        ImPlot::PopStyleVar(2);
+        ImPlot::PopStyleVar(4);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
@@ -1038,7 +1065,9 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label") = "",
     py::arg("shade") = py::array(),
     py::arg("shade_alpha") = 0.3f,
-    py::arg("line_weight") = 1.0f);
+    py::arg("line_weight") = 1.0f, 
+    py::arg("marker_size") = 4.0f, 
+    py::arg("marker_weight") = 1.0f);
 
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
@@ -1061,6 +1090,78 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0);
+
+    m.def("drag_vline", [&](std::string label,
+                            double x,
+                            bool showLabel,
+                            array_like<double> color,
+                            double width) {
+
+        ImVec4 c = interpretColor(color);
+
+        bool mod = ImPlot::DragLineX(label.c_str(), &x, showLabel, c, width);
+        viz.setMod(mod);
+
+        return x;
+    },
+    py::arg("label"),
+    py::arg("x"),
+    py::arg("show_label") = false,
+    py::arg("color") = py::array_t<double>(),
+    py::arg("width") = 1.0);
+
+    m.def("drag_hline", [&](std::string label,
+                            double y,
+                            bool showLabel,
+                            array_like<double> color,
+                            double width) {
+
+        ImVec4 c = interpretColor(color);
+
+        bool mod = ImPlot::DragLineY(label.c_str(), &y, showLabel, c, width);
+        viz.setMod(mod);
+
+        return y;
+    },
+    py::arg("label"),
+    py::arg("y"),
+    py::arg("show_label") = false,
+    py::arg("color") = py::array_t<double>(),
+    py::arg("width") = 1.0);
+
+    m.def("annotate", [&](
+                double x,
+                double y,
+                std::string text,
+                array_like<double> color,
+                array_like<double> offset,
+                bool clamp) {
+
+        ImVec4 col = interpretColor(color);
+        if (col.w < 0) {
+            col = ImVec4(1.0, 1.0, 1.0, 0.0);
+        }
+
+        ImVec2 o;
+
+        if (offset.shape(0) > 0) {
+            assert_shape(offset, {{2}});
+            o.x = offset.data()[0];
+            o.y = offset.data()[1];
+        }
+
+        if (clamp) {
+            ImPlot::AnnotateClamped(x, y, o, col, "%s", text.c_str());
+        } else {
+            ImPlot::Annotate(x, y, o, col, "%s", text.c_str());
+        }
+    },
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("text"),
+    py::arg("color") = py::array(),
+    py::arg("offset") = py::array(),
+    py::arg("clamp") = false);
 
     m.def("activate_svg", [&]() {
 

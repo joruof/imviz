@@ -96,7 +96,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setup(name="imviz",
-      version="0.1.6",
+      version="0.1.8",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
