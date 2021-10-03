@@ -3,6 +3,10 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 
+#include <pybind11/pybind11.h>
+
+namespace input {
+
 struct KeyEvent {
     GLFWwindow* window;
     int key;
@@ -48,19 +52,20 @@ struct ScrollEvent {
 
 struct DropEvent {
     GLFWwindow* window;
-    int count;
-    const char** paths;
+    std::vector<std::string> paths;
 };
 
-void initInput(GLFWwindow* window);
-void updateInput();
+void registerCallbacks(GLFWwindow* window);
+
+void update();
 void clearKeyboardInput();
 void clearMouseInput();
 
 KeyEvent getKey(int key);
-double getMouseX();
-double getMouseY();
+
 MouseButtonEvent getMouseButton(int key);
+double getCursorX();
+double getCursorY();
 
 std::vector<KeyEvent>& getKeyEvents();
 std::vector<CharEvent>& getCharEvents();
@@ -70,3 +75,7 @@ std::vector<CursorPosEvent>& getCursorPosEvents();
 std::vector<CursorEnterEvent>& getCursorEnterEvents();
 std::vector<ScrollEvent>& getScrollEvents();
 std::vector<DropEvent>& getDropEvents();
+
+void loadPythonBindings(pybind11::module& m);
+
+}

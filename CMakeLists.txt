@@ -94,10 +94,12 @@ set(SOURCE_FILES
     ${implot_SOURCE_DIR}/implot_items.cpp
     ./src/SourceSansPro.cpp
     ./src/bindings.cpp
+    ./src/input.cpp
    )
 
 set(HEADER_FILES 
     ./src/SourceSansPro.h
+    ./src/input.h
     )
 
 # Builds the python bindings module.

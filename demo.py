@@ -81,6 +81,11 @@ def main():
 
     while viz.wait(vsync=True):
 
+        for e in viz.get_key_events():
+            if e.key == viz.KEY_K:
+                if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
+                    print("Pressed Ctrl+K")
+
         # menus
 
         if viz.begin_main_menu_bar():
@@ -108,7 +113,7 @@ def main():
             viz.end_main_menu_bar()
 
         # window options
-        
+
         if s.show_overlay:
 
             if viz.begin_window("Overlay",
@@ -141,10 +146,10 @@ def main():
                                            1000)
 
                 s.input_float = viz.drag("drag",
-                                          s.input_float,
-                                          0.01,
-                                          0.0,
-                                          1000)
+                                         s.input_float,
+                                         0.01,
+                                         0.0,
+                                         1000)
 
                 s.color_rgb = viz.color_edit("color rgb", s.color_rgb)
                 s.color_rgba = viz.color_edit("color rgba", s.color_rgba)
@@ -222,8 +227,9 @@ def main():
                     viz.end_plot()
 
                 viz.tree_pop()
-            
+
         viz.end_window()
+
 
 if __name__ == "__main__":
     main()
