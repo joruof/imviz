@@ -1163,6 +1163,21 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
+    m.def("begin_popup_context_item", [&](std::string label) {
+        if (label.empty()) {
+            return ImGui::BeginPopupContextItem();
+        } else {
+            return ImGui::BeginPopupContextItem(label.c_str());
+        }
+    },
+    py::arg("label") = "");
+
+    m.def("begin_popup", [&](std::string label) {
+        return ImGui::BeginPopup(label.c_str());
+    });
+
+    m.def("end_popup", ImGui::EndPopup);
+
     m.def("activate_svg", [&]() {
 
         //ImDrawList::svg = new std::stringstream();
