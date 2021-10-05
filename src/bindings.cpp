@@ -683,6 +683,19 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
+    m.def("drag", [&](std::string title, int& value, float speed, int min, int max) {
+        
+        bool mod = ImGui::DragInt(title.c_str(), &value, speed, min, max);
+        viz.setMod(mod);
+
+        return value;
+    }, 
+    py::arg("label"),
+    py::arg("value"),
+    py::arg("speed") = 1.0,
+    py::arg("min") = 0.0,
+    py::arg("max") = 0.0);
+
     m.def("drag", [&](std::string title, double& value, float speed, double min, double max) {
         
         bool mod = ImGui::DragScalar(title.c_str(),

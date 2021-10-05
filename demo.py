@@ -147,7 +147,13 @@ def main():
                                            0.0,
                                            1000)
 
-                s.input_float = viz.drag("drag",
+                s.input_int = viz.drag("drag int",
+                                       s.input_int,
+                                       0.1,
+                                       1,
+                                       1000)
+
+                s.input_float = viz.drag("drag float",
                                          s.input_float,
                                          0.01,
                                          0.0,
