@@ -1134,6 +1134,27 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("color") = py::array_t<double>(),
     py::arg("width") = 1.0);
 
+    m.def("get_plot_pos", [&]() {
+
+        ImVec2 plotPos = ImPlot::GetPlotPos();
+        py::array_t<double> pos(2);
+        pos.mutable_at(0) = plotPos.x;
+        pos.mutable_at(1) = plotPos.y;
+
+        return pos;
+    });
+
+    m.def("get_plot_size", [&]() {
+
+        ImVec2 plotSize = ImPlot::GetPlotSize();
+
+        py::array_t<double> pos(2);
+        pos.mutable_at(0) = plotSize.x;
+        pos.mutable_at(1) = plotSize.y;
+
+        return pos;
+    });
+
     m.def("annotate", [&](
                 double x,
                 double y,
@@ -1168,19 +1189,36 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
-    m.def("get_plot_pos", [&]() {
-        ImVec2 plotPos = ImPlot::GetPlotPos();
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = plotPos.x;
-        pos.mutable_at(1) = plotPos.y;
-        return pos;
+    m.def("begin_popup_context_item", [&](std::string label) {
+        if (label.empty()) {
+            return ImGui::BeginPopupContextItem();
+        } else {
+            return ImGui::BeginPopupContextItem(label.c_str());
+        }
+    },
+    py::arg("label") = "");
+
+    m.def("begin_popup", [&](std::string label) {
+        return ImGui::BeginPopup(label.c_str());
     });
 
-    m.def("get_plot_size", [&]() {
-        ImVec2 plotSize = ImPlot::GetPlotSize();
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = plotSize.x;
-        pos.mutable_at(1) = plotSize.y;
-        return pos;
+    m.def("end_popup", ImGui::EndPopup);
+
+    m.def("activate_svg", [&]() {
+
+        //ImDrawList::svg = new std::stringstream();
+    });
+
+    m.def("get_svg", [&]() {
+
+        /*
+        std::stringstream* svg = ImDrawList::svg;
+        std::string result = svg->str();
+
+        delete svg;
+        ImDrawList::svg = nullptr;
+
+        return result;
+        */
     });
 }

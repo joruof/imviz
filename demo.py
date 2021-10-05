@@ -74,6 +74,8 @@ class State:
         self.drag_vline = 2.0
         self.drag_hline = 2.0
 
+        self.drag_dots = []
+
 
 def main():
 
@@ -223,6 +225,25 @@ def main():
 
                     viz.annotate(5, 5, "foo")
                     viz.annotate(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
+
+                    if viz.begin_popup("##PlotContext"):
+                        if viz.begin_menu("Create"):
+                            if viz.menu_item("Drag Dot"):
+                                s.drag_dots.append((1, 1))
+                            viz.end_menu()
+                        viz.end_popup()
+
+                    for i in range(len(s.drag_dots)):
+                        s.drag_dots[i]= viz.drag_point(f"dot_#{i}",
+                                                       s.drag_dots[i],
+                                                       show_label=True,
+                                                       color=(1.0, 0.0, 0.0),
+                                                       radius=4)
+
+                        if viz.begin_popup_context_item():
+                            if viz.menu_item("Delete"):
+                                print("deleting")
+                            viz.end_popup()
 
                     viz.end_plot()
 
