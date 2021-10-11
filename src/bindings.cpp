@@ -39,7 +39,7 @@ struct ImViz {
     bool mod = false;
     bool mod_any = false;
 
-    std::regex re{"(-)?(o|s|d|\\*|\\+)?(r|g|b|y|m|w)?"};
+    std::regex re{"(-)?(o|s|d|\\*|\\+)?"};
 
     std::unordered_map<std::string, GLuint> textureCache;
 
@@ -693,8 +693,8 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label"),
     py::arg("value"),
     py::arg("speed") = 1.0,
-    py::arg("min") = 0.0,
-    py::arg("max") = 0.0);
+    py::arg("min") = 0,
+    py::arg("max") = 0);
 
     m.def("drag", [&](std::string title, double& value, float speed, double min, double max) {
         
@@ -993,6 +993,8 @@ PYBIND11_MODULE(imviz, m) {
                       float markerSize,
                       float markerWeight) {
 
+        // interpret marker format
+
         std::smatch match;
         std::regex_search(fmt, match, viz.re);
 
@@ -1004,10 +1006,6 @@ PYBIND11_MODULE(imviz, m) {
                 groups.push_back("");
             }
         }
-
-        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
 
         if (groups[2] == "o") {
             ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
@@ -1022,6 +1020,14 @@ PYBIND11_MODULE(imviz, m) {
         } else {
             ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
         }
+
+        // set style vars
+
+        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
+        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
+        
+        // interpret array
 
         size_t yCount = y.shape()[0];
 
@@ -1056,11 +1062,15 @@ PYBIND11_MODULE(imviz, m) {
             throw std::runtime_error("Data format could not be interpreted");
         }
 
+        // plot lines and markers
+
         if (groups[1] == "-") {
             ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
         } else {
             ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
         }
+
+        // plot shade if needed
 
         size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
 
@@ -1108,6 +1118,48 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0);
+
+    m.def("get_plot_mouse_pos", [&]() {
+
+        ImPlotPoint mouse = ImPlot::GetPlotMousePos();
+        return py::make_tuple(mouse.x, mouse.y);
+    });
+
+    m.def("plot_vlines", [&](std::string label,
+                            array_like<double> xs,
+                            array_like<double> color,
+                            float width) {
+
+        assert_shape(xs, {{-1}});
+
+        ImVec4 c = interpretColor(color);
+
+        ImPlot::SetNextLineStyle(c, width);
+
+        ImPlot::PlotVLines(label.c_str(), xs.data(), xs.shape(0));
+    },
+    py::arg("label"),
+    py::arg("xs"),
+    py::arg("color") = py::array_t<double>(),
+    py::arg("width") = 1.0);
+
+    m.def("plot_hlines", [&](std::string label,
+                            array_like<double> ys,
+                            array_like<double> color,
+                            float width) {
+
+        assert_shape(ys, {{-1}});
+
+        ImVec4 c = interpretColor(color);
+
+        ImPlot::SetNextLineStyle(c, width);
+
+        ImPlot::PlotHLines(label.c_str(), ys.data(), ys.shape(0));
+    },
+    py::arg("label"),
+    py::arg("ys"),
+    py::arg("color") = py::array_t<double>(),
+    py::arg("width") = 1.0);
 
     m.def("drag_vline", [&](std::string label,
                             double x,

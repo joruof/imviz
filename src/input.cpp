@@ -2,6 +2,7 @@
 
 #include <mutex>
 
+#include <pybind11/cast.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
@@ -471,15 +472,16 @@ void loadPythonBindings(pybind11::module& m) {
     m.def("get_key", getKey);
 
     m.def("get_mouse_button", getMouseButton);
-    m.def("get_cursor_x", getCursorX);
-    m.def("get_cursor_y", getCursorY);
+    m.def("get_mouse_pos", [&]() {
+        return py::make_tuple(getCursorX(), getCursorY());
+    });
 
     m.def("get_key_events", getKeyEvents);
     m.def("get_char_events", getCharEvents);
     m.def("get_char_mods_events", getCharModsEvents);
     m.def("get_mouse_button_events", getMouseButtonEvents);
-    m.def("get_cursor_pos_events", getCursorPosEvents);
-    m.def("get_cursor_enter_events", getCursorEnterEvents);
+    m.def("get_mouse_pos_events", getCursorPosEvents);
+    m.def("get_mouse_enter_events", getCursorEnterEvents);
     m.def("get_scroll_events", getScrollEvents);
     m.def("get_drop_events", getDropEvents);
 }

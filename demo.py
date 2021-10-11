@@ -76,6 +76,9 @@ class State:
 
         self.drag_dots = []
 
+        self.popup_open = False
+        self.popup_plot_pos = (0.0, 0.0)
+
 
 def main():
 
@@ -233,11 +236,18 @@ def main():
                     viz.annotate(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
                     if viz.begin_popup("##PlotContext"):
+                        if not s.popup_open:
+                            s.popup_plot_pos = viz.get_plot_mouse_pos()
+                        s.popup_open = True
                         if viz.begin_menu("Create"):
                             if viz.menu_item("Drag Dot"):
                                 s.drag_dots.append((1, 1))
                             viz.end_menu()
+                        if viz.menu_item("Print mouse pos"):
+                            print(s.popup_plot_pos)
                         viz.end_popup()
+                    else:
+                        s.popup_open = False
 
                     for i in range(len(s.drag_dots)):
                         s.drag_dots[i]= viz.drag_point(f"dot_#{i}",
@@ -250,6 +260,9 @@ def main():
                             if viz.menu_item("Delete"):
                                 print("deleting")
                             viz.end_popup()
+
+                    viz.plot_vlines("hlines", [1, 4, 6, 8], width=2)
+                    viz.plot_hlines("vlines", [1, 4, 6, 8], width=1)
 
                     viz.end_plot()
 
