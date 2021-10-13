@@ -245,6 +245,8 @@ def main():
                             viz.end_menu()
                         if viz.menu_item("Print mouse pos"):
                             print(s.popup_plot_pos)
+                        if viz.menu_item("Print plot limits"):
+                            print(viz.get_plot_limits())
                         viz.end_popup()
                     else:
                         s.popup_open = False
@@ -256,9 +258,12 @@ def main():
                                                        color=(1.0, 0.0, 0.0),
                                                        radius=4)
 
-                        if viz.begin_popup_context_item():
+                        if not viz.plot_contains(s.drag_dots[i]):
+                            continue
+
+                        if viz.begin_popup_context_item(f"dot_#{i}"):
                             if viz.menu_item("Delete"):
-                                print("deleting")
+                                print(f"deleting {i}")
                             viz.end_popup()
 
                     viz.plot_vlines("hlines", [1, 4, 6, 8], width=2)

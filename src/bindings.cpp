@@ -505,7 +505,42 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("end_window", ImGui::End);
 
-    m.def("window_open", [&]() { return viz.currentWindowOpen; });
+    m.def("get_window_open", [&]() { 
+        return viz.currentWindowOpen;
+    });
+
+    m.def("get_window_pos", [&]() { 
+
+        ImVec2 winPos = ImGui::GetWindowPos();
+
+        py::array_t<double> pos(2);
+        pos.mutable_at(0) = winPos.x;
+        pos.mutable_at(1) = winPos.y;
+
+        return winPos;
+    });
+
+    m.def("get_window_size", [&]() { 
+
+        ImVec2 winSize = ImGui::GetWindowSize();
+
+        py::array_t<double> size(2);
+        size.mutable_at(0) = winSize.x;
+        size.mutable_at(1) = winSize.y;
+
+        return winSize;
+    });
+
+    m.def("get_item_id", ImGui::GetItemID);
+
+    m.def("is_item_focused", ImGui::IsItemFocused);
+    m.def("is_item_active", ImGui::IsItemActive);
+    m.def("is_item_activated", ImGui::IsItemActivated);
+    m.def("is_item_visible", ImGui::IsItemVisible);
+
+    m.def("is_item_hovered", [&]() { 
+        return ImGui::IsItemHovered();
+    });
 
     m.def("begin_plot", [&](std::string label,
                             std::string xLabel,
@@ -1119,12 +1154,6 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0);
 
-    m.def("get_plot_mouse_pos", [&]() {
-
-        ImPlotPoint mouse = ImPlot::GetPlotMousePos();
-        return py::make_tuple(mouse.x, mouse.y);
-    });
-
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
                             array_like<double> color,
@@ -1220,6 +1249,36 @@ PYBIND11_MODULE(imviz, m) {
         return pos;
     });
 
+    m.def("get_plot_limits", [&]() {
+
+        ImPlotLimits plotLimits = ImPlot::GetPlotLimits();
+
+        py::array_t<double> pos(4);
+        pos.mutable_at(0) = plotLimits.Min().x;
+        pos.mutable_at(1) = plotLimits.Max().x;
+        pos.mutable_at(2) = plotLimits.Min().y;
+        pos.mutable_at(3) = plotLimits.Max().y;
+
+        return pos;
+    });
+
+    m.def("get_plot_mouse_pos", [&]() {
+
+        ImPlotPoint point = ImPlot::GetPlotMousePos();
+        py::array_t<double> pos(2);
+        pos.mutable_at(0) = point.x;
+        pos.mutable_at(1) = point.y;
+
+        return pos;
+    });
+
+    m.def("plot_contains", [&](array_like<double> point) {
+
+        assert_shape(point, {{2}});
+
+        return ImPlot::GetPlotLimits().Contains(point.at(0), point.at(1));
+    });
+
     m.def("annotate", [&](
                 double x,
                 double y,
@@ -1255,15 +1314,14 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("clamp") = false);
 
     m.def("begin_popup_context_item", [&](std::string label) {
-        if (label.empty()) {
-            return ImGui::BeginPopupContextItem();
-        } else {
-            return ImGui::BeginPopupContextItem(label.c_str());
-        }
+
+        return ImGui::BeginPopupContextItem(
+                label.empty() ? 0 : label.c_str());
     },
     py::arg("label") = "");
 
     m.def("begin_popup", [&](std::string label) {
+
         return ImGui::BeginPopup(label.c_str());
     });
 
