@@ -79,6 +79,9 @@ class State:
         self.popup_open = False
         self.popup_plot_pos = (0.0, 0.0)
 
+        self.perf_xs = np.random.rand(64, 3600).reshape((-1,))
+        self.perf_ys = np.random.rand(64, 3600).reshape((-1,))
+
 
 def main():
 
@@ -268,6 +271,38 @@ def main():
 
                     viz.plot_vlines("hlines", [1, 4, 6, 8], width=2)
                     viz.plot_hlines("vlines", [1, 4, 6, 8], width=1)
+
+                    viz.end_plot()
+
+                viz.tree_pop()
+
+            if viz.tree_node("Modal popup"):
+
+                if viz.button("open popup"):
+                    viz.open_popup("Modal Test")
+
+                viz.set_next_window_pos(viz.get_viewport_center(), (0.5, 0.5))
+
+                if viz.begin_popup_modal("Modal Test"):
+
+                    viz.text("This is modal popup!")
+
+                    viz.separator()
+
+                    if viz.button("close"):
+                        viz.close_current_popup()
+
+                    viz.end_popup()
+
+                viz.tree_pop()
+
+            if viz.tree_node("Plot Performance Test"):
+
+                if viz.begin_plot("Test Plot"):
+
+                    viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots")
+
+                    print(viz.get_plot_query())
 
                     viz.end_plot()
 

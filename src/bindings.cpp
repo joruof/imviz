@@ -437,6 +437,7 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("mod", [&]() { return viz.mod; });
     m.def("mod_any", [&]() { return viz.mod_any; });
+    m.def("set_mod", [&](bool m) { viz.setMod(m); });
     m.def("clear_mod_any", [&]() { viz.mod_any = false; });
 
     m.def("wait", [&](bool vsync) {
@@ -451,6 +452,31 @@ PYBIND11_MODULE(imviz, m) {
     m.def("trigger", [&]() {
         viz.trigger();
     });
+
+    m.def("set_next_window_pos", [&](array_like<float> position, array_like<float> pivot) {
+
+        assert_shape(position, {{2}});
+        const float* data = position.data();
+
+        ImVec2 pv(0.0, 0.0);
+        if (pivot.shape()[0] > 0) {
+            assert_shape(pivot, {{2}});
+            pv = ImVec2(pivot.at(0), pivot.at(1));
+        }
+
+        ImGui::SetNextWindowPos({data[0], data[1]}, 0, pv);
+    },
+    py::arg("position"),
+    py::arg("pivot") = py::array());
+
+    m.def("set_next_window_size", [&](array_like<float> size) {
+
+        assert_shape(size, {{2}});
+        const float* data = size.data();
+
+        ImGui::SetNextWindowSize({data[0], data[1]});
+    },
+    py::arg("size"));
 
     m.def("begin_window", [&](std::string label,
                        bool opened,
@@ -509,6 +535,17 @@ PYBIND11_MODULE(imviz, m) {
         return viz.currentWindowOpen;
     });
 
+    m.def("get_viewport_center", [&]() { 
+
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+
+        py::array_t<double> pos(2);
+        pos.mutable_at(0) = center.x;
+        pos.mutable_at(1) = center.y;
+
+        return pos;
+    });
+
     m.def("get_window_pos", [&]() { 
 
         ImVec2 winPos = ImGui::GetWindowPos();
@@ -517,7 +554,7 @@ PYBIND11_MODULE(imviz, m) {
         pos.mutable_at(0) = winPos.x;
         pos.mutable_at(1) = winPos.y;
 
-        return winPos;
+        return pos;
     });
 
     m.def("get_window_size", [&]() { 
@@ -528,7 +565,7 @@ PYBIND11_MODULE(imviz, m) {
         size.mutable_at(0) = winSize.x;
         size.mutable_at(1) = winSize.y;
 
-        return winSize;
+        return size;
     });
 
     m.def("get_item_id", ImGui::GetItemID);
@@ -550,6 +587,8 @@ PYBIND11_MODULE(imviz, m) {
                             bool autoFitY) {
 
         ImPlotFlags flags = 0;
+
+        flags |= ImPlotFlags_Query;
 
         if (equalAxis) {
             flags |= ImPlotFlags_Equal;
@@ -1238,6 +1277,31 @@ PYBIND11_MODULE(imviz, m) {
         return pos;
     });
 
+    m.def("get_plot_query", [&]() {
+
+        ImPlotLimits limits = ImPlot::GetPlotQuery();
+        py::array_t<double> pos(4);
+        pos.mutable_at(0) = limits.Min().x;
+        pos.mutable_at(1) = limits.Max().x;
+        pos.mutable_at(2) = limits.Min().y;
+        pos.mutable_at(3) = limits.Max().y;
+
+        return pos;
+    });
+
+    m.def("set_plot_query", [&](array_like<double> query) {
+
+        assert_shape(query, {{4}});
+
+        ImPlotLimits limits(
+            query.at(0),
+            query.at(1),
+            query.at(2),
+            query.at(3));
+
+        ImPlot::SetPlotQuery(limits);
+    });
+
     m.def("get_plot_size", [&]() {
 
         ImVec2 plotSize = ImPlot::GetPlotSize();
@@ -1325,7 +1389,26 @@ PYBIND11_MODULE(imviz, m) {
         return ImGui::BeginPopup(label.c_str());
     });
 
+    m.def("begin_popup_modal", [&](std::string label) {
+
+        return ImGui::BeginPopupModal(
+                label.c_str(),
+                NULL,
+                ImGuiWindowFlags_AlwaysAutoResize);
+    });
+
+    m.def("open_popup", [&](std::string label) {
+
+        return ImGui::OpenPopup(label.c_str());
+    });
+
+    m.def("close_current_popup", ImGui::CloseCurrentPopup);
+
     m.def("end_popup", ImGui::EndPopup);
+
+    m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
+
+    m.def("separator", ImGui::Separator);
 
     m.def("activate_svg", [&]() {
 
