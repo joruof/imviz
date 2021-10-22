@@ -582,6 +582,7 @@ PYBIND11_MODULE(imviz, m) {
     m.def("begin_plot", [&](std::string label,
                             std::string xLabel,
                             std::string yLabel,
+                            array_like<float> size,
                             bool equalAxis,
                             bool autoFitX,
                             bool autoFitY) {
@@ -597,6 +598,14 @@ PYBIND11_MODULE(imviz, m) {
         ImPlotAxisFlags xFlags = 0;
         ImPlotAxisFlags yFlags = 0;
 
+        ImVec2 plotSize = ImGui::GetContentRegionAvail();
+
+        if (size.shape()[0] > 0) {
+            assert_shape(size, {{2}});
+            const float* data = size.data();
+            plotSize = ImVec2(data[0], data[1]);
+        } 
+
         if (autoFitX) { 
             xFlags |= ImPlotAxisFlags_AutoFit;
         }
@@ -608,7 +617,7 @@ PYBIND11_MODULE(imviz, m) {
         return ImPlot::BeginPlot(label.c_str(),
                       xLabel.c_str(),
                       yLabel.c_str(),
-                      ImGui::GetContentRegionAvail(),
+                      plotSize,
                       flags,
                       xFlags,
                       yFlags);
@@ -616,6 +625,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("label") = "",
     py::arg("x_label") = "",
     py::arg("y_label") = "",
+    py::arg("size") = py::array_t<float>(),
     py::arg("equal_axis") = false,
     py::arg("auto_fit_x") = false,
     py::arg("auto_fit_y") = false);
@@ -1409,6 +1419,23 @@ PYBIND11_MODULE(imviz, m) {
     m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
 
     m.def("separator", ImGui::Separator);
+
+    m.def("push_id", [&](std::string id) {
+        ImGui::PushID(id.c_str());
+    });
+
+    m.def("pop_id", ImGui::PopID);
+
+    m.def("get_content_region_avail", [&](){
+
+        ImVec2 region = ImGui::GetContentRegionAvail();
+
+        py::array_t<double> size(2);
+        size.mutable_at(0) = region.x;
+        size.mutable_at(1) = region.y;
+
+        return size;
+    });
 
     m.def("activate_svg", [&]() {
 

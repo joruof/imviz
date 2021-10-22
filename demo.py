@@ -297,12 +297,12 @@ def main():
                 viz.tree_pop()
 
             if viz.tree_node("Plot Performance Test"):
+                
+                print(viz.get_content_region_avail())
 
                 if viz.begin_plot("Test Plot"):
 
-                    viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots")
-
-                    print(viz.get_plot_query())
+                    viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
 
                     viz.end_plot()
 
