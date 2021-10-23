@@ -56,7 +56,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "555ff688a8134bc0c602123149abe9c17d577475"
+    GIT_TAG "dea3387cdcc1d6a7ee3607f8a37a9dce8a85224f"
 )
 
 FetchContent_Declare(

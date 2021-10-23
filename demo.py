@@ -51,6 +51,8 @@ class State:
         self.color_rgb = [1.0, 1.0, 0.0]
         self.color_rgba = [1.0, 1.0, 0.0, 0.0]
 
+        self.file_path = "/"
+
         # selection
 
         self.items = ["mars", "venus", "apollo", "zeus", "hera"]
@@ -169,6 +171,11 @@ def main():
                 s.color_rgba = viz.color_edit("color rgba", s.color_rgba)
 
                 s.range = viz.range("range", s.range)
+
+                if viz.button(f"{s.file_path}"):
+                    viz.open_popup("File Selection")
+
+                s.file_path = viz.file_dialog_popup("File Selection", s.file_path)
 
                 viz.tree_pop()
 
@@ -295,11 +302,9 @@ def main():
                     viz.end_popup()
 
                 viz.tree_pop()
-
+        
             if viz.tree_node("Plot Performance Test"):
                 
-                print(viz.get_content_region_avail())
-
                 if viz.begin_plot("Test Plot"):
 
                     viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
