@@ -282,6 +282,8 @@ def main():
                     viz.plot_vlines("hlines", [1, 4, 6, 8], width=2)
                     viz.plot_hlines("vlines", [1, 4, 6, 8], width=1)
 
+                    viz.plot_bars([[1, 2, 3, 4], [2, 2, 3, 3]], width=0.8)
+
                     viz.end_plot()
 
                 viz.tree_pop()

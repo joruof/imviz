@@ -377,6 +377,22 @@ namespace ImGui {
 template <typename T>
 using array_like = py::array_t<T, py::array::c_style | py::array::forcecast>;
 
+std::string shapeToStr(py::array& array) {
+
+    std::stringstream ss;
+    ss << "(";
+
+    for (int k = 0; k < array.ndim(); ++k) {
+        ss << array.shape()[k];
+        if (k != array.ndim() - 1) {
+            ss <<  ", ";
+        }
+    }
+    ss << ")";
+
+    return ss.str();
+}
+
 void assertArrayShape(std::string name,
                       py::array& array,
                       std::vector<std::vector<int>> shapes) {
@@ -419,15 +435,7 @@ void assertArrayShape(std::string name,
             }
         }
 
-        ss << ", but found (";
-
-        for (int k = 0; k < array.ndim(); ++k) { 
-            ss << array.shape()[k]; 
-            if (k != array.ndim() - 1) { 
-                ss <<  ", ";
-            }
-        }
-        ss << ")";
+        ss << ", but found " << shapeToStr(array) << std::endl;
 
         throw std::runtime_error(ss.str());
     }
@@ -560,6 +568,60 @@ ImageInfo processImage(std::string id, py::array& image) {
     info.imageWidth = imageWidth;
     info.imageHeight = imageHeight;
     info.textureId = textureId;
+
+    return info;
+}
+
+struct PlotArrayInfo {
+
+    std::vector<double> indices;
+    const double* xDataPtr = nullptr;
+    const double* yDataPtr = nullptr;
+    size_t count = 0;
+};
+
+PlotArrayInfo interpretPlotArrays(
+        array_like<double>& x,
+        array_like<double>& y) {
+
+    PlotArrayInfo info;
+
+    size_t yCount = y.shape()[0];
+
+    if (1 == x.ndim() && 0 == yCount) {
+        // one 1d array given
+        // assume x is [0, 1, 2, ..., N]
+        info.count = x.shape()[0];
+        info.indices.resize(info.count);
+        for (size_t i = 0; i < info.count; ++i) {
+            info.indices[i] = i;
+        }
+        info.xDataPtr = info.indices.data();
+        info.yDataPtr = x.data();
+    } else if (2 == x.ndim() && 0 == yCount) {
+        // one 2d array given
+        size_t len0 = x.shape()[0];
+        size_t len1 = x.shape()[1];
+        if (len0 == 2) {
+            info.xDataPtr = x.data();
+            info.yDataPtr = x.data() + len1;
+            info.count = len1;
+        }
+    } else if (1 == x.ndim() && 1 == y.ndim()) {
+        // two 2d arrays given
+        info.count = std::min(x.shape()[0], y.shape()[0]);
+        info.xDataPtr = x.data();
+        info.yDataPtr = y.data();
+    }
+
+    if (info.count == 0) {
+        throw std::runtime_error(
+                "Plot data with x-shape "
+                + shapeToStr(x)
+                + " and y-shape "
+                + shapeToStr(y)
+                + " cannot be interpreted");
+    }
 
     return info;
 }
@@ -1387,53 +1449,22 @@ PYBIND11_MODULE(imviz, m) {
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
-        
-        // interpret array
 
-        size_t yCount = y.shape()[0];
+        // interpret data
 
-        std::vector<double> indices;
-        const double* xDataPtr = nullptr;
-        const double* yDataPtr = nullptr;
-        size_t count = 0;
-
-        if (1 == x.ndim() && 0 == yCount) {
-            count = x.shape()[0];
-            indices.resize(count);
-            for (size_t i = 0; i < count; ++i) {
-                indices[i] = i;
-            }
-            xDataPtr = indices.data();
-            yDataPtr = x.data();
-        } else if (2 == x.ndim() && 0 == yCount) {
-            size_t len0 = x.shape()[0];
-            size_t len1 = x.shape()[1];
-            if (len0 == 2) {
-                xDataPtr = x.data();
-                yDataPtr = x.data() + len1;
-                count = len1;
-            }
-        } else if (1 == x.ndim() && 1 == y.ndim()) {
-            count = std::min(x.shape()[0], y.shape()[0]);
-            xDataPtr = x.data();
-            yDataPtr = y.data();
-        } 
-
-        if (count == 0) {
-            throw std::runtime_error("Data format could not be interpreted");
-        }
+        PlotArrayInfo pai = interpretPlotArrays(x, y);
 
         // plot lines and markers
 
         if (groups[1] == "-") {
-            ImPlot::PlotLine(label.c_str(), xDataPtr, yDataPtr, count);
+            ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
         } else {
-            ImPlot::PlotScatter(label.c_str(), xDataPtr, yDataPtr, count);
+            ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
         }
 
         // plot shade if needed
 
-        size_t shadeCount = std::min(count, (size_t)shade.shape()[0]);
+        size_t shadeCount = std::min(pai.count, (size_t)shade.shape()[0]);
 
         if (shadeCount != 0) {
             if (1 == shade.ndim()) {
@@ -1441,7 +1472,11 @@ PYBIND11_MODULE(imviz, m) {
                 auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
                 py::array_t<double> upper = mean + shade;
                 py::array_t<double> lower = mean - shade;
-                ImPlot::PlotShaded(label.c_str(), xDataPtr, lower.data(), upper.data(), shadeCount);
+                ImPlot::PlotShaded(label.c_str(),
+                                   pai.xDataPtr,
+                                   lower.data(),
+                                   upper.data(),
+                                   shadeCount);
                 ImPlot::PopStyleVar();
             }
         }
@@ -1457,6 +1492,40 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("line_weight") = 1.0f, 
     py::arg("marker_size") = 4.0f, 
     py::arg("marker_weight") = 1.0f);
+
+    m.def("plot_bars", [&](array_like<double> x,
+                           array_like<double> y,
+                           std::string label,
+                           double width,
+                           double shift,
+                           bool horizontal) {
+
+        PlotArrayInfo pai = interpretPlotArrays(x, y);
+
+        if (horizontal) {
+            ImPlot::PlotBarsH(
+                    label.c_str(),
+                    pai.xDataPtr,
+                    pai.yDataPtr,
+                    pai.count,
+                    width,
+                    shift);
+        } else {
+            ImPlot::PlotBars(
+                    label.c_str(),
+                    pai.xDataPtr,
+                    pai.yDataPtr,
+                    pai.count,
+                    width,
+                    shift);
+        }
+    },
+    py::arg("x"),
+    py::arg("y") = py::array(),
+    py::arg("label") = "",
+    py::arg("width") = 0.5,
+    py::arg("shift") = 0.0,
+    py::arg("horizontal") = false);
 
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
