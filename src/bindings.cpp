@@ -19,6 +19,11 @@
 #include "backends/imgui_impl_opengl3.h"
 
 #include "imgui.h"
+
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+
 #include "imgui_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
 
@@ -475,51 +480,55 @@ struct ImageInfo {
 
     int imageWidth = 0;
     int imageHeight = 0;
-    GLuint textureId = 0;
-};
-
-ImageInfo processImage(std::string id, py::array& image) {
-
-    assert_shape(image, {{-1, -1}, {-1, -1, 1}, {-1, -1, 3}, {-1, -1, 4}});
-
-    ImGuiID uniqueId = ImGui::GetID(id.c_str());
-
-    // determine image parameters
-
-    int imageWidth = 0;
-    int imageHeight = 0;
     int channels = 0;
     GLenum format = 0;
     GLenum datatype = 0;
+};
+
+ImageInfo interpretImage(py::array& image) {
+
+    assert_shape(image, {{-1, -1}, {-1, -1, 1}, {-1, -1, 3}, {-1, -1, 4}});
+
+    // determine image parameters
+    
+    ImageInfo i;
 
     if (image.ndim() == 2) {
-        imageWidth = image.shape(1);
-        imageHeight = image.shape(0);
-        channels = 1;
+        i.imageWidth = image.shape(1);
+        i.imageHeight = image.shape(0);
+        i.channels = 1;
     } else if (image.ndim() == 3) {
-        imageWidth = image.shape(1);
-        imageHeight = image.shape(0);
-        channels = image.shape(2);
+        i.imageWidth = image.shape(1);
+        i.imageHeight = image.shape(0);
+        i.channels = image.shape(2);
     }
 
-    if (channels == 1) {
-        format = GL_RED;
-    } else if (channels == 3) {
-        format = GL_RGB;
-    } else if (channels == 4) {
-        format = GL_RGBA;
+    if (i.channels == 1) {
+        i.format = GL_RED;
+    } else if (i.channels == 3) {
+        i.format = GL_RGB;
+    } else if (i.channels == 4) {
+        i.format = GL_RGBA;
     } 
 
     if (py::str(image.dtype()).equal(py::str("uint8"))) {
-        datatype = GL_UNSIGNED_BYTE;
+        i.datatype = GL_UNSIGNED_BYTE;
     } else if (py::str(image.dtype()).equal(py::str("float32"))) {
-        datatype = GL_FLOAT;
+        i.datatype = GL_FLOAT;
     } else {
-        datatype = GL_FLOAT;
+        i.datatype = GL_FLOAT;
         image = array_like<float>::ensure(image);
     }
 
+    return i;
+}
+
+GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
+
+    ImGuiID uniqueId = ImGui::GetID(id.c_str());
+
     // create a texture if necessary
+    
     if (viz.textureCache.find(uniqueId) == viz.textureCache.end()) {
 
         GLuint textureId;
@@ -544,7 +553,7 @@ ImageInfo processImage(std::string id, py::array& image) {
 
     glBindTexture(GL_TEXTURE_2D, textureId);
 
-    if (format == GL_RED) {
+    if (i.format == GL_RED) {
         GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
         glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
     }
@@ -552,24 +561,17 @@ ImageInfo processImage(std::string id, py::array& image) {
     glTexImage2D(
             GL_TEXTURE_2D,
             0,
-            format,
-            imageWidth,
-            imageHeight,
+            i.format,
+            i.imageWidth,
+            i.imageHeight,
             0,
-            format,
-            datatype,
+            i.format,
+            i.datatype,
             image.data());
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // return info
-
-    ImageInfo info;
-    info.imageWidth = imageWidth;
-    info.imageHeight = imageHeight;
-    info.textureId = textureId;
-
-    return info;
+    return textureId;
 }
 
 struct PlotArrayInfo {
@@ -1248,9 +1250,10 @@ PYBIND11_MODULE(imviz, m) {
                 std::string id,
                 py::array& image,
                 int displayWidth,
-                int displayHeight) {
+                int displayHeight,
+                array_like<double> borderCol) {
 
-        ImageInfo info = processImage(id, image);
+        ImageInfo info = interpretImage(image);
 
         if (displayWidth < 0) {
             displayWidth = info.imageWidth;
@@ -1259,14 +1262,39 @@ PYBIND11_MODULE(imviz, m) {
             displayHeight = info.imageHeight;
         }
 
-        ImGui::Image(
-                (void*)(intptr_t)info.textureId,
-                ImVec2(displayWidth, displayHeight));
+        // calculate expected bounding box beforehand
+
+        ImVec2 size(displayWidth, displayHeight);
+        ImVec4 bc = interpretColor(borderCol);
+
+        // essentially copied from ImGui::Image function
+        ImGuiWindow* w = ImGui::GetCurrentWindow();
+        ImRect bb(w->DC.CursorPos, w->DC.CursorPos + size);
+        if (bc.w > 0.0f)
+            bb.Max += ImVec2(2, 2);
+
+        // upload to gpu
+
+        GLuint textureId = 0;
+
+        if (ImGui::IsRectVisible(bb.Min, bb.Max)) {
+            // only upload the image to gpu, if it's actually visible
+            // this improves performance for e.g. large lists of images
+            textureId = uploadImage(id, info, image);
+        }
+
+        ImGui::Image((void*)(intptr_t)textureId,
+                     size,
+                     ImVec2(0, 0),
+                     ImVec2(1, 1),
+                     ImVec4(1, 1, 1, 1),
+                     bc);
     },
     py::arg("id"),
     py::arg("image"),
     py::arg("width") = -1,
-    py::arg("height") = -1);
+    py::arg("height") = -1,
+    py::arg("border_col") = py::array());
 
     m.def("plot_image", [&](
                 std::string id,
@@ -1276,10 +1304,8 @@ PYBIND11_MODULE(imviz, m) {
                 double displayWidth,
                 double displayHeight) {
 
-        ImageInfo info = processImage(id, image);
-
-        // display texture
-
+        ImageInfo info = interpretImage(image);
+        
         if (displayWidth < 0) {
             displayWidth = info.imageWidth;
         }
@@ -1287,12 +1313,14 @@ PYBIND11_MODULE(imviz, m) {
             displayHeight = info.imageHeight;
         }
 
+        GLuint textureId = uploadImage(id, info, image);
+
         ImPlotPoint boundsMin(x, y);
         ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
 
         ImPlot::PlotImage(
                 id.c_str(),
-                (void*)(intptr_t)info.textureId,
+                (void*)(intptr_t)textureId,
                 boundsMin,
                 boundsMax);
     },

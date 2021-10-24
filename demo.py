@@ -296,6 +296,16 @@ def main():
 
                 viz.tree_pop()
 
+            if viz.tree_node("Many Images"):
+
+                for i in range(100):
+
+                    viz.image("color image float", s.img)
+                    viz.image("color image double", s.img_double)
+                    viz.image("image bool", s.img_bool)
+
+                viz.tree_pop()
+
             if viz.tree_node("Modal popup"):
 
                 if viz.button("open popup"):
