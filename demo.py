@@ -70,6 +70,9 @@ class State:
         # plotting
 
         self.img = np.random.rand(240, 320, 3).astype("float32")
+        self.img_double = np.random.rand(240, 320, 3)
+        self.img_bool = np.random.rand(240, 320) > 0.5
+
         self.target_pos = (0.0, 0.0)
 
         self.drag_point = (0, 1)
@@ -283,16 +286,24 @@ def main():
 
                 viz.tree_pop()
 
+            if viz.tree_node("Images"):
+
+                viz.image("color image float", s.img)
+                viz.image("color image double", s.img_double)
+                viz.image("image bool", s.img_bool)
+
+                viz.tree_pop()
+
             if viz.tree_node("Modal popup"):
 
                 if viz.button("open popup"):
                     viz.open_popup("Modal Test")
 
-                viz.set_next_window_pos(viz.get_viewport_center(), (0.5, 0.5))
+                viz.set_next_window_pos(viz.get_viewport_center(), pivot=(0.5, 0.5))
 
                 if viz.begin_popup_modal("Modal Test"):
 
-                    viz.text("This is modal popup!")
+                    viz.text("This is a modal popup!")
 
                     viz.separator()
 
@@ -302,7 +313,7 @@ def main():
                     viz.end_popup()
 
                 viz.tree_pop()
-        
+
             if viz.tree_node("Plot Performance Test"):
                 
                 if viz.begin_plot("Test Plot"):

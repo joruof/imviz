@@ -42,7 +42,7 @@ struct ImViz {
 
     std::regex re{"(-)?(o|s|d|\\*|\\+)?"};
 
-    std::unordered_map<std::string, GLuint> textureCache;
+    std::unordered_map<ImGuiID, GLuint> textureCache;
 
     ImViz () {
 
@@ -314,7 +314,7 @@ namespace ImGui {
                 sizeof(filenameInputBuf) - 1);
 
         ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth() * 0.8f);
-        ImGui::InputText("Selected File",
+        ImGui::InputText("selected",
                 filenameInputBuf, IM_ARRAYSIZE(filenameInputBuf));
         ImGui::PopItemWidth();
 
@@ -402,7 +402,7 @@ void assertArrayShape(std::string name,
 
     if (!foundShape) {
         std::stringstream ss;
-        ss << "Expected shape of \"" + name + "\" to fit ";
+        ss << "Expected \"" + name + "\" with shape ";
 
         for (size_t i = 0; i < shapes.size(); ++i) { 
             ss << "(";
@@ -470,9 +470,11 @@ struct ImageInfo {
     GLuint textureId = 0;
 };
 
-ImageInfo processImage(std::string& id, py::array& image) {
+ImageInfo processImage(std::string id, py::array& image) {
 
     assert_shape(image, {{-1, -1}, {-1, -1, 1}, {-1, -1, 3}, {-1, -1, 4}});
+
+    ImGuiID uniqueId = ImGui::GetID(id.c_str());
 
     // determine image parameters
 
@@ -505,15 +507,12 @@ ImageInfo processImage(std::string& id, py::array& image) {
     } else if (py::str(image.dtype()).equal(py::str("float32"))) {
         datatype = GL_FLOAT;
     } else {
-        throw std::runtime_error(
-                "Pixel datatype "
-                + std::string(py::str(image.dtype()))
-                + " not supported. "
-                + "Supported datatypes are uint8 and float32.");
+        datatype = GL_FLOAT;
+        image = array_like<float>::ensure(image);
     }
 
     // create a texture if necessary
-    if (viz.textureCache.find(id) == viz.textureCache.end()) {
+    if (viz.textureCache.find(uniqueId) == viz.textureCache.end()) {
 
         GLuint textureId;
 
@@ -528,12 +527,12 @@ ImageInfo processImage(std::string& id, py::array& image) {
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        viz.textureCache[id] = textureId;
+        viz.textureCache[uniqueId] = textureId;
     }
 
     // upload texture
 
-    GLuint textureId = viz.textureCache[id];
+    GLuint textureId = viz.textureCache[uniqueId];
 
     glBindTexture(GL_TEXTURE_2D, textureId);
 
@@ -563,6 +562,182 @@ ImageInfo processImage(std::string& id, py::array& image) {
     info.textureId = textureId;
 
     return info;
+}
+
+/*
+ * Custom type-casters
+ */
+namespace pybind11 {
+    namespace detail {
+
+        /**
+         * ImGui/ImPlot datatypes to numpy-array-like objects
+         */
+
+        template<> struct type_caster<ImVec2> {
+
+        public:
+            PYBIND11_TYPE_CASTER(ImVec2, _("ImVec2"));
+
+            bool load(handle src, bool) {
+
+                auto array = array_like<float>::ensure(src);
+
+                assert_shape(array, {{2,}});
+
+                value.x = array.at(0);
+                value.y = array.at(1);
+
+                return true;
+            }
+
+            static handle cast(
+                    const ImVec2& src,
+                    return_value_policy policy,
+                    handle parent) {
+
+                if (return_value_policy::copy == policy) {
+                    pybind11::array_t<float> array(2, (float*)(&src));
+                    return array.release();
+                } else {
+                    pybind11::array_t<float> array(2, (float*)(&src), parent);
+                    return array.release();
+                }
+            }
+        };
+
+        template<> struct type_caster<ImPlotPoint> {
+
+        public:
+            PYBIND11_TYPE_CASTER(ImPlotPoint, _("ImPlotPoint"));
+
+            bool load(handle src, bool) {
+
+                auto array = array_like<double>::ensure(src);
+
+                assert_shape(array, {{2,}});
+
+                value.x = array.at(0);
+                value.y = array.at(1);
+
+                return true;
+            }
+
+            static handle cast(
+                    const ImPlotPoint& src,
+                    return_value_policy policy,
+                    handle parent) {
+
+                if (return_value_policy::copy == policy) {
+                    pybind11::array_t<double> array(2, (double*)(&src));
+                    return array.release();
+                } else {
+                    pybind11::array_t<double> array(2, (double*)(&src), parent);
+                    return array.release();
+                }
+            }
+        };
+
+        template<> struct type_caster<ImPlotRange> {
+
+        public:
+            PYBIND11_TYPE_CASTER(ImPlotRange, _("ImPlotRange"));
+
+            bool load(handle src, bool) {
+
+                auto array = array_like<double>::ensure(src);
+
+                assert_shape(array, {{2,}});
+
+                value.Min = array.at(0);
+                value.Max = array.at(1);
+
+                return true;
+            }
+
+            static handle cast(
+                    const ImPlotRange& src,
+                    return_value_policy policy,
+                    handle parent) {
+
+                if (return_value_policy::copy == policy) {
+                    pybind11::array_t<double> array(2, (double*)(&src));
+                    return array.release();
+                } else {
+                    pybind11::array_t<double> array(2, (double*)(&src), parent);
+                    return array.release();
+                }
+            }
+        };
+
+        template<> struct type_caster<ImVec4> {
+
+        public:
+            PYBIND11_TYPE_CASTER(ImVec4, _("ImVec4"));
+
+            bool load(handle src, bool) {
+
+                auto array = array_like<float>::ensure(src);
+
+                assert_shape(array, {{4,}});
+
+                value.x = array.at(0);
+                value.y = array.at(1);
+                value.z = array.at(2);
+                value.w = array.at(3);
+
+                return true;
+            }
+
+            static handle cast(
+                    const ImVec4& src,
+                    return_value_policy policy,
+                    handle parent) {
+
+                if (return_value_policy::copy == policy) {
+                    pybind11::array_t<float> array(4, (float*)(&src));
+                    return array.release();
+                } else {
+                    pybind11::array_t<float> array(4, (float*)(&src), parent);
+                    return array.release();
+                }
+            }
+        };
+
+        template<> struct type_caster<ImPlotLimits> {
+
+        public:
+            PYBIND11_TYPE_CASTER(ImPlotLimits, _("ImPlotLimits"));
+
+            bool load(handle src, bool) {
+
+                auto array = array_like<double>::ensure(src);
+
+                assert_shape(array, {{4,}});
+
+                value.X.Min = array.at(0);
+                value.X.Max = array.at(1);
+                value.Y.Min = array.at(2);
+                value.Y.Max = array.at(3);
+
+                return true;
+            }
+
+            static handle cast(
+                    const ImPlotLimits& src,
+                    return_value_policy policy,
+                    handle parent) {
+
+                if (return_value_policy::copy == policy) {
+                    pybind11::array_t<double> array(4, (double*)(&src));
+                    return array.release();
+                } else {
+                    pybind11::array_t<double> array(4, (double*)(&src), parent);
+                    return array.release();
+                }
+            }
+        };
+    }
 }
 
 PYBIND11_MODULE(imviz, m) {
@@ -595,31 +770,17 @@ PYBIND11_MODULE(imviz, m) {
         viz.trigger();
     });
 
-    m.def("set_next_window_pos", [&](array_like<float> position, array_like<float> pivot) {
-
-        assert_shape(position, {{2}});
-        const float* data = position.data();
-
-        ImVec2 pv(0.0, 0.0);
-        if (pivot.shape()[0] > 0) {
-            assert_shape(pivot, {{2}});
-            pv = ImVec2(pivot.at(0), pivot.at(1));
-        }
-
-        ImGui::SetNextWindowPos({data[0], data[1]}, 0, pv);
-    },
+    m.def("set_next_window_pos",
+            ImGui::SetNextWindowPos,
     py::arg("position"),
+    py::arg("cond") = ImGuiCond_None,
     py::arg("pivot") = py::array());
 
-    m.def("set_next_window_size", [&](array_like<float> size) {
-
-        assert_shape(size, {{2}});
-        const float* data = size.data();
-
-        ImGui::SetNextWindowSize({data[0], data[1]});
-    },
-    py::arg("size"));
-
+    m.def("set_next_window_size", 
+            ImGui::SetNextWindowSize,
+    py::arg("size"),
+    py::arg("cond") = ImGuiCond_None);
+ 
     m.def("begin_window", [&](std::string label,
                        bool opened,
                        array_like<float> position, 
@@ -678,37 +839,11 @@ PYBIND11_MODULE(imviz, m) {
     });
 
     m.def("get_viewport_center", [&]() { 
-
-        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = center.x;
-        pos.mutable_at(1) = center.y;
-
-        return pos;
+        return ImGui::GetMainViewport()->GetCenter();
     });
 
-    m.def("get_window_pos", [&]() { 
-
-        ImVec2 winPos = ImGui::GetWindowPos();
-
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = winPos.x;
-        pos.mutable_at(1) = winPos.y;
-
-        return pos;
-    });
-
-    m.def("get_window_size", [&]() { 
-
-        ImVec2 winSize = ImGui::GetWindowSize();
-
-        py::array_t<double> size(2);
-        size.mutable_at(0) = winSize.x;
-        size.mutable_at(1) = winSize.y;
-
-        return size;
-    });
+    m.def("get_window_pos", ImGui::GetWindowPos);
+    m.def("get_window_size", ImGui::GetWindowSize);
 
     m.def("get_item_id", ImGui::GetItemID);
 
@@ -1419,80 +1554,27 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("color") = py::array_t<double>(),
     py::arg("width") = 1.0);
 
-    m.def("get_plot_pos", [&]() {
-
-        ImVec2 plotPos = ImPlot::GetPlotPos();
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = plotPos.x;
-        pos.mutable_at(1) = plotPos.y;
-
-        return pos;
-    });
+    m.def("get_plot_pos", ImPlot::GetPlotPos);
+    m.def("get_plot_size", ImPlot::GetPlotSize);
 
     m.def("get_plot_query", [&]() {
-
-        ImPlotLimits limits = ImPlot::GetPlotQuery();
-        py::array_t<double> pos(4);
-        pos.mutable_at(0) = limits.Min().x;
-        pos.mutable_at(1) = limits.Max().x;
-        pos.mutable_at(2) = limits.Min().y;
-        pos.mutable_at(3) = limits.Max().y;
-
-        return pos;
+        return ImPlot::GetPlotQuery();
     });
 
-    m.def("set_plot_query", [&](array_like<double> query) {
-
-        assert_shape(query, {{4}});
-
-        ImPlotLimits limits(
-            query.at(0),
-            query.at(1),
-            query.at(2),
-            query.at(3));
-
-        ImPlot::SetPlotQuery(limits);
-    });
-
-    m.def("get_plot_size", [&]() {
-
-        ImVec2 plotSize = ImPlot::GetPlotSize();
-
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = plotSize.x;
-        pos.mutable_at(1) = plotSize.y;
-
-        return pos;
+    m.def("set_plot_query", [&](ImPlotLimits query) {
+        ImPlot::SetPlotQuery(query);
     });
 
     m.def("get_plot_limits", [&]() {
-
-        ImPlotLimits plotLimits = ImPlot::GetPlotLimits();
-
-        py::array_t<double> pos(4);
-        pos.mutable_at(0) = plotLimits.Min().x;
-        pos.mutable_at(1) = plotLimits.Max().x;
-        pos.mutable_at(2) = plotLimits.Min().y;
-        pos.mutable_at(3) = plotLimits.Max().y;
-
-        return pos;
+        return ImPlot::GetPlotLimits();
     });
 
     m.def("get_plot_mouse_pos", [&]() {
-
-        ImPlotPoint point = ImPlot::GetPlotMousePos();
-        py::array_t<double> pos(2);
-        pos.mutable_at(0) = point.x;
-        pos.mutable_at(1) = point.y;
-
-        return pos;
+        return ImPlot::GetPlotMousePos();
     });
 
-    m.def("plot_contains", [&](array_like<double> point) {
-
-        assert_shape(point, {{2}});
-
-        return ImPlot::GetPlotLimits().Contains(point.at(0), point.at(1));
+    m.def("plot_contains", [&](ImPlotPoint point) {
+        return ImPlot::GetPlotLimits().Contains(point.x, point.y);
     });
 
     m.def("annotate", [&](
@@ -1566,29 +1648,25 @@ PYBIND11_MODULE(imviz, m) {
     });
 
     m.def("close_current_popup", ImGui::CloseCurrentPopup);
-
     m.def("end_popup", ImGui::EndPopup);
+
+    m.def("get_id", [&](std::string id) {
+        return ImGui::GetID(id.c_str());
+    },
+    py::arg("id"));
+
+    m.def("push_id", [&](std::string id) {
+        ImGui::PushID(id.c_str());
+    },
+    py::arg("id"));
+
+    m.def("pop_id", ImGui::PopID);
 
     m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
 
     m.def("separator", ImGui::Separator);
 
-    m.def("push_id", [&](std::string id) {
-        ImGui::PushID(id.c_str());
-    });
-
-    m.def("pop_id", ImGui::PopID);
-
-    m.def("get_content_region_avail", [&](){
-
-        ImVec2 region = ImGui::GetContentRegionAvail();
-
-        py::array_t<double> size(2);
-        size.mutable_at(0) = region.x;
-        size.mutable_at(1) = region.y;
-
-        return size;
-    });
+    m.def("get_content_region_avail", ImGui::GetContentRegionAvail);
 
     m.def("activate_svg", [&]() {
 
