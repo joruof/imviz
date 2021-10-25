@@ -915,6 +915,10 @@ PYBIND11_MODULE(imviz, m) {
     m.def("is_item_active", ImGui::IsItemActive);
     m.def("is_item_activated", ImGui::IsItemActivated);
     m.def("is_item_visible", ImGui::IsItemVisible);
+    m.def("is_item_clicked", [&](int mouseButton) {
+        return ImGui::IsItemClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
 
     m.def("is_item_hovered", [&]() { 
         return ImGui::IsItemHovered();
@@ -1251,6 +1255,7 @@ PYBIND11_MODULE(imviz, m) {
                 py::array& image,
                 int displayWidth,
                 int displayHeight,
+                array_like<double> tint,
                 array_like<double> borderCol) {
 
         ImageInfo info = interpretImage(image);
@@ -1266,6 +1271,10 @@ PYBIND11_MODULE(imviz, m) {
 
         ImVec2 size(displayWidth, displayHeight);
         ImVec4 bc = interpretColor(borderCol);
+        ImVec4 tn = interpretColor(tint);
+        if (tn.w < 0) {
+            tn = ImVec4(1, 1, 1, 1);
+        }
 
         // essentially copied from ImGui::Image function
         ImGuiWindow* w = ImGui::GetCurrentWindow();
@@ -1287,13 +1296,14 @@ PYBIND11_MODULE(imviz, m) {
                      size,
                      ImVec2(0, 0),
                      ImVec2(1, 1),
-                     ImVec4(1, 1, 1, 1),
+                     tn,
                      bc);
     },
     py::arg("id"),
     py::arg("image"),
     py::arg("width") = -1,
     py::arg("height") = -1,
+    py::arg("tint") = py::array(),
     py::arg("border_col") = py::array());
 
     m.def("plot_image", [&](
@@ -1762,6 +1772,20 @@ PYBIND11_MODULE(imviz, m) {
     m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
 
     m.def("separator", ImGui::Separator);
+
+    m.def("selectable", [&](std::string label, bool selected, ImVec2 size) { 
+
+        bool s = ImGui::Selectable(label.c_str(), selected, 0, size);
+
+        if (selected != s) {
+            viz.setMod(true);
+        }
+
+        return s;
+    },
+    py::arg("label"),
+    py::arg("selected"),
+    py::arg("size") = ImVec2(0, 0));
 
     m.def("get_content_region_avail", ImGui::GetContentRegionAvail);
 

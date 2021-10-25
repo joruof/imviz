@@ -59,6 +59,8 @@ class State:
         self.selection = ""
         self.multi_selection = []
 
+        self.sel_idx = 0
+
         # dataframes
 
         self.xs = np.arange(0.0, 100.0, 0.1)
@@ -300,9 +302,17 @@ def main():
 
                 for i in range(100):
 
-                    viz.image("color image float", s.img)
-                    viz.image("color image double", s.img_double)
-                    viz.image("image bool", s.img_bool)
+                    if i == s.sel_idx:
+                        tint = [0.6, 0.6, 0.6, 1.0]
+                    else:
+                        tint = [1, 1, 1, 1]
+
+                    viz.text(f"image {i}")
+
+                    viz.image("color image float", s.img, tint=tint)
+
+                    if viz.is_item_clicked():
+                        s.sel_idx = i
 
                 viz.tree_pop()
 
