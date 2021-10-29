@@ -346,6 +346,26 @@ def main():
 
                 viz.tree_pop()
 
+            if viz.tree_node("Column Test"):
+
+                viz.text("(?)")
+
+                if viz.is_item_hovered():
+                    viz.begin_tooltip()
+                    viz.text("What did you expect?")
+                    viz.end_tooltip()
+
+                w, h = viz.get_content_region_avail()
+
+                for i in range(10):
+                    for j in range(10):
+                        viz.set_next_item_width((w / 10) - 8)
+                        viz.drag(f"###{i},{j}", 0.0)
+                        if j < 9:
+                            viz.same_line()
+
+                viz.tree_pop()
+
         viz.end_window()
 
 

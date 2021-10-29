@@ -844,6 +844,15 @@ PYBIND11_MODULE(imviz, m) {
             ImGui::SetNextWindowSize,
     py::arg("size"),
     py::arg("cond") = ImGuiCond_None);
+
+    m.def("set_next_item_width", 
+            ImGui::SetNextItemWidth,
+    py::arg("width"));
+
+    m.def("set_next_item_open", 
+            ImGui::SetNextItemOpen,
+    py::arg("open"),
+    py::arg("cond"));
  
     m.def("begin_window", [&](std::string label,
                        bool opened,
@@ -977,11 +986,17 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("end_plot", &ImPlot::EndPlot);
 
-    m.def("tree_node", [&](std::string label) {
+    m.def("tree_node", [&](std::string label, bool selected) {
 
-        return ImGui::TreeNode(label.c_str());
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
+        if (selected) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        return ImGui::TreeNodeEx(label.c_str(), flags);
     },
-    py::arg("label") = "");
+    py::arg("label") = "",
+    py::arg("selected") = false);
 
     m.def("tree_pop", ImGui::TreePop);
 
@@ -1267,14 +1282,14 @@ PYBIND11_MODULE(imviz, m) {
             displayHeight = info.imageHeight;
         }
 
-        // calculate expected bounding box beforehand
-
-        ImVec2 size(displayWidth, displayHeight);
         ImVec4 bc = interpretColor(borderCol);
         ImVec4 tn = interpretColor(tint);
         if (tn.w < 0) {
             tn = ImVec4(1, 1, 1, 1);
         }
+
+        // calculate expected bounding box beforehand
+        ImVec2 size(displayWidth, displayHeight);
 
         // essentially copied from ImGui::Image function
         ImGuiWindow* w = ImGui::GetCurrentWindow();
@@ -1788,6 +1803,9 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("size") = ImVec2(0, 0));
 
     m.def("get_content_region_avail", ImGui::GetContentRegionAvail);
+
+    m.def("begin_tooltip", ImGui::BeginTooltip);
+    m.def("end_tooltip", ImGui::EndTooltip);
 
     m.def("activate_svg", [&]() {
 
