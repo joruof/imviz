@@ -124,31 +124,6 @@ struct ImViz {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        static bool showLightTheme = false;
-        static bool showImGuiDemo = false;
-        static bool showImPlotDemo = false;
-
-        if (ImGui::BeginMainMenuBar()) {
-
-            if (ImGui::BeginMenu("Show")) {
-
-                ImGui::MenuItem("Light Theme", NULL, &showLightTheme);
-                ImGui::MenuItem("ImGui Demo", NULL, &showImGuiDemo);
-                ImGui::MenuItem("ImPlot Demo", NULL, &showImPlotDemo);
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMainMenuBar();
-        }
-
-        if (showLightTheme) {
-            ImGui::StyleColorsLight();
-            ImPlot::StyleColorsLight();
-        } else {
-            ImGui::StyleColorsDark();
-            ImPlot::StyleColorsDark();
-        }
-
         // dock space
 
         ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking
@@ -181,14 +156,6 @@ struct ImViz {
         ImGui::DockSpace(1, ImVec2(0.0f, 0.0f), dockspace_flags);
 
         ImGui::End();
-
-        if (showImGuiDemo) {
-            ImGui::ShowDemoWindow(&showImGuiDemo);
-        }
-
-        if (showImPlotDemo) {
-            ImPlot::ShowDemoWindow(&showImPlotDemo);
-        }
     }
 
     void doUpdate (bool useVsync) {
@@ -363,7 +330,7 @@ namespace ImGui {
 
             if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
-                result = true;
+                result = false;
             }
 
             ImGui::EndPopup();
@@ -816,6 +783,60 @@ PYBIND11_MODULE(imviz, m) {
         .value("APPEARING", ImGuiCond_Appearing)
         .export_values();
 
+    m.def("show_imgui_demo", ImGui::ShowDemoWindow);
+    m.def("show_implot_demo", ImPlot::ShowDemoWindow);
+
+    m.def("style_colors_dark", [&](){
+        ImGui::StyleColorsDark();
+        ImPlot::StyleColorsDark();
+    });
+
+    m.def("style_colors_light", [&](){
+        ImGui::StyleColorsLight();
+        ImPlot::StyleColorsLight();
+    });
+
+    m.def("set_main_window_title", [&](std::string title) {
+        glfwSetWindowTitle(viz.window, title.c_str());
+    },
+    py::arg("title"));
+
+    m.def("set_main_window_size", [&](ImVec2 size) {
+        glfwSetWindowSize(viz.window, size.x, size.y);
+    },
+    py::arg("size"));
+
+    m.def("get_main_window_size", [&]() {
+        int w, h;
+        glfwGetWindowSize(viz.window, &w, &h);
+        return ImVec2(w, h);
+    });
+
+    m.def("set_main_window_pos", [&](ImVec2 pos) {
+        glfwSetWindowPos(viz.window, pos.x, pos.y);
+    },
+    py::arg("size"));
+
+    m.def("get_main_window_pos", [&]() {
+        int x, y;
+        glfwGetWindowPos(viz.window, &x, &y);
+        return ImVec2(x, y);
+    });
+
+    m.def("get_main_window_size", [&]() {
+        int w, h;
+        glfwGetWindowSize(viz.window, &w, &h);
+        return ImVec2(w, h);
+    });
+
+    m.def("hide_main_window", [&]() {
+        glfwHideWindow(viz.window);
+    });
+
+    m.def("show_main_window", [&]() {
+        glfwShowWindow(viz.window);
+    });
+
     m.def("mod", [&]() { return viz.mod; });
     m.def("mod_any", [&]() { return viz.mod_any; });
     m.def("set_mod", [&](bool m) { viz.setMod(m); });
@@ -1015,6 +1036,10 @@ PYBIND11_MODULE(imviz, m) {
 
         size_t len = items.size();
 
+        if (len == 0) {
+            return selection;
+        }
+
         std::vector<std::string> objStr(len);
         std::vector<const char*> objPtr(len);
 
@@ -1036,7 +1061,7 @@ PYBIND11_MODULE(imviz, m) {
         bool mod = ImGui::Combo(label.c_str(), &selectionIndex, objPtr.data(), len);
         viz.setMod(mod);
 
-        return items[selectionIndex];
+        return py::handle(items[selectionIndex]);
     },
     py::arg("label"),
     py::arg("items"),
