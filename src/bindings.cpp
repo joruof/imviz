@@ -735,6 +735,7 @@ namespace pybind11 {
             }
         };
 
+        /*
         template<> struct type_caster<ImPlotLimits> {
 
         public:
@@ -768,10 +769,11 @@ namespace pybind11 {
                 }
             }
         };
+        */
     }
 }
 
-PYBIND11_MODULE(imviz, m) {
+PYBIND11_MODULE(cppimviz, m) {
 
     input::loadPythonBindings(m);
 
@@ -964,7 +966,7 @@ PYBIND11_MODULE(imviz, m) {
 
         ImPlotFlags flags = 0;
 
-        flags |= ImPlotFlags_Query;
+        //flags |= ImPlotFlags_Query;
 
         if (equalAxis) {
             flags |= ImPlotFlags_Equal;
@@ -1381,6 +1383,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("width") = -1,
     py::arg("height") = -1);
 
+    /*
     m.def("next_plot_limits", [&](
                 double xmin,
                 double xmax,
@@ -1395,6 +1398,7 @@ PYBIND11_MODULE(imviz, m) {
     py::arg("ymin"),
     py::arg("ymax"),
     py::arg("cond") = ImGuiCond_Once);
+    */
 
     m.def("dataframe", [&](
                 py::object frame,
@@ -1607,7 +1611,6 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
-                            bool showLabel,
                             array_like<double> color,
                             double radius) {
 
@@ -1616,14 +1619,13 @@ PYBIND11_MODULE(imviz, m) {
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragPoint(label.c_str(), &x, &y, showLabel, c, radius);
+        bool mod = ImPlot::DragPoint(ImGui::GetID(label.c_str()), &x, &y, c, radius);
         viz.setMod(mod);
 
         return py::make_tuple(x, y);
     },
     py::arg("label"),
     py::arg("point"),
-    py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0);
 
@@ -1665,45 +1667,66 @@ PYBIND11_MODULE(imviz, m) {
 
     m.def("drag_vline", [&](std::string label,
                             double x,
-                            bool showLabel,
                             array_like<double> color,
                             double width) {
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragLineX(label.c_str(), &x, showLabel, c, width);
+        bool mod = ImPlot::DragLineX(ImGui::GetID(label.c_str()), &x, c, width);
         viz.setMod(mod);
 
         return x;
     },
     py::arg("label"),
     py::arg("x"),
-    py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
     py::arg("width") = 1.0);
 
     m.def("drag_hline", [&](std::string label,
                             double y,
-                            bool showLabel,
                             array_like<double> color,
                             double width) {
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragLineY(label.c_str(), &y, showLabel, c, width);
+        bool mod = ImPlot::DragLineY(ImGui::GetID(label.c_str()), &y, c, width);
         viz.setMod(mod);
 
         return y;
     },
     py::arg("label"),
     py::arg("y"),
-    py::arg("show_label") = false,
     py::arg("color") = py::array_t<double>(),
     py::arg("width") = 1.0);
+
+    m.def("drag_rect", [&](std::string label,
+                            array_like<double> rect,
+                            array_like<double> color) {
+
+        assert_shape(rect, {{4}});
+
+        ImVec4 c = interpretColor(color);
+
+        bool mod = ImPlot::DragRect(
+                ImGui::GetID(label.c_str()),
+                rect.mutable_data(0),
+                rect.mutable_data(1),
+                rect.mutable_data(2),
+                rect.mutable_data(3),
+                c);
+
+        viz.setMod(mod);
+
+        return rect;
+    },
+    py::arg("label"),
+    py::arg("rect"),
+    py::arg("color") = py::array_t<double>());
 
     m.def("get_plot_pos", ImPlot::GetPlotPos);
     m.def("get_plot_size", ImPlot::GetPlotSize);
 
+    /*
     m.def("get_plot_query", [&]() {
         return ImPlot::GetPlotQuery();
     });
@@ -1711,6 +1734,7 @@ PYBIND11_MODULE(imviz, m) {
     m.def("set_plot_query", [&](ImPlotLimits query) {
         ImPlot::SetPlotQuery(query);
     });
+    */
 
     m.def("get_plot_limits", [&]() {
         return ImPlot::GetPlotLimits();
@@ -1724,7 +1748,7 @@ PYBIND11_MODULE(imviz, m) {
         return ImPlot::GetPlotLimits().Contains(point.x, point.y);
     });
 
-    m.def("annotate", [&](
+    m.def("annotation", [&](
                 double x,
                 double y,
                 std::string text,
@@ -1745,11 +1769,7 @@ PYBIND11_MODULE(imviz, m) {
             o.y = offset.data()[1];
         }
 
-        if (clamp) {
-            ImPlot::AnnotateClamped(x, y, o, col, "%s", text.c_str());
-        } else {
-            ImPlot::Annotate(x, y, o, col, "%s", text.c_str());
-        }
+        ImPlot::Annotation(x, y, col, o, clamp, "%s", text.c_str());
     },
     py::arg("x"),
     py::arg("y"),
