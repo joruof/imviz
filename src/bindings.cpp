@@ -966,8 +966,6 @@ PYBIND11_MODULE(cppimviz, m) {
 
         ImPlotFlags flags = 0;
 
-        //flags |= ImPlotFlags_Query;
-
         if (equalAxis) {
             flags |= ImPlotFlags_Equal;
         }
@@ -1713,7 +1711,8 @@ PYBIND11_MODULE(cppimviz, m) {
                 rect.mutable_data(1),
                 rect.mutable_data(2),
                 rect.mutable_data(3),
-                c);
+                c, 
+                ImPlotDragToolFlags_None);
 
         viz.setMod(mod);
 
@@ -1723,18 +1722,18 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("rect"),
     py::arg("color") = py::array_t<double>());
 
+    m.def("is_plot_selected", ImPlot::IsPlotSelected);
+
+    m.def("get_plot_selection", [&]() {
+        return ImPlot::GetPlotSelection();
+    });
+
+    m.def("cancel_plot_selection", [&]() {
+        return ImPlot::CancelPlotSelection();
+    });
+
     m.def("get_plot_pos", ImPlot::GetPlotPos);
     m.def("get_plot_size", ImPlot::GetPlotSize);
-
-    /*
-    m.def("get_plot_query", [&]() {
-        return ImPlot::GetPlotQuery();
-    });
-
-    m.def("set_plot_query", [&](ImPlotLimits query) {
-        ImPlot::SetPlotQuery(query);
-    });
-    */
 
     m.def("get_plot_limits", [&]() {
         return ImPlot::GetPlotLimits();

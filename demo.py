@@ -81,6 +81,8 @@ class State:
         self.drag_vline = 2.0
         self.drag_hline = 2.0
 
+        self.drag_rect = [0.0, 0.0, 1.0, 1.0]
+
         self.drag_dots = []
 
         self.popup_open = False
@@ -95,6 +97,8 @@ def main():
     s = State()
 
     while viz.wait(vsync=True):
+
+        viz.show_implot_demo(True)
 
         for e in viz.get_key_events():
             if e.key == viz.KEY_K:
@@ -202,8 +206,6 @@ def main():
 
             if viz.tree_node("Plotting"):
 
-                viz.next_plot_limits(0, 10, 0, 10, viz.ONCE)
-
                 if viz.begin_plot("Plot"):
 
                     viz.plot_image("image",
@@ -231,24 +233,25 @@ def main():
 
                     s.drag_point = viz.drag_point("draggable",
                                                   s.drag_point,
-                                                  show_label=True,
                                                   color=(1.0, 0.0, 0.0),
                                                   radius=10)
 
                     s.drag_vline = viz.drag_vline("vline",
                                                   s.drag_vline,
-                                                  show_label=True,
                                                   color=(0.0, 1.0, 0.0),
                                                   width=2)
 
                     s.drag_hline = viz.drag_hline("hline",
                                                   s.drag_hline,
-                                                  show_label=True,
                                                   color=(0.0, 1.0, 0.0),
                                                   width=2)
 
-                    viz.annotate(5, 5, "foo")
-                    viz.annotate(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
+                    s.drag_rect = viz.drag_rect("rect",
+                                                s.drag_rect,
+                                                color=(0.0, 1.0, 1.0))
+
+                    viz.annotation(5, 5, "foo")
+                    viz.annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
                     if viz.begin_popup("##PlotContext"):
                         if not s.popup_open:
@@ -269,7 +272,6 @@ def main():
                     for i in range(len(s.drag_dots)):
                         s.drag_dots[i]= viz.drag_point(f"dot_#{i}",
                                                        s.drag_dots[i],
-                                                       show_label=True,
                                                        color=(1.0, 0.0, 0.0),
                                                        radius=4)
 
