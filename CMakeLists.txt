@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(imviz)
+project(cppimviz)
 
 set(PY_TARGET_NAME "${PROJECT_NAME}")
 
@@ -56,7 +56,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "dea3387cdcc1d6a7ee3607f8a37a9dce8a85224f"
+    GIT_TAG "6ee1559715fae9480fcaeb81f24d80a4d1e8c407"
 )
 
 FetchContent_Declare(

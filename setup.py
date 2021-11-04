@@ -107,7 +107,7 @@ setup(name="imviz",
       long_description_content_type="text/markdown",
       python_requires=">=3.6",
       packages=find_packages(),
-      ext_modules=[CMakeExtension("imviz")],
+      ext_modules=[CMakeExtension("cppimviz")],
       cmdclass=dict(build_ext=CMakeBuild),
       include_package_data=True,
       )
