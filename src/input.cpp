@@ -484,6 +484,42 @@ void loadPythonBindings(pybind11::module& m) {
     m.def("get_mouse_enter_events", getCursorEnterEvents);
     m.def("get_scroll_events", getScrollEvents);
     m.def("get_drop_events", getDropEvents);
+
+    m.def("is_joystick_present", [](int id) {
+        return GLFW_TRUE == glfwJoystickPresent(id);
+    });
+
+    m.def("get_joystick_axes", [](int id) {
+
+        int count;
+        const float* axes = glfwGetJoystickAxes(id, &count);
+
+        py::list l;
+
+        for (int i = 0; i < count; ++i) {
+            l.append(axes[i]);
+        }
+
+        return l;
+    });
+
+    m.def("get_joystick_buttons", [](int id) {
+
+        int count;
+        const unsigned char* buttons = glfwGetJoystickButtons(id, &count);
+
+        py::list l;
+
+        for (int i = 0; i < count; ++i) {
+            l.append(GLFW_PRESS == buttons[i]);
+        }
+
+        return l;
+    });
+
+    m.def("get_joystick_name", [](int id) {
+        return std::string(glfwGetJoystickName(id));
+    });
 }
 
 }
