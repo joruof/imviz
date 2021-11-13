@@ -4,6 +4,8 @@ This contains common and (mostly) helpful utils.
 
 import inspect
 
+from imviz.autoreload import ModuleReloader
+
 
 class bundle(dict):
     """
@@ -40,3 +42,23 @@ def statics():
         STATICS[func_id] = sts
 
     return sts
+
+
+RELOADER = ModuleReloader()
+"""
+Contains a global module reloader for easier access.
+"""
+
+
+def reload_code(timeout=0.5):
+    """
+    This checks all used python modules for changes and reloads
+    the respective code files (as far as possible).
+
+    The "__main__" module cannot be reloaded due to python limitations.
+
+    Returns True if at least one module was sucessfully reloaded.
+    Returns False otherwise.
+    """
+
+    return RELOADER.check(timeout=0.5)

@@ -1,0 +1,395 @@
+"""
+A module for automatic code reloading.
+
+Caveats
+=======
+Reloading Python modules in a reliable way is in general difficult,
+and unexpected things may occur. autoreload tries to work around
+common pitfalls by replacing function code objects and parts of
+classes previously in the module with new versions. This makes the
+following things to work:
+- Functions and classes imported via 'from xxx import foo' are upgraded
+  to new versions when 'xxx' is reloaded.
+- Methods and properties of classes are upgraded on reload, so that
+  calling 'c.foo()' on an object 'c' created before the reload causes
+  the new code for 'foo' to be executed.
+Some of the known remaining caveats are:
+- Replacing code objects does not always succeed: changing a @property
+  in a class to an ordinary method or a method to a member variable
+  can cause problems (but in old objects only).
+- Functions that are removed (eg. via monkey-patching) from a module
+  before it is reloaded are not upgraded.
+- C extension modules cannot be reloaded, and so cannot be autoreloaded.
+"""
+
+# Copyright (C) 2000 Thomas Heller
+# Copyright (C) 2008 Pauli Virtanen <pav@iki.fi>
+# Copyright (C) 2012 The IPython Development Team
+#
+# The original IPython module was written by Pauli Virtanen, based on the
+# autoreload code by Thomas Heller and distributed under BSD 3-Clause.
+#
+# The module was adapted for the imviz library.
+#
+# BSD 3-Clause License
+#
+# - Copyright (c) 2008-Present, IPython Development Team
+# - Copyright (c) 2001-2007, Fernando Perez <fernando.perez@colorado.edu>
+# - Copyright (c) 2001, Janko Hauser <jhauser@zscout.de>
+# - Copyright (c) 2001, Nathaniel Gray <n8gray@caltech.edu>
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+import os
+import gc
+import sys
+import types
+import time
+import weakref
+import traceback
+
+from importlib import reload
+from importlib.util import source_from_cache
+
+
+# ------------------------------------------------------------------------------
+# Autoreload functionality
+# ------------------------------------------------------------------------------
+
+
+class ModuleReloader:
+
+    def __init__(self):
+
+        # Modules that failed to reload: {module: mtime-on-failed-reload, ...}
+        self.failed = {}
+        # Modules specially marked as not autoreloadable.
+        self.skip_modules = {}
+        # (module-name, name) -> weakref, for replacing old code objects
+        self.old_objects = {}
+        # Module modification timestamps
+        self.modules_mtimes = {}
+
+        self.last_reload_time = time.time()
+
+        # Cache module modification times
+        self.check(do_reload=False)
+
+    def mark_module_skipped(self, module_name):
+        """Skip reloading the named module in the future"""
+
+        self.skip_modules[module_name] = True
+
+    def filename_and_mtime(self, module):
+
+        if not hasattr(module, "__file__") or module.__file__ is None:
+            return None, None
+
+        if (getattr(module, "__name__", None)
+                in [None, "__mp_main__", "__main__"]):
+            # we cannot reload(__main__) or reload(__mp_main__)
+            return None, None
+
+        filename = module.__file__
+        path, ext = os.path.splitext(filename)
+
+        if ext.lower() == ".py":
+            py_filename = filename
+        else:
+            try:
+                py_filename = source_from_cache(filename)
+            except ValueError:
+                return None, None
+
+        try:
+            pymtime = os.stat(py_filename).st_mtime
+        except OSError:
+            return None, None
+
+        return py_filename, pymtime
+
+    def check(self, do_reload=True, timeout=0.5):
+        """Check whether some modules need to be reloaded."""
+
+        if time.time() - self.last_reload_time < timeout:
+            return False
+
+        reloaded = False
+
+        self.last_reload_time = time.time()
+
+        modules = list(sys.modules.keys())
+
+        for modname in modules:
+            m = sys.modules.get(modname, None)
+
+            if modname in self.skip_modules:
+                continue
+
+            py_filename, pymtime = self.filename_and_mtime(m)
+            if py_filename is None:
+                continue
+
+            try:
+                if pymtime <= self.modules_mtimes[modname]:
+                    continue
+            except KeyError:
+                self.modules_mtimes[modname] = pymtime
+                continue
+            else:
+                if self.failed.get(py_filename, None) == pymtime:
+                    continue
+
+            self.modules_mtimes[modname] = pymtime
+
+            # If we've reached this point, we should try to reload the module
+            if do_reload:
+                try:
+                    superreload(m, reload, self.old_objects)
+                    if py_filename in self.failed:
+                        del self.failed[py_filename]
+                    reloaded |= True
+                except:
+                    traceback.print_exc()
+                    self.failed[py_filename] = pymtime
+
+        return reloaded
+
+
+# ------------------------------------------------------------------------------
+# superreload
+# ------------------------------------------------------------------------------
+
+
+func_attrs = [
+    "__code__",
+    "__defaults__",
+    "__doc__",
+    "__closure__",
+    "__globals__",
+    "__dict__",
+]
+
+
+def update_function(old, new):
+    """Upgrade the code object of a function"""
+    for name in func_attrs:
+        try:
+            setattr(old, name, getattr(new, name))
+        except (AttributeError, TypeError):
+            pass
+
+
+def update_instances(old, new):
+    """Use garbage collector to find all instances that refer to the old
+    class definition and update their __class__ to point to the new class
+    definition"""
+
+    refs = gc.get_referrers(old)
+
+    for ref in refs:
+        if type(ref) is old:
+            ref.__class__ = new
+
+
+def update_class(old, new):
+    """Replace stuff in the __dict__ of a class, and upgrade
+    method code objects, and add new methods, if any"""
+    for key in list(old.__dict__.keys()):
+        old_obj = getattr(old, key)
+        try:
+            new_obj = getattr(new, key)
+            # explicitly checking that comparison returns True to handle
+            # cases where `==` doesn't return a boolean.
+            if (old_obj == new_obj) is True:
+                continue
+        except AttributeError:
+            # obsolete attribute: remove it
+            try:
+                delattr(old, key)
+            except (AttributeError, TypeError):
+                pass
+            continue
+
+        if update_generic(old_obj, new_obj):
+            continue
+
+        try:
+            setattr(old, key, getattr(new, key))
+        except (AttributeError, TypeError):
+            pass  # skip non-writable attributes
+
+    for key in list(new.__dict__.keys()):
+        if key not in list(old.__dict__.keys()):
+            try:
+                setattr(old, key, getattr(new, key))
+            except (AttributeError, TypeError):
+                pass  # skip non-writable attributes
+
+    # update all instances of class
+    update_instances(old, new)
+
+
+def update_property(old, new):
+    """Replace get/set/del functions of a property"""
+    update_generic(old.fdel, new.fdel)
+    update_generic(old.fget, new.fget)
+    update_generic(old.fset, new.fset)
+
+
+def isinstance2(a, b, typ):
+    return isinstance(a, typ) and isinstance(b, typ)
+
+
+UPDATE_RULES = [
+    (lambda a, b: isinstance2(a, b, type), update_class),
+    (lambda a, b: isinstance2(a, b, types.FunctionType), update_function),
+    (lambda a, b: isinstance2(a, b, property), update_property),
+]
+UPDATE_RULES.extend(
+    [
+        (
+            lambda a, b: isinstance2(a, b, types.MethodType),
+            lambda a, b: update_function(a.__func__, b.__func__),
+        ),
+    ]
+)
+
+
+def update_generic(a, b):
+    for type_check, update in UPDATE_RULES:
+        if type_check(a, b):
+            update(a, b)
+            return True
+    return False
+
+
+class StrongRef:
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __call__(self):
+        return self.obj
+
+
+mod_attrs = [
+    "__name__",
+    "__doc__",
+    "__package__",
+    "__loader__",
+    "__spec__",
+    "__file__",
+    "__cached__",
+    "__builtins__",
+]
+
+
+def append_obj(module, d, name, obj, autoload=False):
+    in_module = hasattr(obj, "__module__") and obj.__module__ == module.__name__
+    if autoload:
+        # check needed for module global built-ins
+        if not in_module and name in mod_attrs:
+            return False
+    else:
+        if not in_module:
+            return False
+
+    key = (module.__name__, name)
+    try:
+        d.setdefault(key, []).append(weakref.ref(obj))
+    except TypeError:
+        pass
+    return True
+
+
+def superreload(module, reload=reload, old_objects=None, shell=None):
+    """Enhanced version of the builtin reload function.
+    superreload remembers objects previously in the module, and
+    - upgrades the class dictionary of every old class in the module
+    - upgrades the code object of every old function and method
+    - clears the module's namespace before reloading
+    """
+    if old_objects is None:
+        old_objects = {}
+
+    # collect old objects in the module
+    for name, obj in list(module.__dict__.items()):
+        if not append_obj(module, old_objects, name, obj):
+            continue
+        key = (module.__name__, name)
+        try:
+            old_objects.setdefault(key, []).append(weakref.ref(obj))
+        except TypeError:
+            pass
+
+    # reload module
+    try:
+        # clear namespace first from old cruft
+        old_dict = module.__dict__.copy()
+        old_name = module.__name__
+        module.__dict__.clear()
+        module.__dict__["__name__"] = old_name
+        module.__dict__["__loader__"] = old_dict["__loader__"]
+    except (TypeError, AttributeError, KeyError):
+        pass
+
+    try:
+        module = reload(module)
+    except:
+        # restore module dictionary on failed reload
+        module.__dict__.update(old_dict)
+        raise
+
+    # iterate over all objects and update functions & classes
+    for name, new_obj in list(module.__dict__.items()):
+        key = (module.__name__, name)
+        if key not in old_objects:
+            # here 'shell' acts both as a flag and as an output var
+            if (
+                shell is None
+                or name == "Enum"
+                or not append_obj(module, old_objects, name, new_obj, True)
+            ):
+                continue
+            shell.user_ns[name] = new_obj
+
+        new_refs = []
+        for old_ref in old_objects[key]:
+            old_obj = old_ref()
+            if old_obj is None:
+                continue
+            new_refs.append(old_ref)
+            update_generic(old_obj, new_obj)
+
+        if new_refs:
+            old_objects[key] = new_refs
+        else:
+            del old_objects[key]
+
+    return module
