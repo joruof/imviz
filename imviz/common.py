@@ -50,15 +50,18 @@ Contains a global module reloader for easier access.
 """
 
 
-def reload_code(timeout=0.5):
+def update_autoreload():
     """
-    This checks all used python modules for changes and reloads
-    the respective code files (as far as possible).
+    This checks all used python modules for changes (mtime), reloads
+    the respective code, and updates existing code as far as possible.
 
     The "__main__" module cannot be reloaded due to python limitations.
+
+    As this uses asynchronous modification scanning, the function
+    must be called repeatedly in the main application loop.
 
     Returns True if at least one module was sucessfully reloaded.
     Returns False otherwise.
     """
 
-    return RELOADER.check(timeout=0.5)
+    return RELOADER.reload()

@@ -7,13 +7,18 @@ import imviz as viz
 
 if __name__ == "__main__":
 
+    broken = False
+
     while viz.wait(vsync=True):
 
-        if viz.reload_code():
-            print("Reloaded")
+        if viz.update_autoreload():
+            broken = False
 
         try:
-            demo.main()
+            if not broken:
+                demo.main()
+            else:
+                time.sleep(0.5)
         except Exception:
             traceback.print_exc()
-            time.sleep(1)
+            broken = True

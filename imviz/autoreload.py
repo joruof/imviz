@@ -70,12 +70,13 @@ import os
 import gc
 import sys
 import types
-import time
+import queue
 import weakref
 import traceback
 
 from importlib import reload
-from importlib.util import source_from_cache
+
+import multiprocessing as mp
 
 
 # ------------------------------------------------------------------------------
@@ -83,103 +84,103 @@ from importlib.util import source_from_cache
 # ------------------------------------------------------------------------------
 
 
+def scan_modules(requests, results):
+
+    mtime_table = {}
+
+    while True:
+
+        req = requests.get()
+
+        needs_reload = []
+
+        for name, origin in req.items():
+
+            if name in [None, "__mp_main__", "__main__"]:
+                # we cannot reload(__main__) or reload(__mp_main__)
+                continue
+
+            if origin in [None, "built-in", "frozen"]:
+                # builtins or frozen modules will likely not change
+                continue
+
+            try:
+                mtime = os.stat(origin).st_mtime
+            except OSError:
+                continue
+
+            try:
+                if mtime_table[name] < mtime:
+                    needs_reload.append(name)
+            except KeyError:
+                pass
+
+            mtime_table[name] = mtime
+
+        results.put(needs_reload)
+
+
 class ModuleReloader:
 
     def __init__(self):
 
-        # Modules that failed to reload: {module: mtime-on-failed-reload, ...}
-        self.failed = {}
-        # Modules specially marked as not autoreloadable.
-        self.skip_modules = {}
+        self.waiting_for_scan = False
+
+        self.scan_requests = mp.Queue(1)
+        self.scan_results = mp.Queue(1)
+        self.scan_process = mp.Process(
+                target=scan_modules,
+                args=[self.scan_requests, self.scan_results])
+        self.scan_process.start()
+
         # (module-name, name) -> weakref, for replacing old code objects
         self.old_objects = {}
-        # Module modification timestamps
-        self.modules_mtimes = {}
 
-        self.last_reload_time = time.time()
+    def reload(self):
+        """
+        Check whether some modules need to be reloaded.
+        """
 
-        # Cache module modification times
-        self.check(do_reload=False)
+        if not self.waiting_for_scan:
 
-    def mark_module_skipped(self, module_name):
-        """Skip reloading the named module in the future"""
+            # submit currently imported modules to scan process
 
-        self.skip_modules[module_name] = True
+            modules_to_scan = {}
 
-    def filename_and_mtime(self, module):
+            for name, mt in sys.modules.items():
+                try:
+                    modules_to_scan[name] = mt.__spec__.origin
+                except AttributeError:
+                    continue
 
-        if not hasattr(module, "__file__") or module.__file__ is None:
-            return None, None
+            self.scan_requests.put(modules_to_scan)
+            self.waiting_for_scan = True
 
-        if (getattr(module, "__name__", None)
-                in [None, "__mp_main__", "__main__"]):
-            # we cannot reload(__main__) or reload(__mp_main__)
-            return None, None
-
-        filename = module.__file__
-        path, ext = os.path.splitext(filename)
-
-        if ext.lower() == ".py":
-            py_filename = filename
-        else:
-            try:
-                py_filename = source_from_cache(filename)
-            except ValueError:
-                return None, None
-
-        try:
-            pymtime = os.stat(py_filename).st_mtime
-        except OSError:
-            return None, None
-
-        return py_filename, pymtime
-
-    def check(self, do_reload=True, timeout=0.5):
-        """Check whether some modules need to be reloaded."""
-
-        if time.time() - self.last_reload_time < timeout:
             return False
 
-        reloaded = False
+        # check if the module scan was completed
 
-        self.last_reload_time = time.time()
+        try:
+            changed = self.scan_results.get_nowait()
+            self.waiting_for_scan = False
+        except queue.Empty:
+            return False
 
-        modules = list(sys.modules.keys())
+        # ok scan is complete, reload changed modules
 
-        for modname in modules:
+        if changed == []:
+            return False
+
+        for modname in changed:
+
             m = sys.modules.get(modname, None)
 
-            if modname in self.skip_modules:
-                continue
-
-            py_filename, pymtime = self.filename_and_mtime(m)
-            if py_filename is None:
-                continue
-
             try:
-                if pymtime <= self.modules_mtimes[modname]:
-                    continue
-            except KeyError:
-                self.modules_mtimes[modname] = pymtime
-                continue
-            else:
-                if self.failed.get(py_filename, None) == pymtime:
-                    continue
+                superreload(m, reload, self.old_objects)
+            except Exception:
+                traceback.print_exc()
 
-            self.modules_mtimes[modname] = pymtime
-
-            # If we've reached this point, we should try to reload the module
-            if do_reload:
-                try:
-                    superreload(m, reload, self.old_objects)
-                    if py_filename in self.failed:
-                        del self.failed[py_filename]
-                    reloaded |= True
-                except:
-                    traceback.print_exc()
-                    self.failed[py_filename] = pymtime
-
-        return reloaded
+        return True
 
 
 # ------------------------------------------------------------------------------
