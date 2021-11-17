@@ -8,8 +8,6 @@ from imviz.autoreload import ModuleReloader
 
 from concurrent.futures import ThreadPoolExecutor
 
-from cppimviz import get_id
-
 
 class bundle(dict):
     """
