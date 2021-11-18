@@ -3,8 +3,8 @@ A very rudimentary and opinionated storage system.
 
 The idea is not to store and load the entire object hierarchy.
 Instead an already instantiated object hierarchy is update by the stored data.
-This has the advantage that we can update most the code without thinking too
-much about how this will fit the already stored data.
+This has the advantage that we can update most of the code without thinking
+too much about how this will fit the already stored data.
 
 The storage system also takes care of handling larger numpy arrays, which makes
 working with images or points clouds much easier.
@@ -70,7 +70,7 @@ def ext_setattr(obj, name, value):
 
 class Serializer:
     """
-    Serializes an object tree into a json file.
+    Converts an object tree into a json serializeable object tree.
     Large numpy arrays are automatically referenced and stored externally.
     """
 

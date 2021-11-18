@@ -93,6 +93,12 @@ class State:
         self.blab = 5
 
 
+def repeated_task():
+
+    time.sleep(2)
+    return time.time()
+
+
 def main():
 
     sts = viz.statics()
