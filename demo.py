@@ -93,14 +93,11 @@ class State:
         self.blab = 5
 
 
-def main():
+def main(s):
 
-    sts = viz.statics()
-
-    if "state" not in sts:
-        sts.state = State()
-
-    s = sts.state
+    sts = viz.statics(
+            counter=3,
+            hello="blub")
 
     viz.set_main_window_title("Demo")
     viz.show_implot_demo(True)
@@ -374,7 +371,3 @@ def main():
             viz.tree_pop()
 
     viz.end_window()
-
-
-if __name__ == "__main__":
-    main()

@@ -9,6 +9,8 @@ if __name__ == "__main__":
 
     broken = False
 
+    state = demo.State()
+
     while viz.wait(vsync=True):
 
         if viz.update_autoreload():
@@ -16,7 +18,7 @@ if __name__ == "__main__":
 
         try:
             if not broken:
-                demo.main()
+                demo.main(state)
             else:
                 time.sleep(0.5)
         except Exception:
