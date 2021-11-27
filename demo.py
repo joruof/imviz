@@ -210,6 +210,9 @@ def main(s):
 
             if viz.begin_plot("Plot"):
 
+                viz.setup_axis(viz.Axis.X1, "x")
+                viz.setup_axis(viz.Axis.Y1, "y")
+
                 viz.plot_image("image",
                                s.img,
                                x=0, y=0,

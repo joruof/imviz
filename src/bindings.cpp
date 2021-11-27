@@ -1009,6 +1009,85 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("end_plot", &ImPlot::EndPlot);
 
+
+    m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
+
+        ImPlot::SetupAxis(
+            axis,
+            label.empty() ? NULL : label.c_str(),
+            flags);
+    },
+    py::arg("axis"),
+    py::arg("label") = "",
+    py::arg("flags")= ImPlotAxisFlags_None);
+
+    m.def("setup_axis_limits", [](ImAxis axis, double min, double max, ImPlotCond cond){ 
+
+        ImPlot::SetupAxisLimits(axis, min, max, cond);
+    },
+    py::arg("axis"),
+    py::arg("min"),
+    py::arg("max"),
+    py::arg("flags")= ImPlotCond_Once);
+
+    m.def("setup_axis_format", [](ImAxis axis, std::string fmt){ 
+
+        ImPlot::SetupAxisFormat(axis, fmt.c_str());
+    },
+    py::arg("axis"),
+    py::arg("fmt"));
+
+    m.def("setup_legend", [](ImPlotLocation location, ImPlotLegendFlags flags){
+
+        ImPlot::SetupLegend(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_NorthWest,
+    py::arg("flags") = ImPlotLegendFlags_None);
+
+    m.def("setup_mouse_text", [](ImPlotLocation location, ImPlotMouseTextFlags flags){
+
+        ImPlot::SetupMouseText(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_SouthEast,
+    py::arg("flags") = ImPlotMouseTextFlags_None);
+
+    m.def("setup_axes", [](std::string xLabel,
+                           std::string yLabel,
+                           ImPlotAxisFlags xFlags,
+                           ImPlotAxisFlags yFlags) { 
+
+        ImPlot::SetupAxes(xLabel.c_str(), yLabel.c_str(), xFlags, yFlags);
+    },
+    py::arg("x_label"),
+    py::arg("y_label"),
+    py::arg("x_flags") = ImPlotAxisFlags_None,
+    py::arg("y_flags") = ImPlotAxisFlags_None);
+
+    m.def("setup_axes_limits", [](double xMin,
+                                  double xMax,
+                                  double yMin,
+                                  double yMax,
+                                  ImPlotCond cond) { 
+
+        ImPlot::SetupAxesLimits(xMin, xMax, yMin, yMax, cond);
+    },
+    py::arg("x_min"),
+    py::arg("x_max"),
+    py::arg("y_min"),
+    py::arg("y_max"),
+    py::arg("cond") = ImPlotCond_Once);
+
+    m.def("setup_finish", &ImPlot::SetupFinish);
+
+    //// Sets the format of numeric axis labels via formater specifier (default="%g"). Formated values will be double (i.e. use %f).
+    //IMPLOT_API void SetupAxisFormat(ImAxis axis, const char* fmt);
+    //// Sets the format of numeric axis labels via formatter callback. Given #value, write a label into #buff. Optionally pass user data.
+    //IMPLOT_API void SetupAxisFormat(ImAxis axis, ImPlotFormatter formatter, void* data = NULL);
+    //// Sets an axis' ticks and optionally the labels. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, const double* values, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+    //// Sets an axis' ticks and optionally the labels for the next plot. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+
     m.def("tree_node", [&](std::string label, bool selected) {
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
