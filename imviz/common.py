@@ -26,7 +26,7 @@ Contains all static function variables.
 """
 
 
-def statics():
+def statics(**defaults):
     """
     This (kind of) emulates the behavior of c++ static function variables.
 
@@ -40,13 +40,13 @@ def statics():
     try:
         sts = STATICS[func_id]
     except KeyError:
-        sts = bundle()
+        sts = bundle(defaults)
         STATICS[func_id] = sts
 
     return sts
 
 
-RELOADER = ModuleReloader()
+RELOADER = None
 """
 Contains a global module reloader for easier access.
 """
@@ -65,6 +65,11 @@ def update_autoreload():
     Returns True if at least one module was sucessfully reloaded.
     Returns False otherwise.
     """
+
+    global RELOADER
+
+    if RELOADER is None:
+        RELOADER = ModuleReloader()
 
     return RELOADER.reload()
 

@@ -129,6 +129,7 @@ class ModuleReloader:
         self.scan_requests = mp.Queue(1)
         self.scan_results = mp.Queue(1)
         self.scan_process = mp.Process(
+                daemon=True,
                 target=scan_modules,
                 args=[self.scan_requests, self.scan_results])
         self.scan_process.start()
