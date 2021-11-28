@@ -1,5 +1,7 @@
+#include <cstring>
 #include <ios>
 #include <pybind11/attr.h>
+#include <pybind11/cast.h>
 #include <regex>
 #include <sstream>
 #include <iomanip>
@@ -1009,7 +1011,6 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("end_plot", &ImPlot::EndPlot);
 
-
     m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
 
         ImPlot::SetupAxis(
@@ -1029,6 +1030,13 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("min"),
     py::arg("max"),
     py::arg("flags")= ImPlotCond_Once);
+
+    /**
+     * TODO: It would be better to let the python side pass a callback,
+     * which does the formatting.
+     *
+     * Could not yet figure out how to do this properly.
+     */
 
     m.def("setup_axis_format", [](ImAxis axis, std::string fmt){ 
 
@@ -1079,14 +1087,13 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("setup_finish", &ImPlot::SetupFinish);
 
-    //// Sets the format of numeric axis labels via formater specifier (default="%g"). Formated values will be double (i.e. use %f).
-    //IMPLOT_API void SetupAxisFormat(ImAxis axis, const char* fmt);
-    //// Sets the format of numeric axis labels via formatter callback. Given #value, write a label into #buff. Optionally pass user data.
-    //IMPLOT_API void SetupAxisFormat(ImAxis axis, ImPlotFormatter formatter, void* data = NULL);
     //// Sets an axis' ticks and optionally the labels. To keep the default ticks, set #keep_default=true.
     //IMPLOT_API void SetupAxisTicks(ImAxis axis, const double* values, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
     //// Sets an axis' ticks and optionally the labels for the next plot. To keep the default ticks, set #keep_default=true.
     //IMPLOT_API void SetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+
+    //// Sets the primary X and Y axes range limits. If ImPlotCond_Always is used, the axes limits will be locked (shorthand for two calls to SetupAxisLimits).
+    //IMPLOT_API void SetupAxesLimits(double x_min, double x_max, double y_min, double y_max, ImPlotCond cond = ImPlotCond_Once);
 
     m.def("tree_node", [&](std::string label, bool selected) {
 
@@ -1461,23 +1468,6 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("y") = 0,
     py::arg("width") = -1,
     py::arg("height") = -1);
-
-    /*
-    m.def("next_plot_limits", [&](
-                double xmin,
-                double xmax,
-                double ymin,
-                double ymax,
-                ImGuiCond_ cond) {
-
-        ImPlot::SetNextPlotLimits(xmin, xmax, ymin, ymax, cond);
-    },
-    py::arg("xmin"),
-    py::arg("xmax"),
-    py::arg("ymin"),
-    py::arg("ymax"),
-    py::arg("cond") = ImGuiCond_Once);
-    */
 
     m.def("dataframe", [&](
                 py::object frame,
