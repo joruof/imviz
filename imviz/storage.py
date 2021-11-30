@@ -59,7 +59,7 @@ def attrs_as_dict(obj):
 
 def ext_setattr(obj, name, value):
     """
-    Sets attributes objects and key-value pairs for dicts.
+    Sets attributes for objects and key-value pairs for dicts.
     """
 
     if type(obj) == dict:
@@ -121,8 +121,13 @@ class Serializer:
                 "path": os.path.basename(obj.filename)
             }
 
-        if type(obj) == list:
-            return [self.serialize(v) for v in obj]
+        if type(obj) == list or type(obj) == tuple:
+            jvs = []
+            for v in obj:
+                jv = self.serialize(v)
+                if jv != Skip:
+                    jvs.append(jv)
+            return jvs
 
         attrs = attrs_as_dict(obj)
 
@@ -147,7 +152,7 @@ class Serializer:
 class Loader:
     """
     Loads an object tree from a json file.
-    External numpy arrays are automatically dereferenced and memory mapped.
+    External numpy arrays are automatically dereferenced and mem-mapped.
     """
 
     def __init__(self, path):
@@ -157,61 +162,67 @@ class Loader:
 
     def load(self, obj, json_obj):
 
-        attr_names = attrs_as_dict(obj)
+        t = type(obj)
+        jt = type(json_obj)
 
-        for k, v in attr_names.items():
+        # before we do anything else we check if we
+        # can convert the json obj to a numpy array
 
-            if k not in json_obj:
-                continue
+        if jt == dict and "__class__" in json_obj:
 
-            t = type(v)
+            cls = json_obj["__class__"]
 
-            jv = json_obj[k]
-            jt = type(jv)
+            if cls == "__extern__":
+                json_obj = np.load(os.path.join(
+                                 self.ext_path,
+                                 json_obj["path"]),
+                             mmap_mode="r")
+                # we are lying about this one (actually np.memmap)
+                # in practice memmap should behave just like ndarray
+                jt = np.ndarray
+            elif cls == "numpy.ndarray":
+                json_obj = np.array(json_obj["data"], dtype=json_obj["dtype"])
+                jt = np.ndarray
 
-            # special care for numpy arrays
-            if jt == dict and "__class__" in jv:
+        attrs = attrs_as_dict(obj)
 
-                cls = jv["__class__"]
+        # now check how we should continue
 
-                if cls == "__extern__":
-                    jv = np.load(os.path.join(self.ext_path, jv["path"]),
-                                 mmap_mode="r")
-                    # we are lying about this one (actually np.memmap)
-                    # in practice memmap should behave just like ndarray
-                    jt = np.ndarray
-                elif cls == "numpy.ndarray":
-                    jv = np.array(jv["data"], dtype=jv["dtype"])
-                    jt = np.ndarray
-
-            if t == dict and jt == dict:
-                # recursion ...
-                self.load(v, jv)
-            elif t == list and jt == list:
-                objs = []
-                for jjv in jv:
-                    jjt = type(jjv)
-                    if jjt == dict and "__class__" in jjv:
-                        mod_name, cls_name = jjv["__class__"].rsplit(".", 1)
-                        try:
-                            mod = importlib.import_module(mod_name)
-                            cls = getattr(mod, cls_name)
-                            # assumes default initializeable type
-                            objs.append(cls())
-                        except Exception as e:
-                            print("Loading list element error:", e)
-                    else:
-                        objs.append(jjv)
-                ext_setattr(obj, k, objs)
-            elif t == jt:
-                # this usually happens for primitive types
-                ext_setattr(obj, k, jv)
-            elif v is None:
-                # we just use whatever is contained in json
-                ext_setattr(obj, k, jv)
+        if attrs != {} and jt == dict:
+            for k, v in attrs.items():
+                if k in json_obj:
+                    ext_setattr(obj, k, self.load(v, json_obj[k]))
+            return obj
+        elif (t == list or t == tuple) and jt == list:
+            jos = []
+            for jv in json_obj:
+                jo = self.load(None, jv)
+                if jo != Skip:
+                    jos.append(jo)
+            return t(jos)
+        elif t == jt:
+            # this usually happens for primitive types
+            return json_obj
+        elif obj is None:
+            # we have nothing to match
+            if jt == dict and "__class__" in json_obj:
+                # try constructing a new object
+                mod_name, cls_name = json_obj["__class__"].rsplit(".", 1)
+                try:
+                    mod = importlib.import_module(mod_name)
+                    cls = getattr(mod, cls_name)
+                    # assumes default initializeable type
+                    return self.load(cls(), json_obj)
+                except Exception:
+                    print("Warning: skipping object of unknown type \""
+                          + cls_name + "\"")
+                    return Skip
             else:
-                # maybe just more recursion then?
-                self.load(v, jv)
+                # just use whatever is contained in json
+                return json_obj
+        else:
+            # nothing more we can do
+            return obj
 
 
 def save(obj, directory):
@@ -255,3 +266,44 @@ def load(obj, path):
         json_state = json.load(fd)
 
     Loader(path).load(obj, json_state)
+
+
+class AltSubTest:
+
+    def __init__(self):
+
+        self.aa = [1, 2, 3]
+        self.bb = (False, True, 1)
+
+
+class Test:
+
+    def __init__(self):
+
+        self.a = 1
+        self.b = 2.0
+        self.c = "hello"
+        self.d = [1, 2, 3]
+        self.e = (1, 2, 3)
+        self.f = False
+        self.g = True
+        self.h = np.zeros((10,))
+
+        self.i = AltSubTest()
+        self.j = [AltSubTest(), AltSubTest(), AltSubTest()]
+
+
+def main():
+
+    test = Test()
+    load(test, "./test_save")
+    #save(test, "./test_save")
+
+    print(test.__dict__)
+    print(test.i.__dict__)
+    #print(test.j[1].__dict__)
+
+if __name__ == "__main__":
+    main()
+
+

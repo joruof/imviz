@@ -27,7 +27,6 @@ def render(obj,
 
     if hasattr(obj, "__autogui__"): 
         return obj.__autogui__(
-                obj,
                 name=name,
                 path=path,
                 parents=parents,
