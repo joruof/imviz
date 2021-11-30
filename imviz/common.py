@@ -72,6 +72,7 @@ def update_autoreload():
 ASYNC_TASK_THREAD_POOL = ThreadPoolExecutor(32)
 ASYNC_TASK_FUTURES = {}
 ASYNC_TASK_RESULTS = {}
+ASYNC_TASK_UPDATED = False
 
 
 def update_task(name, func, *args, **kwargs):
@@ -89,30 +90,35 @@ def update_task(name, func, *args, **kwargs):
     "name" will refer to the same task.
     """
 
-    try:
-        task_future = ASYNC_TASK_FUTURES[name]
-    except KeyError:
-        task_future = None
+    ASYNC_TASK_UPDATED = False
+
+    task_future = get_task_future(name)
 
     if task_future is None:
         ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
                 func, *args, **kwargs)
     elif task_future.done():
+        ASYNC_TASK_UPDATED = True
         ASYNC_TASK_FUTURES[name] = None
         ASYNC_TASK_RESULTS[name] = task_future.result()
+        ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
+                func, *args, **kwargs)
 
     return get_task_result(name)
+
+
+def task_updated():
+
+    return ASYNC_TASK_UPDATED
 
 
 def cancel_task(name):
 
     try:
         task_future = ASYNC_TASK_FUTURES[name]
-    except KeyError:
-        task_future = None
-
-    if task_future is not None:
         task_future.cancel()
+    except KeyError:
+        pass
 
 
 def get_task_result(name):
@@ -123,3 +129,13 @@ def get_task_result(name):
         res = None
 
     return res
+
+
+def get_task_future(name):
+
+    try:
+        task_future = ASYNC_TASK_FUTURES[name]
+    except KeyError:
+        task_future = None
+
+    return task_future
