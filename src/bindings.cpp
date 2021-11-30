@@ -1,4 +1,7 @@
+#include <cstring>
 #include <ios>
+#include <pybind11/attr.h>
+#include <pybind11/cast.h>
 #include <regex>
 #include <sstream>
 #include <iomanip>
@@ -29,11 +32,10 @@
 
 #include "implot.h"
 
-#include "SourceSansPro.h"
-#include "input.h"
+#include "input.hpp"
+#include "file_dialog.hpp"
+#include "source_sans_pro.hpp"
 
-
-namespace fs = std::filesystem;
 namespace py = pybind11;
 
 struct ImViz {
@@ -200,147 +202,6 @@ struct ImViz {
         mod_any |= m;
     }
 };
-
-/**
- * Custom ImGui Extension for handling path selection.
- */
-namespace ImGui {
-
-    void PathSelector (std::string& selectedPath) { 
-
-        ImGui::BeginChild("Dir Listing",
-                ImVec2(500, 400),
-                false,
-                ImGuiWindowFlags_HorizontalScrollbar);
-
-        if (ImGui::Selectable("./..", false)) {
-            if (!fs::is_directory(selectedPath) 
-                    || fs::path(selectedPath).filename().empty()) {
-                selectedPath = fs::path(selectedPath)
-                    .parent_path()
-                    .parent_path();
-            } else {
-                selectedPath = fs::path(selectedPath)
-                    .parent_path();
-            }
-        }
-
-        // Obtain a list of all entries in the current directory
-
-        fs::path listPath = selectedPath;
-        if (!fs::is_directory(listPath)) {
-            listPath = listPath.parent_path();
-        }
-
-        std::vector<fs::directory_entry> entries;
-
-        if (fs::exists(listPath)) {
-            for (fs::directory_entry e : fs::directory_iterator(listPath)) {
-                if (std::string(e.path().filename()).at(0) != '.') {
-                    entries.push_back(e);
-                }
-            }
-        }
-
-        // Because the entries may be sorted arbitrarily
-        // we sort them alphabetically.
-        // Also directories are sorted in before files.
-
-        std::sort(
-                entries.begin(),
-                entries.end(),
-                [](auto& a, auto& b) -> bool {
-                    if (fs::is_directory(a) && !fs::is_directory(b)) {
-                        return true;
-                    } else if (!fs::is_directory(a) && fs::is_directory(b)) {
-                        return false;
-                    } else {
-                        return a.path().filename() < b.path().filename();
-                    }
-                }
-            );
-
-        for (fs::directory_entry e : entries) {
-
-            std::string displayName = e.path().stem();
-            displayName += e.path().extension();
-
-            if (fs::is_directory(e)) {
-                displayName += "/";
-            }
-
-            if (ImGui::Selectable(
-                        displayName.c_str(),
-                        selectedPath == e.path())) {
-
-                selectedPath = e.path();
-            }
-        }
-
-        ImGui::EndChild();
-
-        char filenameInputBuf[256];
-
-        strncpy(filenameInputBuf, 
-                selectedPath.c_str(), 
-                sizeof(filenameInputBuf) - 1);
-
-        ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth() * 0.8f);
-        ImGui::InputText("selected",
-                filenameInputBuf, IM_ARRAYSIZE(filenameInputBuf));
-        ImGui::PopItemWidth();
-
-        selectedPath = std::string(filenameInputBuf);
-    }
-
-    bool FileDialogPopup (
-            const char* name,
-            const char* confirmLabel,
-            std::string& selectedPath) {
-
-        bool result = false;
-
-        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-        static std::string currentPath = "";
-        static bool fileDialogOpen = false;
-
-        if (ImGui::BeginPopupModal(
-                    name, 
-                    NULL, 
-                    ImGuiWindowFlags_AlwaysAutoResize)) {
-
-            if (!fileDialogOpen) {
-                currentPath = selectedPath;
-            }
-            fileDialogOpen = true;
-
-            ImGui::PathSelector(currentPath);
-
-            if (ImGui::Button(confirmLabel, ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-                selectedPath = currentPath;
-                result = true;
-            }
-
-            ImGui::SetItemDefaultFocus();
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-                result = false;
-            }
-
-            ImGui::EndPopup();
-        } else {
-            fileDialogOpen = false;
-        }
-
-        return result;
-    }
-}
 
 /**
  * Some helpers to make handling arrays easier.
@@ -734,42 +595,6 @@ namespace pybind11 {
                 }
             }
         };
-
-        /*
-        template<> struct type_caster<ImPlotLimits> {
-
-        public:
-            PYBIND11_TYPE_CASTER(ImPlotLimits, _("ImPlotLimits"));
-
-            bool load(handle src, bool) {
-
-                auto array = array_like<double>::ensure(src);
-
-                assert_shape(array, {{4,}});
-
-                value.X.Min = array.at(0);
-                value.X.Max = array.at(1);
-                value.Y.Min = array.at(2);
-                value.Y.Max = array.at(3);
-
-                return true;
-            }
-
-            static handle cast(
-                    const ImPlotLimits& src,
-                    return_value_policy policy,
-                    handle parent) {
-
-                if (return_value_policy::copy == policy) {
-                    pybind11::array_t<double> array(4, (double*)(&src));
-                    return array.release();
-                } else {
-                    pybind11::array_t<double> array(4, (double*)(&src), parent);
-                    return array.release();
-                }
-            }
-        };
-        */
     }
 }
 
@@ -777,13 +602,192 @@ PYBIND11_MODULE(cppimviz, m) {
 
     input::loadPythonBindings(m);
 
+    py::enum_<ImAxis_>(m, "Axis", py::arithmetic())
+        .value("X1", ImAxis_X1)
+        .value("X2", ImAxis_X2)
+        .value("X3", ImAxis_X3)
+        .value("Y1", ImAxis_Y1)
+        .value("Y2", ImAxis_Y2)
+        .value("Y3", ImAxis_Y3);
+
     py::enum_<ImGuiCond_>(m, "Cond")
         .value("NONE", ImGuiCond_None)
         .value("ALWAYS", ImGuiCond_Always)
         .value("ONCE", ImGuiCond_Once)
         .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
-        .value("APPEARING", ImGuiCond_Appearing)
-        .export_values();
+        .value("APPEARING", ImGuiCond_Appearing);
+
+    py::enum_<ImPlotFlags_>(m, "PlotFlags", py::arithmetic())
+        .value("NONE", ImPlotFlags_None)
+        .value("NO_TITLE", ImPlotFlags_NoTitle)
+        .value("NO_LEGEND", ImPlotFlags_NoLegend)
+        .value("NO_MOUSE_TEXT", ImPlotFlags_NoMouseText)
+        .value("NO_INPUTS", ImPlotFlags_NoInputs)
+        .value("NO_MENUS", ImPlotFlags_NoMenus)
+        .value("NO_BOX_SELECT", ImPlotFlags_NoBoxSelect)
+        .value("NO_CHILD", ImPlotFlags_NoChild)
+        .value("EQUAL", ImPlotFlags_Equal)
+        .value("CROSSHAIRS", ImPlotFlags_Crosshairs)
+        .value("ANTI_ALIASED", ImPlotFlags_AntiAliased)
+        .value("CANVAS_ONLY", ImPlotFlags_CanvasOnly);
+
+    py::enum_<ImPlotAxisFlags_>(m, "PlotAxisFlags", py::arithmetic())
+        .value("NONE", ImPlotAxisFlags_None)
+        .value("NO_LABEL", ImPlotAxisFlags_NoLabel)
+        .value("NO_GRID_LINES", ImPlotAxisFlags_NoGridLines)
+        .value("NO_TICK_MARKS", ImPlotAxisFlags_NoTickMarks)
+        .value("NO_TICK_LABELS", ImPlotAxisFlags_NoTickLabels)
+        .value("NO_INITIAL_FIT", ImPlotAxisFlags_NoInitialFit)
+        .value("NO_MENUS", ImPlotAxisFlags_NoMenus)
+        .value("OPPOSITE", ImPlotAxisFlags_Opposite)
+        .value("FOREGROUND", ImPlotAxisFlags_Foreground)
+        .value("LOG_SCALE", ImPlotAxisFlags_LogScale)
+        .value("TIME", ImPlotAxisFlags_Time)
+        .value("INVERT", ImPlotAxisFlags_Invert)
+        .value("AUTO_FIT", ImPlotAxisFlags_AutoFit)
+        .value("RANGE_FIT", ImPlotAxisFlags_RangeFit)
+        .value("LOCK_MIN", ImPlotAxisFlags_LockMin)
+        .value("LOCK_MAX", ImPlotAxisFlags_LockMax)
+        .value("LOCK", ImPlotAxisFlags_Lock)
+        .value("NO_DECORATIONS", ImPlotAxisFlags_NoDecorations)
+        .value("AUX_DEFAULT", ImPlotAxisFlags_AuxDefault);
+
+    py::enum_<ImPlotSubplotFlags_>(m, "PlotSubplotFlags", py::arithmetic())
+        .value("NONE", ImPlotSubplotFlags_None)
+        .value("NO_TITLE", ImPlotSubplotFlags_NoTitle)
+        .value("NO_LEGEND", ImPlotSubplotFlags_NoLegend)
+        .value("NO_MENUS", ImPlotSubplotFlags_NoMenus)
+        .value("NO_RESIZE", ImPlotSubplotFlags_NoResize)
+        .value("NO_ALIGN", ImPlotSubplotFlags_NoAlign)
+        .value("SHARE_ITEMS", ImPlotSubplotFlags_ShareItems)
+        .value("LINK_ROWS", ImPlotSubplotFlags_LinkRows)
+        .value("LINK_COLS", ImPlotSubplotFlags_LinkCols)
+        .value("LINK_ALL_X", ImPlotSubplotFlags_LinkAllX)
+        .value("LINK_ALL_Y", ImPlotSubplotFlags_LinkAllY)
+        .value("COL_MAJOR", ImPlotSubplotFlags_ColMajor);
+
+    py::enum_<ImPlotLegendFlags_>(m, "PlotLegendFlags", py::arithmetic())
+        .value("NONE", ImPlotLegendFlags_None)
+        .value("NO_BUTTONS", ImPlotLegendFlags_NoButtons)
+        .value("NO_HIGHLIGHT_ITEM", ImPlotLegendFlags_NoHighlightItem)
+        .value("NO_HIGHLIGHT_AXIS", ImPlotLegendFlags_NoHighlightAxis)
+        .value("NO_MENUS", ImPlotLegendFlags_NoMenus)
+        .value("OUTSIDE", ImPlotLegendFlags_Outside)
+        .value("HORIZONTAL", ImPlotLegendFlags_Horizontal);
+
+    py::enum_<ImPlotMouseTextFlags_>(m, "PlotMouseTextFlags", py::arithmetic())
+        .value("NONE", ImPlotMouseTextFlags_None)
+        .value("NO_AUX_AXES", ImPlotMouseTextFlags_NoAuxAxes)
+        .value("NO_FORMAT", ImPlotMouseTextFlags_NoFormat)
+        .value("SHOW_ALWAYS", ImPlotMouseTextFlags_ShowAlways);
+
+    py::enum_<ImPlotDragToolFlags_>(m, "PlotDragToolFlags", py::arithmetic())
+        .value("NONE", ImPlotDragToolFlags_None)
+        .value("NO_CURSORS", ImPlotDragToolFlags_NoCursors)
+        .value("NO_FIT", ImPlotDragToolFlags_NoFit)
+        .value("NO_INPUTS", ImPlotDragToolFlags_NoInputs)
+        .value("DELAYED", ImPlotDragToolFlags_Delayed);
+
+    py::enum_<ImPlotCond_>(m, "PlotCond")
+        .value("NONE", ImPlotCond_None)
+        .value("ALWAYS", ImPlotCond_Always)
+        .value("ONCE", ImPlotCond_Once);
+
+    py::enum_<ImPlotCol_>(m, "PlotCol")
+        .value("LINE", ImPlotCol_Line)
+        .value("FILL", ImPlotCol_Fill)
+        .value("MARKER_OUTLINE", ImPlotCol_MarkerOutline)
+        .value("MARKER_FILL", ImPlotCol_MarkerFill)
+        .value("ERROR_BAR", ImPlotCol_ErrorBar)
+        .value("FRAME_BG", ImPlotCol_FrameBg)
+        .value("PLOT_BG", ImPlotCol_PlotBg)
+        .value("PLOT_BORDER", ImPlotCol_PlotBorder)
+        .value("LEGEND_BG", ImPlotCol_LegendBg)
+        .value("LEGEND_BORDER", ImPlotCol_LegendBorder)
+        .value("LEGEND_TEXT", ImPlotCol_LegendText)
+        .value("TITLE_TEXT", ImPlotCol_TitleText)
+        .value("INLAY_TEXT", ImPlotCol_InlayText)
+        .value("AXIS_TEXT", ImPlotCol_AxisText)
+        .value("AXIS_GRID", ImPlotCol_AxisGrid)
+        .value("AXIS_BG", ImPlotCol_AxisBg)
+        .value("AXIS_BG_HOVERED", ImPlotCol_AxisBgHovered)
+        .value("AXIS_BG_ACTIVE", ImPlotCol_AxisBgActive)
+        .value("SELECTION", ImPlotCol_Selection)
+        .value("CROSSHAIRS", ImPlotCol_Crosshairs);
+
+    py::enum_<ImPlotStyleVar_>(m, "PlotStyleVar")
+        .value("LINE_WEIGHT", ImPlotStyleVar_LineWeight)
+        .value("MARKER", ImPlotStyleVar_Marker)
+        .value("MARKER_SIZE", ImPlotStyleVar_MarkerSize)
+        .value("MARKER_WEIGHT", ImPlotStyleVar_MarkerWeight)
+        .value("FILL_ALPHA", ImPlotStyleVar_FillAlpha)
+        .value("ERROR_BAR_SIZE", ImPlotStyleVar_ErrorBarSize)
+        .value("ERROR_BAR_WEIGHT", ImPlotStyleVar_ErrorBarWeight)
+        .value("DIGITAL_BIT_HEIGHT", ImPlotStyleVar_DigitalBitHeight)
+        .value("DIGITAL_BIT_GAP", ImPlotStyleVar_DigitalBitGap)
+        .value("PLOT_BORDER_SIZE", ImPlotStyleVar_PlotBorderSize)
+        .value("MINOR_ALPHA", ImPlotStyleVar_MinorAlpha)
+        .value("MAJOR_TICK_LEN", ImPlotStyleVar_MajorTickLen)
+        .value("MINOR_TICK_LEN", ImPlotStyleVar_MinorTickLen)
+        .value("MAJOR_TICK_SIZE", ImPlotStyleVar_MajorTickSize)
+        .value("MINOR_TICK_SIZE", ImPlotStyleVar_MinorTickSize)
+        .value("PLOT_PADDING", ImPlotStyleVar_PlotPadding)
+        .value("LABEL_PADDING", ImPlotStyleVar_LabelPadding)
+        .value("LEGEND_PADDING", ImPlotStyleVar_LegendPadding)
+        .value("LEGEND_INNER_PADDING", ImPlotStyleVar_LegendInnerPadding)
+        .value("LEGEND_SPACING", ImPlotStyleVar_LegendSpacing)
+        .value("MOUSE_POS_PADDING", ImPlotStyleVar_MousePosPadding)
+        .value("ANNOTATION_PADDING", ImPlotStyleVar_AnnotationPadding)
+        .value("FIT_PADDING", ImPlotStyleVar_FitPadding)
+        .value("PLOT_DEFAULT_SIZE", ImPlotStyleVar_PlotDefaultSize)
+        .value("PLOT_MIN_SIZE", ImPlotStyleVar_PlotMinSize);
+
+    py::enum_<ImPlotMarker_>(m, "PlotMarker")
+        .value("NONE", ImPlotMarker_None)
+        .value("CIRCLE", ImPlotMarker_Circle)
+        .value("SQUARE", ImPlotMarker_Square)
+        .value("DIAMOND", ImPlotMarker_Diamond)
+        .value("UP", ImPlotMarker_Up)
+        .value("DOWN", ImPlotMarker_Down)
+        .value("LEFT", ImPlotMarker_Left)
+        .value("RIGHT", ImPlotMarker_Right)
+        .value("CROSS", ImPlotMarker_Cross)
+        .value("PLUS", ImPlotMarker_Plus)
+        .value("ASTERISK", ImPlotMarker_Asterisk);
+
+    py::enum_<ImPlotColormap_>(m, "PlotColormap")
+        .value("DEEP", ImPlotColormap_Deep)
+        .value("DARK", ImPlotColormap_Dark)
+        .value("PASTEL", ImPlotColormap_Pastel)
+        .value("PAIRED", ImPlotColormap_Paired)
+        .value("VIVIDRIS", ImPlotColormap_Viridis)
+        .value("PLASMA", ImPlotColormap_Plasma)
+        .value("HOT", ImPlotColormap_Hot)
+        .value("COOL", ImPlotColormap_Cool)
+        .value("PINK", ImPlotColormap_Pink)
+        .value("JET", ImPlotColormap_Jet)
+        .value("TWILIGHT", ImPlotColormap_Twilight)
+        .value("RDBU", ImPlotColormap_RdBu)
+        .value("PIYG", ImPlotColormap_PiYG)
+        .value("SPECTRAL", ImPlotColormap_Spectral)
+        .value("GREYS", ImPlotColormap_Greys);
+
+    py::enum_<ImPlotLocation_>(m, "PlotLocation")
+        .value("CENTER", ImPlotLocation_Center)
+        .value("NORTH", ImPlotLocation_North)
+        .value("SOUTH", ImPlotLocation_South)
+        .value("WEST", ImPlotLocation_West)
+        .value("EAST", ImPlotLocation_East)
+        .value("NORTH_WEST", ImPlotLocation_NorthWest)
+        .value("NORTH_EAST", ImPlotLocation_NorthEast)
+        .value("SOUTH_WEST", ImPlotLocation_SouthWest)
+        .value("SOUTH_EAST", ImPlotLocation_SouthEast);
+
+    py::enum_<ImPlotBin_>(m, "PlotBin")
+        .value("SQRT", ImPlotBin_Sqrt)
+        .value("STURGES", ImPlotBin_Sturges)
+        .value("RICE", ImPlotBin_Rice)
+        .value("SCOTT", ImPlotBin_Scott);
 
     m.def("show_imgui_demo", ImGui::ShowDemoWindow);
     m.def("show_implot_demo", ImPlot::ShowDemoWindow);
@@ -1006,6 +1010,90 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("auto_fit_y") = false);
 
     m.def("end_plot", &ImPlot::EndPlot);
+
+    m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
+
+        ImPlot::SetupAxis(
+            axis,
+            label.empty() ? NULL : label.c_str(),
+            flags);
+    },
+    py::arg("axis"),
+    py::arg("label") = "",
+    py::arg("flags")= ImPlotAxisFlags_None);
+
+    m.def("setup_axis_limits", [](ImAxis axis, double min, double max, ImPlotCond cond){ 
+
+        ImPlot::SetupAxisLimits(axis, min, max, cond);
+    },
+    py::arg("axis"),
+    py::arg("min"),
+    py::arg("max"),
+    py::arg("flags")= ImPlotCond_Once);
+
+    /**
+     * TODO: It would be better to let the python side pass a callback,
+     * which does the formatting.
+     *
+     * Could not yet figure out how to do this properly.
+     */
+
+    m.def("setup_axis_format", [](ImAxis axis, std::string fmt){ 
+
+        ImPlot::SetupAxisFormat(axis, fmt.c_str());
+    },
+    py::arg("axis"),
+    py::arg("fmt"));
+
+    m.def("setup_legend", [](ImPlotLocation location, ImPlotLegendFlags flags){
+
+        ImPlot::SetupLegend(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_NorthWest,
+    py::arg("flags") = ImPlotLegendFlags_None);
+
+    m.def("setup_mouse_text", [](ImPlotLocation location, ImPlotMouseTextFlags flags){
+
+        ImPlot::SetupMouseText(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_SouthEast,
+    py::arg("flags") = ImPlotMouseTextFlags_None);
+
+    m.def("setup_axes", [](std::string xLabel,
+                           std::string yLabel,
+                           ImPlotAxisFlags xFlags,
+                           ImPlotAxisFlags yFlags) { 
+
+        ImPlot::SetupAxes(xLabel.c_str(), yLabel.c_str(), xFlags, yFlags);
+    },
+    py::arg("x_label"),
+    py::arg("y_label"),
+    py::arg("x_flags") = ImPlotAxisFlags_None,
+    py::arg("y_flags") = ImPlotAxisFlags_None);
+
+    m.def("setup_axes_limits", [](double xMin,
+                                  double xMax,
+                                  double yMin,
+                                  double yMax,
+                                  ImPlotCond cond) { 
+
+        ImPlot::SetupAxesLimits(xMin, xMax, yMin, yMax, cond);
+    },
+    py::arg("x_min"),
+    py::arg("x_max"),
+    py::arg("y_min"),
+    py::arg("y_max"),
+    py::arg("cond") = ImPlotCond_Once);
+
+    m.def("setup_finish", &ImPlot::SetupFinish);
+
+    //// Sets an axis' ticks and optionally the labels. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, const double* values, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+    //// Sets an axis' ticks and optionally the labels for the next plot. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+
+    //// Sets the primary X and Y axes range limits. If ImPlotCond_Always is used, the axes limits will be locked (shorthand for two calls to SetupAxisLimits).
+    //IMPLOT_API void SetupAxesLimits(double x_min, double x_max, double y_min, double y_max, ImPlotCond cond = ImPlotCond_Once);
 
     m.def("tree_node", [&](std::string label, bool selected) {
 
@@ -1381,23 +1469,6 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("width") = -1,
     py::arg("height") = -1);
 
-    /*
-    m.def("next_plot_limits", [&](
-                double xmin,
-                double xmax,
-                double ymin,
-                double ymax,
-                ImGuiCond_ cond) {
-
-        ImPlot::SetNextPlotLimits(xmin, xmax, ymin, ymax, cond);
-    },
-    py::arg("xmin"),
-    py::arg("xmax"),
-    py::arg("ymin"),
-    py::arg("ymax"),
-    py::arg("cond") = ImGuiCond_Once);
-    */
-
     m.def("dataframe", [&](
                 py::object frame,
                 std::string label,
@@ -1496,6 +1567,10 @@ PYBIND11_MODULE(cppimviz, m) {
                       float markerSize,
                       float markerWeight) {
 
+        // interpret data
+
+        PlotArrayInfo pai = interpretPlotArrays(x, y);
+
         // interpret marker format
 
         std::smatch match;
@@ -1529,10 +1604,6 @@ PYBIND11_MODULE(cppimviz, m) {
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
-
-        // interpret data
-
-        PlotArrayInfo pai = interpretPlotArrays(x, y);
 
         // plot lines and markers
 

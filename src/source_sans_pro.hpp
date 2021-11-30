@@ -1,7 +1,4 @@
-#ifndef SOURCE_SANS_PRO
-#define SOURCE_SANS_PRO
+#pragma once
 
 unsigned int getSourceSansProSize();
 const unsigned int* getSourceSansProData();
-
-#endif

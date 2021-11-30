@@ -93,20 +93,11 @@ class State:
         self.blab = 5
 
 
-def repeated_task():
+def main(s):
 
-    time.sleep(2)
-    return time.time()
-
-
-def main():
-
-    sts = viz.statics()
-
-    if "state" not in sts:
-        sts.state = State()
-
-    s = sts.state
+    sts = viz.statics(
+            counter=3,
+            hello="blub")
 
     viz.set_main_window_title("Demo")
     viz.show_implot_demo(True)
@@ -218,6 +209,10 @@ def main():
         if viz.tree_node("Plotting"):
 
             if viz.begin_plot("Plot"):
+
+                viz.setup_axis(viz.Axis.X1, "x")
+                viz.setup_axis(viz.Axis.Y1, "y")
+                viz.setup_axis_format(viz.Axis.Y1, lambda d, s: str(d))
 
                 viz.plot_image("image",
                                s.img,
@@ -380,7 +375,3 @@ def main():
             viz.tree_pop()
 
     viz.end_window()
-
-
-if __name__ == "__main__":
-    main()
