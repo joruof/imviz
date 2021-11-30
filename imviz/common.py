@@ -32,6 +32,9 @@ def statics(**defaults):
 
     It returns a bundle, which is unique to the calling function.
     Like static variables the bundle is persisted between function calls.
+
+    Use with caution! This implementation is probably not very performant,
+    but really useful for quick-and-dirty experimentation.
     """
 
     caller = inspect.stack()[1]
@@ -39,6 +42,8 @@ def statics(**defaults):
 
     try:
         sts = STATICS[func_id]
+        sts = bundle({**defaults, **sts})
+        STATICS[func_id] = sts
     except KeyError:
         sts = bundle(defaults)
         STATICS[func_id] = sts

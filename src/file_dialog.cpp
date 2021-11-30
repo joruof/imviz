@@ -127,6 +127,7 @@ namespace ImGui {
 
             if (ImGui::Button(confirmLabel, ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
+                fileDialogOpen = false;
                 selectedPath = currentPath;
                 result = true;
             }
@@ -137,13 +138,12 @@ namespace ImGui {
 
             if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
+                fileDialogOpen = false;
                 result = false;
             }
 
             ImGui::EndPopup();
-        } else {
-            fileDialogOpen = false;
-        }
+        } 
 
         return result;
     }

@@ -51,6 +51,11 @@ class State:
         self.color_rgba = [1.0, 1.0, 0.0, 0.0]
 
         self.file_path = "/"
+        self.file_path2 = "/"
+
+        self.test_dict = dict(a="alkjadf", b=1.0, c=[1.0, 2.0, 3.0])
+
+        self.test_list = [1.0, 2.0, 3.0]
 
         # selection
 
@@ -153,6 +158,8 @@ def main(s):
 
     if viz.begin_window("Demo"):
 
+        viz.auto_gui(s, "State Autogui")
+
         if viz.tree_node("Input"):
 
             s.input_string = viz.input("input string", s.input_string)
@@ -183,10 +190,15 @@ def main(s):
 
             s.range = viz.range("range", s.range)
 
-            if viz.button(f"{s.file_path}"):
+            if viz.button(f"B: {s.file_path}"):
                 viz.open_popup("File Selection")
 
             s.file_path = viz.file_dialog_popup("File Selection", s.file_path)
+
+            if viz.button(f"A: {s.file_path2}"):
+                viz.open_popup("File Selection 2")
+
+            s.file_path2 = viz.file_dialog_popup("File Selection 2", s.file_path2)
 
             viz.tree_pop()
 
