@@ -3,10 +3,15 @@ This contains common and (mostly) helpful utils.
 """
 
 import inspect
+import traceback
+
+from contextlib import contextmanager
 
 from imviz.autoreload import ModuleReloader
 
 from concurrent.futures import ThreadPoolExecutor
+
+import imviz as viz
 
 
 class bundle(dict):
@@ -149,3 +154,20 @@ def get_task_future(name):
         task_future = None
 
     return task_future
+
+
+@contextmanager
+def error_sink():
+    """
+    This contextmanager catches and visualizes exceptions in the gui,
+    instead of handing them over to the caller.
+    """
+
+    try:
+        yield
+    except Exception as e:
+        viz.text(f"{type(e).__name__}: {e}", color=(1, 0, 0))
+        if viz.is_item_hovered():
+            viz.begin_tooltip()
+            viz.text(f"{traceback.format_exc(-1)}")
+            viz.end_tooltip()

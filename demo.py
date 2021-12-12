@@ -5,19 +5,7 @@ import os
 import sys
 import time
 
-
-try:
-
-    import imviz as viz
-    print("Using system imviz")
-
-except ModuleNotFoundError:
-
-    sys.path.append(os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "build"))
-
-    import imviz as viz
-    print("Using development imviz")
+import imviz as viz
 
 
 """
@@ -224,7 +212,6 @@ def main(s):
 
                 viz.setup_axis(viz.Axis.X1, "x")
                 viz.setup_axis(viz.Axis.Y1, "y")
-                viz.setup_axis_format(viz.Axis.Y1, lambda d, s: str(d))
 
                 viz.plot_image("image",
                                s.img,

@@ -5,9 +5,9 @@
 #include <regex>
 #include <sstream>
 #include <iomanip>
-#include <stdexcept>
 #include <filesystem>
 #include <functional>
+#include <stdexcept>
 #include <unordered_map>
 
 #include <GL/glew.h>
@@ -31,16 +31,29 @@
 #include "misc/cpp/imgui_stdlib.h"
 
 #include "implot.h"
+#include "implot_internal.h"
 
 #include "input.hpp"
 #include "file_dialog.hpp"
 #include "source_sans_pro.hpp"
+
+#include "im_user_config.h"
+
+void checkAssertion(bool expr, const char* exprStr) {
+
+    if (not expr) { 
+        throw std::runtime_error(exprStr);
+    }
+}
 
 namespace py = pybind11;
 
 struct ImViz {
 
     GLFWwindow* window = nullptr;
+
+    ImGuiContext* imGuiCtx = nullptr;
+    ImPlotContext* imPlotCtx = nullptr;
 
     bool currentWindowOpen = false;
 
@@ -86,8 +99,8 @@ struct ImViz {
         // basic imgui setup
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImPlot::CreateContext();
+        imGuiCtx = ImGui::CreateContext();
+        imPlotCtx = ImPlot::CreateContext();
 
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 330");
@@ -166,6 +179,11 @@ struct ImViz {
 
         glfwShowWindow(window);
 
+        // Try soft error recovery. At first we do not destroy the imgui context.
+        // If recover fails the second recovery stage will recreate the context.
+        // See wait method ...
+        recover();
+
         ImGui::Render();
         
         // background color taken from the one-and-only tomorrow-night theme
@@ -189,6 +207,73 @@ struct ImViz {
 
         glfwSwapInterval(useVsync);
         glfwSwapBuffers(window);
+    }
+
+    void recover()
+    {
+        //basically ImGui::ErrorCheckEndFrameRecover
+        //extended for implot
+
+        ImGuiContext& g = *GImGui;
+        ImPlotContext& gp = *GImPlot;
+
+        while (g.CurrentWindowStack.Size > 0)
+        {
+            #ifdef IMGUI_HAS_TABLE
+            while (g.CurrentTable && (g.CurrentTable->OuterWindow == g.CurrentWindow || g.CurrentTable->InnerWindow == g.CurrentWindow)) {
+                ImGui::EndTable();
+            }
+            #endif
+
+            while (gp.CurrentItem != NULL) {
+                ImPlot::EndItem();
+            }
+            while (gp.CurrentSubplot != NULL) {
+                ImPlot::EndSubplots();
+            }
+            while (gp.CurrentPlot != NULL) {
+                ImPlot::EndPlot();
+            }
+
+            ImGuiWindow* window = g.CurrentWindow;
+            IM_ASSERT(window != NULL);
+
+            while (g.CurrentTabBar != NULL) { //-V1044
+                ImGui::EndTabBar();
+            }
+            while (window->DC.TreeDepth > 0) {
+                ImGui::TreePop();
+            }
+            while (g.GroupStack.Size > window->DC.StackSizesOnBegin.SizeOfGroupStack) {
+                ImGui::EndGroup();
+            }
+            while (window->IDStack.Size > 1) {
+                ImGui::PopID();
+            }
+            while (g.ColorStack.Size > window->DC.StackSizesOnBegin.SizeOfColorStack) {
+                ImGui::PopStyleColor();
+            }
+            while (g.StyleVarStack.Size > window->DC.StackSizesOnBegin.SizeOfStyleVarStack) {
+                ImGui::PopStyleVar();
+            }
+            while (g.FocusScopeStack.Size > window->DC.StackSizesOnBegin.SizeOfFocusScopeStack) {
+                ImGui::PopFocusScope();
+            }
+            if (g.CurrentWindowStack.Size == 1) {
+                IM_ASSERT(g.CurrentWindow->IsFallbackWindow);
+                break;
+            }
+
+            IM_ASSERT(window == g.CurrentWindow);
+
+            if (window->Flags & ImGuiWindowFlags_ChildWindow) {
+                ImGui::EndChild();
+            }
+            else {
+                ImGui::End();
+            }
+
+        }
     }
 
     void trigger () {
@@ -849,7 +934,53 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("clear_mod_any", [&]() { viz.mod_any = false; });
 
     m.def("wait", [&](bool vsync) {
-        viz.doUpdate(vsync);
+
+        try {
+            viz.doUpdate(vsync);
+        } catch (std::runtime_error& e) { 
+
+            std::cerr << e.what() << std::endl;
+
+            // last resort: if we catch an error here, all we can do
+            // is create the context from scratch and hope for the best.
+            // TODO: remove code duplication
+
+            ImPlot::DestroyContext(viz.imPlotCtx);
+            ImGui::DestroyContext(viz.imGuiCtx);
+
+            input::registerCallbacks(viz.window);
+
+            IMGUI_CHECKVERSION();
+
+            viz.imGuiCtx = ImGui::CreateContext();
+            viz.imPlotCtx = ImPlot::CreateContext();
+
+            ImGui::SetCurrentContext(viz.imGuiCtx);
+            ImPlot::SetCurrentContext(viz.imPlotCtx);
+
+            ImGui_ImplGlfw_InitForOpenGL(viz.window, true);
+            ImGui_ImplOpenGL3_Init("#version 330");
+
+            ImGuiIO& io = ImGui::GetIO();
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.IniFilename = "./imviz.ini";
+
+            ImPlot::GetStyle().AntiAliasedLines = true;
+
+            // loading font
+
+            io.Fonts->AddFontFromMemoryCompressedTTF(
+                    getSourceSansProData(),
+                    getSourceSansProSize(),
+                    20.0);
+
+            ImGui_ImplOpenGL3_CreateFontsTexture();
+
+            viz.prepareUpdate();
+
+            return !glfwWindowShouldClose(viz.window);
+        }
+
         input::update();
         glfwPollEvents();
         viz.prepareUpdate();
