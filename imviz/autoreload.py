@@ -90,7 +90,10 @@ def scan_modules(requests, results):
 
     while True:
 
-        req = requests.get()
+        try:
+            req = requests.get(timeout=2.0)
+        except queue.Empty:
+            return
 
         needs_reload = []
 
@@ -124,23 +127,32 @@ class ModuleReloader:
 
     def __init__(self):
 
+        self.init_subproc()
+
+        # (module-name, name) -> weakref, for replacing old code objects
+        self.old_objects = {}
+
+    def init_subproc(self):
+
         self.waiting_for_scan = False
 
         self.scan_requests = mp.Queue(1)
         self.scan_results = mp.Queue(1)
+
         self.scan_process = mp.Process(
                 daemon=True,
                 target=scan_modules,
                 args=[self.scan_requests, self.scan_results])
-        self.scan_process.start()
 
-        # (module-name, name) -> weakref, for replacing old code objects
-        self.old_objects = {}
+        self.scan_process.start()
 
     def reload(self):
         """
         Check whether some modules need to be reloaded.
         """
+
+        if not self.scan_process.is_alive():
+            self.init_subproc()
 
         if not self.waiting_for_scan:
 

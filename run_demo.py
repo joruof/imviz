@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 import demo
 import traceback
@@ -8,6 +10,7 @@ import imviz as viz
 if __name__ == "__main__":
 
     broken = False
+    running = True
 
     state = demo.State()
 
