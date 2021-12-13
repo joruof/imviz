@@ -14,9 +14,12 @@ import os
 import json
 import types
 import hashlib
-import importlib
+
+from pydoc import locate
 
 import numpy as np
+
+from imviz.common import bundle
 
 
 class Skip:
@@ -45,7 +48,7 @@ def attrs_as_dict(obj):
     Tries different methods to get a dict representation of obj.
     """
 
-    attrs = {}
+    attrs = None
 
     if hasattr(obj, "__getstate__"):
         attrs = obj.__getstate__()
@@ -85,7 +88,7 @@ class Serializer:
 
         self.saved_arrays = set()
 
-    def serialize(self, obj, name=""):
+    def serialize(self, obj, name="", parent=None):
 
         if self.hide_private and len(name) > 0 and name[0] == "_":
             return Skip
@@ -96,7 +99,7 @@ class Serializer:
                 or isinstance(obj, types.LambdaType)):
             return Skip
 
-        # special treatment for large numpy arrays
+        # special treatment for numpy arrays
         if type(obj) == np.ndarray:
             if obj.size > 100:
                 byte_view = obj.view(np.uint8)
@@ -124,14 +127,14 @@ class Serializer:
         if type(obj) == list or type(obj) == tuple:
             jvs = []
             for v in obj:
-                jv = self.serialize(v)
+                jv = self.serialize(v, parent=obj)
                 if jv != Skip:
                     jvs.append(jv)
             return jvs
 
         attrs = attrs_as_dict(obj)
 
-        if attrs == {}:
+        if attrs is None:
             # in case we don't find any serializeable attributes
             # we assume we have a primitive type and return that
             return obj
@@ -139,7 +142,7 @@ class Serializer:
         ser_attrs = {}
 
         for k, v in attrs.items():
-            val = self.serialize(v, k)
+            val = self.serialize(v, k, parent=obj)
             if val != Skip:
                 ser_attrs[k] = val
 
@@ -188,17 +191,34 @@ class Loader:
 
         # now check how we should continue
 
-        if attrs != {} and jt == dict:
-            for k, v in attrs.items():
-                if k in json_obj:
-                    ext_setattr(obj, k, self.load(v, json_obj[k]))
+        if attrs is not None and jt == dict:
+            # handles general objects and dicts
+            if hasattr(obj, "__setstate__"):
+                ld = {k: self.load(None, v) for k, v in json_obj.items()}
+                if "__class__" in ld:
+                    del ld["__class__"]
+                obj.__setstate__(ld)
+            else:
+                for k, v in attrs.items():
+                    if k in json_obj:
+                        ext_setattr(obj, k, self.load(v, json_obj[k]))
             return obj
         elif (t == list or t == tuple) and jt == list:
+            # handles lists and tuples
             jos = []
-            for jv in json_obj:
-                jo = self.load(None, jv)
-                if jo != Skip:
-                    jos.append(jo)
+            for i in range(max(len(obj), len(json_obj))):
+                if i < len(json_obj):
+                    jv = json_obj[i]
+                    if i < len(obj):
+                        # load into existing object
+                        jo = self.load(obj[i], jv)
+                    else:
+                        # otherwise create new object
+                        jo = self.load(None, jv)
+                    if jo != Skip:
+                        jos.append(jo)
+                else:
+                    jos.append(obj[i])
             return t(jos)
         elif t == jt:
             # this usually happens for primitive types
@@ -207,10 +227,8 @@ class Loader:
             # we have nothing to match
             if jt == dict and "__class__" in json_obj:
                 # try constructing a new object
-                mod_name, cls_name = json_obj["__class__"].rsplit(".", 1)
                 try:
-                    mod = importlib.import_module(mod_name)
-                    cls = getattr(mod, cls_name)
+                    cls = locate(json_obj["__class__"])
                     # assumes default initializeable type
                     return self.load(cls(), json_obj)
                 except Exception:
@@ -292,18 +310,28 @@ class Test:
         self.i = AltSubTest()
         self.j = [AltSubTest(), AltSubTest(), AltSubTest()]
 
+        self.k = {
+                "ka": AltSubTest(),
+                "kb": False
+            }
+
+        self.m = [bundle(a=4, b=4, c=4), bundle(a=4, b=4, c=4)]
+        self.n = (bundle(a=4, b=4, c=4), False)
+
 
 def main():
 
     test = Test()
     load(test, "./test_save")
-    #save(test, "./test_save")
+    save(test, "./test_save")
 
     print(test.__dict__)
     print(test.i.__dict__)
-    #print(test.j[1].__dict__)
+    print(test.k)
+    print(test.k["ka"].__dict__)
+    print(test.m)
+    print(test.n)
+
 
 if __name__ == "__main__":
     main()
-
-
