@@ -24,6 +24,10 @@ class bundle(dict):
         dict.__init__(self, *args, **kwargs)
         self.__dict__ = self
 
+    def __setstate__(self, state):
+
+        self.update(state)
+
 
 STATICS = {}
 """
