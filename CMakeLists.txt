@@ -34,7 +34,24 @@ else(glfw3_FOUND)
     message(FATAL_ERROR "${ColourBoldRed}GLFW3 missing.${ColourReset}")
 endif()
 
-# --- [ External libs ]---
+# ---[ Update submodules ]---
+# From: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
+
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    option(GIT_SUBMODULE "Check submodules during build" ON)
+    if(GIT_SUBMODULE)
+        message(STATUS "Submodule update ...")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+        endif()
+    endif()
+endif()
+
+# ---[ External libs ]---
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
