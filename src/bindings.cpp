@@ -219,6 +219,7 @@ struct ImViz {
 
         while (g.CurrentWindowStack.Size > 0)
         {
+
             #ifdef IMGUI_HAS_TABLE
             while (g.CurrentTable && (g.CurrentTable->OuterWindow == g.CurrentWindow || g.CurrentTable->InnerWindow == g.CurrentWindow)) {
                 ImGui::EndTable();
@@ -237,6 +238,7 @@ struct ImViz {
 
             ImGuiWindow* window = g.CurrentWindow;
             IM_ASSERT(window != NULL);
+            ImGuiStackSizes* stack_sizes = &g.CurrentWindowStack.back().StackSizesOnBegin;
 
             while (g.CurrentTabBar != NULL) { //-V1044
                 ImGui::EndTabBar();
@@ -244,19 +246,19 @@ struct ImViz {
             while (window->DC.TreeDepth > 0) {
                 ImGui::TreePop();
             }
-            while (g.GroupStack.Size > window->DC.StackSizesOnBegin.SizeOfGroupStack) {
+            while (g.GroupStack.Size > stack_sizes->SizeOfGroupStack) {
                 ImGui::EndGroup();
             }
             while (window->IDStack.Size > 1) {
                 ImGui::PopID();
             }
-            while (g.ColorStack.Size > window->DC.StackSizesOnBegin.SizeOfColorStack) {
+            while (g.ColorStack.Size > stack_sizes->SizeOfColorStack) {
                 ImGui::PopStyleColor();
             }
-            while (g.StyleVarStack.Size > window->DC.StackSizesOnBegin.SizeOfStyleVarStack) {
+            while (g.StyleVarStack.Size > stack_sizes->SizeOfStyleVarStack) {
                 ImGui::PopStyleVar();
             }
-            while (g.FocusScopeStack.Size > window->DC.StackSizesOnBegin.SizeOfFocusScopeStack) {
+            while (g.FocusScopeStack.Size > stack_sizes->SizeOfFocusScopeStack) {
                 ImGui::PopFocusScope();
             }
             if (g.CurrentWindowStack.Size == 1) {
@@ -2053,21 +2055,26 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("begin_tooltip", ImGui::BeginTooltip);
     m.def("end_tooltip", ImGui::EndTooltip);
 
-    m.def("activate_svg", [&]() {
+    m.def("begin_svg", [&]() {
 
-        //ImDrawList::svg = new std::stringstream();
+        ImDrawList::svg = new std::stringstream();
     });
 
-    m.def("get_svg", [&]() {
+    m.def("end_svg", [&]() {
 
-        /*
         std::stringstream* svg = ImDrawList::svg;
+
+        if (svg == nullptr) {
+            return std::string("");
+        }
+
         std::string result = svg->str();
+
+        result = "<svg xmlns=\"http://www.w3.org/2000/svg\">\n" + result + "</svg>";
 
         delete svg;
         ImDrawList::svg = nullptr;
 
         return result;
-        */
     });
 }

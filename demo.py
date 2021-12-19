@@ -355,6 +355,9 @@ def main(s):
 
         if viz.tree_node("Column Test"):
 
+            if viz.button("test svg"):
+                viz.begin_svg()
+
             viz.text("(?)")
 
             if viz.is_item_hovered():
@@ -370,6 +373,10 @@ def main(s):
                     viz.drag(f"###{i},{j}", 0.0)
                     if j < 9:
                         viz.same_line()
+
+            if svg := viz.end_svg():
+                with open("test.svg", "w+") as fd:
+                    fd.write(svg)
 
             viz.tree_pop()
 
