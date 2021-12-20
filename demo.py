@@ -1,9 +1,9 @@
-import numpy as np
-import pandas as pd
-
 import os
 import sys
 import time
+
+import numpy as np
+import pandas as pd
 
 import imviz as viz
 
@@ -91,6 +91,12 @@ def main(s):
     sts = viz.statics(
             counter=3,
             hello="blub")
+
+    icon = np.zeros((17, 17, 4)) * 255
+    icon[::2, ::2, 0] = 255
+    icon[::2, ::2, 1] = 255
+    icon[::2, ::2, 3] = 255
+    viz.set_main_window_icon(icon)
 
     viz.set_main_window_title("Demo")
     viz.show_implot_demo(True)
@@ -374,10 +380,10 @@ def main(s):
                     if j < 9:
                         viz.same_line()
 
+            viz.tree_pop()
+
             if svg := viz.end_svg():
                 with open("test.svg", "w+") as fd:
                     fd.write(svg)
-
-            viz.tree_pop()
 
     viz.end_window()

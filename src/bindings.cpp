@@ -39,6 +39,9 @@
 
 #include "im_user_config.h"
 
+/**
+ * This allows us to handle imgui assertions via exceptions on the python side.
+ */
 void checkAssertion(bool expr, const char* exprStr) {
 
     if (not expr) { 
@@ -180,7 +183,7 @@ struct ImViz {
         glfwShowWindow(window);
 
         // Try soft error recovery. At first we do not destroy the imgui context.
-        // If recover fails the second recovery stage will recreate the context.
+        // If recover fails, the second recovery stage will recreate the context.
         // See wait method ...
         recover();
 
@@ -930,6 +933,18 @@ PYBIND11_MODULE(cppimviz, m) {
         glfwShowWindow(viz.window);
     });
 
+    m.def("set_main_window_icon", [&](array_like<uint8_t> arr) {
+
+        assert_shape(arr, {{-1, -1, 4}});
+
+        GLFWimage img;
+        img.height = arr.shape(0);
+        img.width = arr.shape(1);
+        img.pixels = arr.mutable_data();
+
+        glfwSetWindowIcon(viz.window, 1, &img);
+    });
+
     m.def("mod", [&]() { return viz.mod; });
     m.def("mod_any", [&]() { return viz.mod_any; });
     m.def("set_mod", [&](bool m) { viz.setMod(m); });
@@ -1153,7 +1168,7 @@ PYBIND11_MODULE(cppimviz, m) {
     },
     py::arg("axis"),
     py::arg("label") = "",
-    py::arg("flags")= ImPlotAxisFlags_None);
+    py::arg("flags") = ImPlotAxisFlags_None);
 
     m.def("setup_axis_limits", [](ImAxis axis, double min, double max, ImPlotCond cond){ 
 
@@ -1162,7 +1177,7 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("axis"),
     py::arg("min"),
     py::arg("max"),
-    py::arg("flags")= ImPlotCond_Once);
+    py::arg("flags") = ImPlotCond_Once);
 
     /**
      * TODO: It would be better to let the python side pass a callback,
@@ -1307,9 +1322,11 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("items"),
     py::arg("selection") = py::none());
 
-    m.def("text", [&](std::string str, array_like<double> color) {
+    m.def("text", [&](py::handle obj, array_like<double> color) {
 
         ImVec4 c = interpretColor(color);
+
+        std::string str = py::str(obj);
 
         if (c.w >= 0) {
             ImGui::TextColored(c, "%s", str.c_str());
@@ -2058,6 +2075,10 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("begin_svg", [&]() {
 
         ImDrawList::svg = new std::stringstream();
+        ImDrawList::svgMaxX = -2147483648;
+        ImDrawList::svgMaxY = -2147483648;
+        ImDrawList::svgMinX = 2147483647;
+        ImDrawList::svgMinY = 2147483647;
     });
 
     m.def("end_svg", [&]() {
@@ -2070,11 +2091,36 @@ PYBIND11_MODULE(cppimviz, m) {
 
         std::string result = svg->str();
 
-        result = "<svg xmlns=\"http://www.w3.org/2000/svg\">\n" + result + "</svg>";
+        int svgWidth = ImDrawList::svgMaxX - ImDrawList::svgMinX;
+        int svgHeight = ImDrawList::svgMaxY - ImDrawList::svgMinY;
+
+        std::stringstream txt;
+
+        txt << "<svg viewBox=\"" 
+            << ImDrawList::svgMinX << " " 
+            << ImDrawList::svgMinY << " " 
+            << svgWidth << " "
+            << svgHeight << " " 
+            << "\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+
+        txt << "<rect x=\"" << ImDrawList::svgMinX
+            << "\" y=\"" << ImDrawList::svgMinY
+            << "\" width=\"" << svgWidth
+            << "\" height=\"" << svgHeight 
+            << "\" fill=\"";
+
+        ImU32 col = ImGui::GetColorU32(ImGuiCol_WindowBg);
+
+        svgColor(col, txt);
+        txt << "\" ";
+        svgOpacity(col, txt);
+        txt << "/>\n";
+
+        txt << result << "</svg>";
 
         delete svg;
         ImDrawList::svg = nullptr;
 
-        return result;
+        return txt.str();
     });
 }
