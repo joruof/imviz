@@ -89,10 +89,11 @@ class Serializer:
 
         self.saved_arrays = set()
 
-    def serialize(self, obj, name="", parent=None):
+    def serialize(self, obj, key="", parent=None):
 
-        if self.hide_private and len(name) > 0 and name[0] == "_":
-            return Skip
+        if type(key) == str:
+            if self.hide_private and len(key) > 0 and key[0] == "_":
+                return Skip
 
         # skip any kind of function
         if (isinstance(obj, types.FunctionType)
@@ -104,8 +105,18 @@ class Serializer:
         if type(obj) == np.ndarray:
             if obj.size > 100:
                 byte_view = obj.view(np.uint8)
+
                 path = hashlib.sha1(byte_view).hexdigest() + ".npy"
-                np.save(os.path.join(self.ext_path, path), obj)
+                file_path = os.path.join(self.ext_path, path)
+
+                np.save(file_path, obj)
+                obj = np.load(file_path, mmap_mode="r")
+
+                if type(key) == str:
+                    ext_setattr(parent, key, obj)
+                elif type(key) == int:
+                    parent[key] = obj
+
                 self.saved_arrays.add(path)
                 return {
                     "__class__": "__extern__",
@@ -127,8 +138,8 @@ class Serializer:
 
         if type(obj) == list or type(obj) == tuple:
             jvs = []
-            for v in obj:
-                jv = self.serialize(v, parent=obj)
+            for i, v in enumerate(obj):
+                jv = self.serialize(v, i, parent=obj)
                 if jv != Skip:
                     jvs.append(jv)
             return jvs
@@ -306,7 +317,7 @@ class Test:
         self.e = (1, 2, 3)
         self.f = False
         self.g = True
-        self.h = np.zeros((10,))
+        self.h = np.zeros((210,))
 
         self.i = AltSubTest()
         self.j = [AltSubTest(), AltSubTest(), AltSubTest()]
@@ -319,12 +330,17 @@ class Test:
         self.m = [bundle(a=4, b=4, c=4), bundle(a=4, b=4, c=4)]
         self.n = (bundle(a=4, b=4, c=4), False)
 
+        self.fail = np.float32
+
 
 def main():
 
     test = Test()
-    load(test, "./test_save")
     save(test, "./test_save")
+
+    print(type(test.h))
+
+    load(test, "./test_save")
 
     print(test.__dict__)
     print(test.i.__dict__)

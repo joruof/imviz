@@ -25,7 +25,7 @@ def render(obj,
 
     obj_type = type(obj)
 
-    if hasattr(obj, "__autogui__"): 
+    if hasattr(obj, "__autogui__"):
         return obj.__autogui__(
                 name=name,
                 path=path,
@@ -82,7 +82,7 @@ def render(obj,
             for i in range(len(obj)):
 
                 node_name = str(i)
-                
+
                 if hasattr(obj[i], "name"):
                     node_name += f" {obj[i].name}"
 
@@ -199,7 +199,7 @@ def render(obj,
 
         return obj
 
-    # default case, generic object 
+    # default case, generic object
 
     attr_dict = attrs_as_dict(obj)
 
