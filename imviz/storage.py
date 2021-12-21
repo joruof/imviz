@@ -89,6 +89,8 @@ class Serializer:
 
         self.saved_arrays = set()
 
+        self.primitives = set([int, float, bool, str, None])
+
     def serialize(self, obj, key="", parent=None):
 
         if type(key) == str:
@@ -131,16 +133,18 @@ class Serializer:
 
         # already saved and memory-mapped numpy arrays
         if type(obj) == np.memmap:
+            path = os.path.basename(obj.filename)
+            self.saved_arrays.add(path)
             return {
                 "__class__": "__extern__",
-                "path": os.path.basename(obj.filename)
+                "path": path
             }
 
         if type(obj) == list or type(obj) == tuple:
             jvs = []
             for i, v in enumerate(obj):
                 jv = self.serialize(v, i, parent=obj)
-                if jv != Skip:
+                if jv is not Skip:
                     jvs.append(jv)
             return jvs
 
@@ -148,15 +152,22 @@ class Serializer:
 
         if attrs is None:
             # in case we don't find any serializeable attributes
-            # we assume we have a primitive type and return that
-            return obj
+            # we check if we have a primitive type and return that
+            if type(obj) in self.primitives:
+                return obj
+            else:
+                print(f"Warning: cannot save object of type {full_type(obj)}")
+                return Skip
 
         ser_attrs = {}
 
         for k, v in attrs.items():
             val = self.serialize(v, k, parent=obj)
-            if val != Skip:
+            if val is not Skip:
                 ser_attrs[k] = val
+
+        if len(ser_attrs) == 0:
+            return Skip
 
         # store the full type so we can compare it later
         ser_attrs["__class__"] = full_type(obj)
@@ -209,7 +220,7 @@ class Loader:
                 ld = {k: self.load(None, v) for k, v in json_obj.items()}
                 if "__class__" in ld:
                     del ld["__class__"]
-                obj.__setstate__(ld)
+                    obj.__setstate__(ld)
             else:
                 for k, v in attrs.items():
                     if k in json_obj:
@@ -227,7 +238,7 @@ class Loader:
                     else:
                         # otherwise create new object
                         jo = self.load(None, jv)
-                    if jo != Skip:
+                    if jo is not Skip:
                         jos.append(jo)
                 else:
                     jos.append(obj[i])
@@ -239,13 +250,13 @@ class Loader:
             # we have nothing to match
             if jt == dict and "__class__" in json_obj:
                 # try constructing a new object
+                cls_name = json_obj["__class__"]
                 try:
-                    cls = locate(json_obj["__class__"])
+                    cls = locate(cls_name)
                     # assumes default initializeable type
                     return self.load(cls(), json_obj)
                 except Exception:
-                    print("Warning: skipping object of unknown type \""
-                          + cls_name + "\"")
+                    print(f"Warning: skipping init of unknown type {cls_name}")
                     return Skip
             else:
                 # just use whatever is contained in json
@@ -330,15 +341,22 @@ class Test:
         self.m = [bundle(a=4, b=4, c=4), bundle(a=4, b=4, c=4)]
         self.n = (bundle(a=4, b=4, c=4), False)
 
-        self.fail = np.float32
+        self.many_arrays = [np.zeros((2048, 1500, 3))] * 10
 
 
 def main():
 
-    test = Test()
-    save(test, "./test_save")
+    import time
 
-    print(type(test.h))
+    test = Test()
+
+    start_time = time.time()
+    save(test, "./test_save")
+    print(time.time() - start_time)
+
+    start_time = time.time()
+    save(test, "./test_save")
+    print(time.time() - start_time)
 
     load(test, "./test_save")
 
