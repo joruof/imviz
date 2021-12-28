@@ -1,11 +1,10 @@
-import re
-import sys
 import typing
+import numbers
 
 import numpy as np
 import imviz as viz
 
-from imviz.storage import attrs_as_dict, ext_setattr
+from imviz.storage import ext_setattr
 
 
 def render(obj,
@@ -36,12 +35,12 @@ def render(obj,
         viz.text(f"{name}: None")
         return obj
 
-    if obj_type in [int, np.uint8, np.int8]:
+    if isinstance(obj, numbers.Integral):
         if name == "":
             name = str(path[-1])
         return viz.drag(name, obj, 1.0, 0, 0)
 
-    if obj_type in [float, np.float32, np.float64]:
+    if isinstance(obj, numbers.Real):
         if name == "":
             name = str(path[-1])
         return viz.drag(name, obj)
@@ -55,6 +54,37 @@ def render(obj,
         if name == "":
             name = str(path[-1])
         return viz.checkbox(name, obj)
+
+    if obj_type == tuple:
+
+        if len(name) > 0:
+            tree_open = viz.tree_node(f"{name} [{len(obj)}]-tuple###{name}")
+        else:
+            tree_open = True
+
+        if tree_open:
+            for i in range(len(obj)):
+
+                node_name = str(i)
+
+                if hasattr(obj[i], "name"):
+                    node_name += f" {obj[i].name}"
+
+                obj_tree_open = viz.tree_node(f"{node_name}###{i}")
+
+                if obj_tree_open:
+
+                    render(obj[i],
+                           "",
+                           path=[*path, i],
+                           parents=[*parents, obj])
+
+                    viz.tree_pop()
+
+        if len(name) > 0 and tree_open:
+            viz.tree_pop()
+
+        return obj
 
     if obj_type == list:
 
@@ -112,7 +142,7 @@ def render(obj,
 
         return obj
 
-    if obj_type == np.ndarray:
+    if obj_type == np.ndarray or obj_type == np.memmap:
 
         if len(name) > 0:
             tree_open = viz.tree_node(f"{name} {list(obj.shape)}")
@@ -123,10 +153,10 @@ def render(obj,
         mod = False
 
         if tree_open:
-            if len(obj.shape) == 2 and obj.size <= 100:
+            if len(obj.shape) == 2:
 
                 width_avail, _ = viz.get_content_region_avail()
-                item_width = width_avail / obj.shape[1] - 8
+                item_width = max(32, width_avail / obj.shape[1] - 8)
 
                 for i in range(obj.shape[0]):
                     for j in range(obj.shape[1]):
@@ -140,24 +170,8 @@ def render(obj,
                                 parents=[*parents, obj])
 
                         if viz.mod():
-
-                            mod |= True
-
+                            mod = True
                             if obj.flags.writeable:
-                                obj[i][j] = res
-                            else:
-                                # find the root array to which obj belongs
-                                # first remove non-writeable flag
-                                root = None
-                                for arr in parents[::-1]:
-                                    if not isinstance(arr, np.ndarray):
-                                        break
-                                    root = arr
-                                root.flags.writeable = True
-                                # then reset dtype without metadata
-                                root.dtype = np.dtype(root.dtype.type)
-                                # finally recreate array
-                                obj = np.array(obj)
                                 obj[i][j] = res
 
                         if j < obj.shape[1]-1:
@@ -172,24 +186,8 @@ def render(obj,
                             parents=[*parents, obj])
 
                     if viz.mod():
-
-                        mod |= True
-
+                        mod = True
                         if obj.flags.writeable:
-                            obj[i] = res
-                        else:
-                            # find the root array to which obj belongs
-                            # first remove non-writeable flag
-                            root = None
-                            for arr in parents[::-1]:
-                                if not isinstance(arr, np.ndarray):
-                                    break
-                                root = arr
-                            root.flags.writeable = True
-                            # then reset dtype without metadata
-                            root.dtype = np.dtype(root.dtype.type)
-                            # finally recreate array
-                            obj = np.array(obj)
                             obj[i] = res
 
         if len(name) > 0 and tree_open:
@@ -201,9 +199,12 @@ def render(obj,
 
     # default case, generic object
 
-    attr_dict = attrs_as_dict(obj)
-
-    if attr_dict == {}:
+    if hasattr(obj, "__dict__"):
+        attr_dict = obj.__dict__
+    elif isinstance(obj, dict):
+        attr_dict = obj
+    else:
+        viz.text(f"{name}: " + "{}")
         return obj
 
     if len(name) > 0:

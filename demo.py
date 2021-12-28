@@ -93,6 +93,11 @@ class Demo:
                 if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
                     print("Pressed Ctrl+K")
 
+
+        if viz.button("Start Task"):
+            viz.update_task("test_task", func_name, 1)
+
+
         # menus
 
         if viz.begin_main_menu_bar():
@@ -139,7 +144,7 @@ class Demo:
 
         if viz.begin_window("Demo"):
 
-            viz.auto_gui(s.__dict__, "State Autogui")
+            viz.autogui(s.__dict__, "State Autogui")
 
             if viz.tree_node("Input"):
 
@@ -381,7 +386,7 @@ def main():
     demo = Demo()
 
     while viz.wait(vsync=True):
-        viz.auto_gui(demo)
+        viz.autogui(demo)
 
 
 if __name__ == "__main__":

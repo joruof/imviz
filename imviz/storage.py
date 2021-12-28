@@ -13,14 +13,11 @@ working with images or points clouds much easier.
 import os
 import json
 import types
-import hashlib
 
 # i still like this
 from pydoc import locate
 
 import numpy as np
-
-from imviz.common import bundle
 
 
 class Skip:
@@ -78,6 +75,11 @@ class Serializer:
     Large numpy arrays are automatically referenced and stored externally.
     """
 
+    last_id = 0
+    """
+    Used to name external arrays. Will only be incremented.
+    """
+
     def __init__(self, path, hide_private=True):
 
         self.path = path
@@ -106,13 +108,14 @@ class Serializer:
         # special treatment for numpy arrays
         if type(obj) == np.ndarray:
             if obj.size > 100:
-                byte_view = obj.view(np.uint8)
 
-                path = hashlib.sha1(byte_view).hexdigest() + ".npy"
+                Serializer.last_id += 1
+
+                path = str(Serializer.last_id) + ".npy"
                 file_path = os.path.join(self.ext_path, path)
 
                 np.save(file_path, obj)
-                obj = np.load(file_path, mmap_mode="r")
+                obj = np.load(file_path, mmap_mode="r+")
 
                 if type(key) == str:
                     ext_setattr(parent, key, obj)
@@ -135,6 +138,7 @@ class Serializer:
         if type(obj) == np.memmap:
             path = os.path.basename(obj.filename)
             self.saved_arrays.add(path)
+            obj.flush()
             return {
                 "__class__": "__extern__",
                 "path": path
@@ -202,7 +206,7 @@ class Loader:
                 json_obj = np.load(os.path.join(
                                  self.ext_path,
                                  json_obj["path"]),
-                             mmap_mode="r")
+                             mmap_mode="r+")
                 # we are lying about this one (actually np.memmap)
                 # in practice memmap should behave just like ndarray
                 jt = np.ndarray
@@ -279,6 +283,8 @@ def save(obj, directory):
     ser = Serializer(directory)
     rep = ser.serialize(obj)
 
+    rep["__imviz_last_id"] = Serializer.last_id
+
     state_path = os.path.join(directory, "state.json")
 
     with open(state_path, "w+") as fd:
@@ -306,67 +312,6 @@ def load(obj, path):
     with open(state_path, "r") as fd:
         json_state = json.load(fd)
 
+    Serializer.last_id = json_state["__imviz_last_id"]
+
     Loader(path).load(obj, json_state)
-
-
-class AltSubTest:
-
-    def __init__(self):
-
-        self.aa = [1, 2, 3]
-        self.bb = (False, True, 1)
-
-
-class Test:
-
-    def __init__(self):
-
-        self.a = 1
-        self.b = 2.0
-        self.c = "hello"
-        self.d = [1, 2, 3]
-        self.e = (1, 2, 3)
-        self.f = False
-        self.g = True
-        self.h = np.zeros((210,))
-
-        self.i = AltSubTest()
-        self.j = [AltSubTest(), AltSubTest(), AltSubTest()]
-
-        self.k = {
-                "ka": AltSubTest(),
-                "kb": False
-            }
-
-        self.m = [bundle(a=4, b=4, c=4), bundle(a=4, b=4, c=4)]
-        self.n = (bundle(a=4, b=4, c=4), False)
-
-        self.many_arrays = [np.zeros((2048, 1500, 3))] * 10
-
-
-def main():
-
-    import time
-
-    test = Test()
-
-    start_time = time.time()
-    save(test, "./test_save")
-    print(time.time() - start_time)
-
-    start_time = time.time()
-    save(test, "./test_save")
-    print(time.time() - start_time)
-
-    load(test, "./test_save")
-
-    print(test.__dict__)
-    print(test.i.__dict__)
-    print(test.k)
-    print(test.k["ka"].__dict__)
-    print(test.m)
-    print(test.n)
-
-
-if __name__ == "__main__":
-    main()

@@ -11,4 +11,4 @@ except ModuleNotFoundError:
 
 from imviz.common import *
 
-from imviz.autogui import render as auto_gui
+from imviz.autogui import render as autogui

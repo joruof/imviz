@@ -26,7 +26,12 @@ def main():
     parser.add_argument(
             "class_name",
             type=str,
-            help="the name of the class to launch")
+            help="the name of the class to instantiate")
+
+    parser.add_argument(
+            "func_name",
+            type=str,
+            help="the name of the method to call")
 
     args = parser.parse_args()
 
@@ -34,10 +39,11 @@ def main():
 
     cls = locate(args.class_name)
     if cls is None:
-        print(f"Could not find class {args.class_name}")
+        print(f"Could not find function {args.func_name}")
         return
 
     obj = cls()
+    func = getattr(obj, args.func_name)
 
     while viz.wait(vsync=True):
 
@@ -46,7 +52,7 @@ def main():
 
         try:
             if not broken:
-                viz.auto_gui(obj)
+                func()
             else:
                 time.sleep(0.5)
         except Exception:

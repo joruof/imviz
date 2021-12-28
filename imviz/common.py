@@ -2,6 +2,7 @@
 This contains common and (mostly) helpful utils.
 """
 
+import time
 import inspect
 import traceback
 
@@ -109,6 +110,7 @@ def update_task(name, func, *args, **kwargs):
     "name" will refer to the same task.
     """
 
+    global ASYNC_TASK_UPDATED
     ASYNC_TASK_UPDATED = False
 
     task_future = get_task_future(name)
@@ -175,3 +177,29 @@ def error_sink():
             viz.begin_tooltip()
             viz.text(f"{traceback.format_exc(-1)}")
             viz.end_tooltip()
+
+
+AUTOSAVE_REQ = False
+AUTOSAVE_TIME = -1.0
+
+
+@contextmanager
+def autosave(obj, path=".imviz_save", timeout=0.5):
+
+    global AUTOSAVE_REQ
+    global AUTOSAVE_TIME
+
+    if AUTOSAVE_TIME < 0:
+        viz.storage.load(obj, path)
+
+    viz.clear_mod_any()
+
+    yield
+
+    if viz.mod_any():
+        AUTOSAVE_REQ = True
+        AUTOSAVE_TIME = time.time()
+
+    if AUTOSAVE_REQ and (time.time() - AUTOSAVE_TIME) > timeout:
+        AUTOSAVE_REQ = False
+        viz.storage.save(obj, path)

@@ -63,6 +63,9 @@ struct ImViz {
     bool mod = false;
     bool mod_any = false;
 
+    // initially update for two whole seconds (assuming vsync)
+    int powerSaveFrameCounter = 120;
+
     std::regex re{"(-)?(o|s|d|\\*|\\+)?"};
 
     std::unordered_map<ImGuiID, GLuint> textureCache;
@@ -184,7 +187,7 @@ struct ImViz {
 
         // Try soft error recovery. At first we do not destroy the imgui context.
         // If recover fails, the second recovery stage will recreate the context.
-        // See wait method ...
+        // (context receration implemented in wait() method)
         recover();
 
         ImGui::Render();
@@ -277,7 +280,6 @@ struct ImViz {
             else {
                 ImGui::End();
             }
-
         }
     }
 
@@ -950,7 +952,7 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("set_mod", [&](bool m) { viz.setMod(m); });
     m.def("clear_mod_any", [&]() { viz.mod_any = false; });
 
-    m.def("wait", [&](bool vsync) {
+    m.def("wait", [&](bool vsync, bool powersave, double timeout) {
 
         try {
             viz.doUpdate(vsync);
@@ -999,11 +1001,25 @@ PYBIND11_MODULE(cppimviz, m) {
         }
 
         input::update();
-        glfwPollEvents();
+
+        if (powersave) {
+            if (viz.powerSaveFrameCounter > 0) {
+                glfwPollEvents();
+                viz.powerSaveFrameCounter -= 1;
+            } else {
+                glfwWaitEventsTimeout(timeout);
+                viz.powerSaveFrameCounter = 5;
+            }
+        } else {
+            glfwPollEvents();
+        }
+
         viz.prepareUpdate();
         return !glfwWindowShouldClose(viz.window);
     },
-    py::arg("vsync") = true);
+    py::arg("vsync") = true,
+    py::arg("powersave") = true,
+    py::arg("timeout") = 1.0);
 
     m.def("trigger", [&]() {
         viz.trigger();
@@ -2122,5 +2138,21 @@ PYBIND11_MODULE(cppimviz, m) {
         ImDrawList::svg = nullptr;
 
         return txt.str();
+    });
+
+    m.def("get_clipboard", [&]() { 
+
+        const char* str = glfwGetClipboardString(NULL);
+
+        if (nullptr == str) { 
+            return std::string("");
+        } else {
+            return std::string(str);
+        }
+    });
+
+    m.def("set_clipboard", [&](std::string str) { 
+
+        glfwSetClipboardString(NULL, str.c_str());
     });
 }
