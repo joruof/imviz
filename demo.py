@@ -206,6 +206,10 @@ class Demo:
 
             if viz.tree_node("Plotting"):
 
+                sc = viz.get_pixels(0, 0, 300, 300)
+
+                viz.image("test_image", sc)
+
                 if viz.begin_plot("Plot"):
 
                     viz.setup_axis(viz.Axis.X1, "x")
@@ -253,8 +257,8 @@ class Demo:
                                                 s.drag_rect,
                                                 color=(0.0, 1.0, 1.0))
 
-                    viz.annotation(5, 5, "foo")
-                    viz.annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
+                    viz.plot_annotation(5, 5, "foo")
+                    viz.plot_annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
                     if viz.begin_popup("##PlotContext"):
                         if not s.popup_open:

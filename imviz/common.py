@@ -93,6 +93,7 @@ ASYNC_TASK_THREAD_POOL = ThreadPoolExecutor(32)
 ASYNC_TASK_FUTURES = {}
 ASYNC_TASK_RESULTS = {}
 ASYNC_TASK_UPDATED = False
+ASYNC_TASK_UPDATED = False
 
 
 def update_task(name, func, *args, **kwargs):
@@ -113,7 +114,10 @@ def update_task(name, func, *args, **kwargs):
     global ASYNC_TASK_UPDATED
     ASYNC_TASK_UPDATED = False
 
-    task_future = get_task_future(name)
+    try:
+        task_future = ASYNC_TASK_FUTURES[name]
+    except KeyError:
+        task_future = None
 
     if task_future is None:
         ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
@@ -125,10 +129,15 @@ def update_task(name, func, *args, **kwargs):
         ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
                 func, *args, **kwargs)
 
-    return get_task_result(name)
+    try:
+        res = ASYNC_TASK_RESULTS[name]
+    except KeyError:
+        res = None
+
+    return res
 
 
-def task_updated():
+def current_task_updated():
 
     return ASYNC_TASK_UPDATED
 
@@ -142,24 +151,16 @@ def cancel_task(name):
         pass
 
 
-def get_task_result(name):
-
-    try:
-        res = ASYNC_TASK_RESULTS[name]
-    except KeyError:
-        res = None
-
-    return res
-
-
-def get_task_future(name):
+def get_task_active(name):
 
     try:
         task_future = ASYNC_TASK_FUTURES[name]
+        if task_future is None:
+            return False
+        else:
+            return not task_future.done()
     except KeyError:
-        task_future = None
-
-    return task_future
+        return False
 
 
 @contextmanager

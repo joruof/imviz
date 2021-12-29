@@ -60,6 +60,8 @@ struct ImViz {
 
     bool currentWindowOpen = false;
 
+    bool figurePlotOpen = false;
+
     bool mod = false;
     bool mod_any = false;
 
@@ -692,7 +694,15 @@ namespace pybind11 {
 
 PYBIND11_MODULE(cppimviz, m) {
 
+    /**
+     * Input module bindings
+     */
+
     input::loadPythonBindings(m);
+
+    /**
+     * Flags and defines
+     */
 
     py::enum_<ImAxis_>(m, "Axis", py::arithmetic())
         .value("X1", ImAxis_X1)
@@ -881,18 +891,9 @@ PYBIND11_MODULE(cppimviz, m) {
         .value("RICE", ImPlotBin_Rice)
         .value("SCOTT", ImPlotBin_Scott);
 
-    m.def("show_imgui_demo", ImGui::ShowDemoWindow);
-    m.def("show_implot_demo", ImPlot::ShowDemoWindow);
-
-    m.def("style_colors_dark", [&](){
-        ImGui::StyleColorsDark();
-        ImPlot::StyleColorsDark();
-    });
-
-    m.def("style_colors_light", [&](){
-        ImGui::StyleColorsLight();
-        ImPlot::StyleColorsLight();
-    });
+    /**
+     * GLFW functions
+     */
 
     m.def("set_main_window_title", [&](std::string title) {
         glfwSetWindowTitle(viz.window, title.c_str());
@@ -947,10 +948,45 @@ PYBIND11_MODULE(cppimviz, m) {
         glfwSetWindowIcon(viz.window, 1, &img);
     });
 
-    m.def("mod", [&]() { return viz.mod; });
-    m.def("mod_any", [&]() { return viz.mod_any; });
-    m.def("set_mod", [&](bool m) { viz.setMod(m); });
-    m.def("clear_mod_any", [&]() { viz.mod_any = false; });
+    m.def("get_clipboard", [&]() { 
+
+        const char* str = glfwGetClipboardString(NULL);
+
+        if (nullptr == str) { 
+            return std::string("");
+        } else {
+            return std::string(str);
+        }
+    });
+
+    m.def("set_clipboard", [&](std::string str) { 
+
+        glfwSetClipboardString(NULL, str.c_str());
+    });
+
+    /*
+     * Essential custom functions
+     */
+
+    m.def("mod", [&]() {
+        return viz.mod;
+    });
+
+    m.def("mod_any", [&]() {
+        return viz.mod_any;
+    });
+
+    m.def("set_mod", [&](bool m) {
+        viz.setMod(m);
+    });
+
+    m.def("clear_mod_any", [&]() { 
+        viz.mod_any = false;
+    });
+
+    m.def("trigger", [&]() {
+        viz.trigger();
+    });
 
     m.def("wait", [&](bool vsync, bool powersave, double timeout) {
 
@@ -1021,30 +1057,13 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("powersave") = true,
     py::arg("timeout") = 1.0);
 
-    m.def("trigger", [&]() {
-        viz.trigger();
-    });
+    /*
+     * Imgui widgets
+     */
 
-    m.def("set_next_window_pos",
-            ImGui::SetNextWindowPos,
-    py::arg("position"),
-    py::arg("cond") = ImGuiCond_None,
-    py::arg("pivot") = py::array());
+    m.def("show_imgui_demo", ImGui::ShowDemoWindow);
+    m.def("show_implot_demo", ImPlot::ShowDemoWindow);
 
-    m.def("set_next_window_size", 
-            ImGui::SetNextWindowSize,
-    py::arg("size"),
-    py::arg("cond") = ImGuiCond_None);
-
-    m.def("set_next_item_width", 
-            ImGui::SetNextItemWidth,
-    py::arg("width"));
-
-    m.def("set_next_item_open", 
-            ImGui::SetNextItemOpen,
-    py::arg("open"),
-    py::arg("cond"));
- 
     m.def("begin_window", [&](std::string label,
                        bool opened,
                        array_like<float> position, 
@@ -1098,186 +1117,40 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("end_window", ImGui::End);
 
-    m.def("get_window_open", [&]() { 
-        return viz.currentWindowOpen;
+    m.def("begin_popup_context_item", [&](std::string label) {
+
+        return ImGui::BeginPopupContextItem(
+                label.empty() ? 0 : label.c_str());
+    },
+    py::arg("label") = "");
+
+    m.def("begin_popup", [&](std::string label) {
+
+        return ImGui::BeginPopup(label.c_str());
     });
 
-    m.def("get_viewport_center", [&]() { 
-        return ImGui::GetMainViewport()->GetCenter();
+    m.def("begin_popup_modal", [&](std::string label) {
+
+        return ImGui::BeginPopupModal(
+                label.c_str(),
+                NULL,
+                ImGuiWindowFlags_AlwaysAutoResize);
     });
 
-    m.def("get_window_pos", ImGui::GetWindowPos);
-    m.def("get_window_size", ImGui::GetWindowSize);
+    m.def("open_popup", [&](std::string label) {
 
-    m.def("get_item_id", ImGui::GetItemID);
-
-    m.def("is_item_focused", ImGui::IsItemFocused);
-    m.def("is_item_active", ImGui::IsItemActive);
-    m.def("is_item_activated", ImGui::IsItemActivated);
-    m.def("is_item_visible", ImGui::IsItemVisible);
-    m.def("is_item_clicked", [&](int mouseButton) {
-        return ImGui::IsItemClicked(mouseButton);
-    },
-    py::arg("mouse_button") = 0);
-
-    m.def("is_item_hovered", [&]() { 
-        return ImGui::IsItemHovered();
+        return ImGui::OpenPopup(label.c_str());
     });
 
-    m.def("begin_plot", [&](std::string label,
-                            std::string xLabel,
-                            std::string yLabel,
-                            array_like<float> size,
-                            bool equalAxis,
-                            bool autoFitX,
-                            bool autoFitY) {
+    m.def("close_current_popup", ImGui::CloseCurrentPopup);
 
-        ImPlotFlags flags = 0;
-
-        if (equalAxis) {
-            flags |= ImPlotFlags_Equal;
-        }
-
-        ImPlotAxisFlags xFlags = 0;
-        ImPlotAxisFlags yFlags = 0;
-
-        ImVec2 plotSize = ImGui::GetContentRegionAvail();
-
-        if (size.shape()[0] > 0) {
-            assert_shape(size, {{2}});
-            const float* data = size.data();
-            plotSize = ImVec2(data[0], data[1]);
-        } 
-
-        if (autoFitX) { 
-            xFlags |= ImPlotAxisFlags_AutoFit;
-        }
-
-        if (autoFitY) { 
-            yFlags |= ImPlotAxisFlags_AutoFit;
-        }
-
-        return ImPlot::BeginPlot(label.c_str(),
-                      xLabel.c_str(),
-                      yLabel.c_str(),
-                      plotSize,
-                      flags,
-                      xFlags,
-                      yFlags);
-    },
-    py::arg("label") = "",
-    py::arg("x_label") = "",
-    py::arg("y_label") = "",
-    py::arg("size") = py::array_t<float>(),
-    py::arg("equal_axis") = false,
-    py::arg("auto_fit_x") = false,
-    py::arg("auto_fit_y") = false);
-
-    m.def("end_plot", &ImPlot::EndPlot);
-
-    m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
-
-        ImPlot::SetupAxis(
-            axis,
-            label.empty() ? NULL : label.c_str(),
-            flags);
-    },
-    py::arg("axis"),
-    py::arg("label") = "",
-    py::arg("flags") = ImPlotAxisFlags_None);
-
-    m.def("setup_axis_limits", [](ImAxis axis, double min, double max, ImPlotCond cond){ 
-
-        ImPlot::SetupAxisLimits(axis, min, max, cond);
-    },
-    py::arg("axis"),
-    py::arg("min"),
-    py::arg("max"),
-    py::arg("flags") = ImPlotCond_Once);
-
-    /**
-     * TODO: It would be better to let the python side pass a callback,
-     * which does the formatting.
-     *
-     * Could not yet figure out how to do this properly.
-     */
-
-    m.def("setup_axis_format", [](ImAxis axis, std::string fmt){ 
-
-        ImPlot::SetupAxisFormat(axis, fmt.c_str());
-    },
-    py::arg("axis"),
-    py::arg("fmt"));
-
-    m.def("setup_legend", [](ImPlotLocation location, ImPlotLegendFlags flags){
-
-        ImPlot::SetupLegend(location, flags);
-    },
-    py::arg("location") = ImPlotLocation_NorthWest,
-    py::arg("flags") = ImPlotLegendFlags_None);
-
-    m.def("setup_mouse_text", [](ImPlotLocation location, ImPlotMouseTextFlags flags){
-
-        ImPlot::SetupMouseText(location, flags);
-    },
-    py::arg("location") = ImPlotLocation_SouthEast,
-    py::arg("flags") = ImPlotMouseTextFlags_None);
-
-    m.def("setup_axes", [](std::string xLabel,
-                           std::string yLabel,
-                           ImPlotAxisFlags xFlags,
-                           ImPlotAxisFlags yFlags) { 
-
-        ImPlot::SetupAxes(xLabel.c_str(), yLabel.c_str(), xFlags, yFlags);
-    },
-    py::arg("x_label"),
-    py::arg("y_label"),
-    py::arg("x_flags") = ImPlotAxisFlags_None,
-    py::arg("y_flags") = ImPlotAxisFlags_None);
-
-    m.def("setup_axes_limits", [](double xMin,
-                                  double xMax,
-                                  double yMin,
-                                  double yMax,
-                                  ImPlotCond cond) { 
-
-        ImPlot::SetupAxesLimits(xMin, xMax, yMin, yMax, cond);
-    },
-    py::arg("x_min"),
-    py::arg("x_max"),
-    py::arg("y_min"),
-    py::arg("y_max"),
-    py::arg("cond") = ImPlotCond_Once);
-
-    m.def("setup_finish", &ImPlot::SetupFinish);
-
-    //// Sets an axis' ticks and optionally the labels. To keep the default ticks, set #keep_default=true.
-    //IMPLOT_API void SetupAxisTicks(ImAxis axis, const double* values, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
-    //// Sets an axis' ticks and optionally the labels for the next plot. To keep the default ticks, set #keep_default=true.
-    //IMPLOT_API void SetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
-
-    //// Sets the primary X and Y axes range limits. If ImPlotCond_Always is used, the axes limits will be locked (shorthand for two calls to SetupAxisLimits).
-    //IMPLOT_API void SetupAxesLimits(double x_min, double x_max, double y_min, double y_max, ImPlotCond cond = ImPlotCond_Once);
-
-    m.def("tree_node", [&](std::string label, bool selected) {
-
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
-        if (selected) {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
-
-        return ImGui::TreeNodeEx(label.c_str(), flags);
-    },
-    py::arg("label") = "",
-    py::arg("selected") = false);
-
-    m.def("tree_pop", ImGui::TreePop);
-
-    m.def("begin_menu_bar", ImGui::BeginMenuBar);
-    m.def("end_menu_bar", ImGui::EndMenuBar);
+    m.def("end_popup", ImGui::EndPopup);
 
     m.def("begin_main_menu_bar", ImGui::BeginMainMenuBar);
     m.def("end_main_menu_bar", ImGui::EndMainMenuBar);
+
+    m.def("begin_menu_bar", ImGui::BeginMenuBar);
+    m.def("end_menu_bar", ImGui::EndMenuBar);
 
     m.def("begin_menu", [&](std::string label, bool enabled) {
 
@@ -1296,6 +1169,30 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("shortcut") = "",
     py::arg("selected") = false,
     py::arg("enabled") = true);
+
+    m.def("begin_tab_bar", [&](std::string& name) {
+        return ImGui::BeginTabBar(name.c_str());
+    });
+    m.def("end_tab_bar", ImGui::EndTabBar);
+
+    m.def("begin_tab_item", [&](std::string& name) {
+        return ImGui::BeginTabItem(name.c_str());
+    });
+    m.def("end_tab_item", ImGui::EndTabItem);
+
+    m.def("tree_node", [&](std::string label, bool selected) {
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
+        if (selected) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        return ImGui::TreeNodeEx(label.c_str(), flags);
+    },
+    py::arg("label") = "",
+    py::arg("selected") = false);
+
+    m.def("tree_pop", ImGui::TreePop);
 
     m.def("button", [&](std::string label) {
 
@@ -1474,10 +1371,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("color_edit", [&](std::string label, array_like<float> color) {
 
-        if (color.ndim() != 1) {
-            throw std::runtime_error("Color must have 1 dimension but has "
-                    + std::to_string(color.ndim()) + ".");
-        }
+        assert_shape(color, {{3}, {4}});
 
         bool mod = false;
 
@@ -1496,53 +1390,6 @@ PYBIND11_MODULE(cppimviz, m) {
 
         return color;
     });
-
-    m.def("same_line", []() {
-        ImGui::SameLine();
-    });
-
-    m.def("multiselect", [&](
-                std::string label,
-                py::list& values,
-                py::list selection) {
-
-        bool mod = false;
-
-        if (ImGui::BeginPopup(label.c_str())) {
-
-            for (py::handle o : values) {
-                std::string ostr = py::str(o);
-
-                bool inList = selection.contains(o);
-
-                // this will be modified by the checkbox
-                bool selected = inList;
-
-                if (ImGui::Checkbox(ostr.c_str(), &selected)) {
-                    if (selected && !inList) {
-                        selection.append(o);
-                    } else if (!selected && inList) {
-                        selection.attr("remove")(o);
-                    }
-
-                    mod = true;
-                }
-            }
-
-            ImGui::EndPopup();
-        }
-
-        if (ImGui::Button(label.c_str())) {
-            ImGui::OpenPopup(label.c_str());
-        }
-
-        viz.setMod(mod);
-
-        return selection;
-    },
-    py::arg("label"),
-    py::arg("values"),
-    py::arg("selection"));
 
     m.def("image", [&](
                 std::string id,
@@ -1600,40 +1447,178 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("tint") = py::array(),
     py::arg("border_col") = py::array());
 
-    m.def("plot_image", [&](
-                std::string id,
-                py::array& image,
-                double x,
-                double y,
-                double displayWidth,
-                double displayHeight) {
+    m.def("separator", ImGui::Separator);
 
-        ImageInfo info = interpretImage(image);
-        
-        if (displayWidth < 0) {
-            displayWidth = info.imageWidth;
-        }
-        if (displayHeight < 0) {
-            displayHeight = info.imageHeight;
+    m.def("begin_tooltip", ImGui::BeginTooltip);
+    m.def("end_tooltip", ImGui::EndTooltip);
+
+    m.def("selectable", [&](std::string label, bool selected, ImVec2 size) { 
+
+        bool s = ImGui::Selectable(label.c_str(), selected, 0, size);
+
+        if (selected != s) {
+            viz.setMod(true);
         }
 
-        GLuint textureId = uploadImage(id, info, image);
-
-        ImPlotPoint boundsMin(x, y);
-        ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
-
-        ImPlot::PlotImage(
-                id.c_str(),
-                (void*)(intptr_t)textureId,
-                boundsMin,
-                boundsMax);
+        return s;
     },
-    py::arg("id"),
-    py::arg("image"),
-    py::arg("x") = 0,
-    py::arg("y") = 0,
-    py::arg("width") = -1,
-    py::arg("height") = -1);
+    py::arg("label"),
+    py::arg("selected"),
+    py::arg("size") = ImVec2(0, 0));
+
+    /**
+     * Imgui style functions
+     */
+
+    m.def("style_colors_dark", [&](){
+        ImGui::StyleColorsDark();
+        ImPlot::StyleColorsDark();
+    });
+
+    m.def("style_colors_light", [&](){
+        ImGui::StyleColorsLight();
+        ImPlot::StyleColorsLight();
+    });
+
+    /**
+     * Imgui layout functions
+     */
+
+    m.def("get_content_region_avail", ImGui::GetContentRegionAvail);
+
+    m.def("get_viewport_center", [&]() { 
+        return ImGui::GetMainViewport()->GetCenter();
+    });
+
+    m.def("same_line", []() {
+        ImGui::SameLine();
+    });
+
+    /**
+     * Imgui window helper functions
+     */
+
+    m.def("set_next_window_pos",
+            ImGui::SetNextWindowPos,
+    py::arg("position"),
+    py::arg("cond") = ImGuiCond_None,
+    py::arg("pivot") = py::array());
+
+    m.def("set_next_window_size", 
+            ImGui::SetNextWindowSize,
+    py::arg("size"),
+    py::arg("cond") = ImGuiCond_None);
+
+    m.def("get_window_open", [&]() { 
+        return viz.currentWindowOpen;
+    });
+
+    m.def("get_window_pos", ImGui::GetWindowPos);
+    m.def("get_window_size", ImGui::GetWindowSize);
+
+    /**
+     * Imgui item helper functions
+     */
+
+    m.def("set_next_item_width", 
+            ImGui::SetNextItemWidth,
+    py::arg("width"));
+
+    m.def("set_next_item_open", 
+            ImGui::SetNextItemOpen,
+    py::arg("open"),
+    py::arg("cond"));
+
+    m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
+
+    m.def("is_item_focused", ImGui::IsItemFocused);
+    m.def("is_item_active", ImGui::IsItemActive);
+    m.def("is_item_activated", ImGui::IsItemActivated);
+    m.def("is_item_visible", ImGui::IsItemVisible);
+    m.def("is_item_clicked", [&](int mouseButton) {
+        return ImGui::IsItemClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
+    m.def("is_item_hovered", [&]() { 
+        return ImGui::IsItemHovered();
+    });
+
+    /**
+     * Imgui ID management functions
+     */
+
+    m.def("push_id", [&](std::string id) {
+        ImGui::PushID(id.c_str());
+    },
+    py::arg("id"));
+
+    m.def("pop_id", ImGui::PopID);
+
+    m.def("get_id", [&](std::string id) {
+        return ImGui::GetID(id.c_str());
+    },
+    py::arg("id"));
+
+    m.def("get_item_id", ImGui::GetItemID);
+
+    /**
+     * Custom imgui widgets
+     */
+
+    m.def("file_dialog_popup", [&](std::string label, std::string path, std::string confirmText) {
+
+        bool mod = ImGui::FileDialogPopup(label.c_str(), confirmText.c_str(), path);
+        viz.setMod(mod);
+
+        return path;
+    },
+    py::arg("label"),
+    py::arg("path"),
+    py::arg("confirmText") = "Ok");
+
+    m.def("multiselect", [&](
+                std::string label,
+                py::list& values,
+                py::list selection) {
+
+        bool mod = false;
+
+        if (ImGui::BeginPopup(label.c_str())) {
+
+            for (py::handle o : values) {
+                std::string ostr = py::str(o);
+
+                bool inList = selection.contains(o);
+
+                // this will be modified by the checkbox
+                bool selected = inList;
+
+                if (ImGui::Checkbox(ostr.c_str(), &selected)) {
+                    if (selected && !inList) {
+                        selection.append(o);
+                    } else if (!selected && inList) {
+                        selection.attr("remove")(o);
+                    }
+
+                    mod = true;
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::Button(label.c_str())) {
+            ImGui::OpenPopup(label.c_str());
+        }
+
+        viz.setMod(mod);
+
+        return selection;
+    },
+    py::arg("label"),
+    py::arg("values"),
+    py::arg("selection"));
 
     m.def("dataframe", [&](
                 py::object frame,
@@ -1713,15 +1698,144 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("label") = "",
     py::arg("selection") = py::list{});
 
-    m.def("begin_tab_bar", [&](std::string& name) {
-        return ImGui::BeginTabBar(name.c_str());
-    });
-    m.def("end_tab_bar", ImGui::EndTabBar);
+    /*
+     * ImPlot functions
+     */
 
-    m.def("begin_tab_item", [&](std::string& name) {
-        return ImGui::BeginTabItem(name.c_str());
+    m.def("begin_figure", [&](std::string label,
+                            array_like<float> size,
+                            ImPlotFlags flags) {
+
+        bool windowOpen = ImGui::Begin(label.c_str());
+
+        ImVec2 plotSize = ImGui::GetContentRegionAvail();
+
+        if (size.shape()[0] > 0) {
+            assert_shape(size, {{2}});
+            const float* data = size.data();
+            plotSize = ImVec2(data[0], data[1]);
+        } 
+
+        viz.figurePlotOpen = ImPlot::BeginPlot(label.c_str(), plotSize, flags);
+
+        return windowOpen && viz.figurePlotOpen;
+    },
+    py::arg("label") = "",
+    py::arg("size") = py::array_t<float>(),
+    py::arg("flags") = ImPlotFlags_None);
+
+    m.def("end_figure", [&] () {
+
+        if (viz.figurePlotOpen) {
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
     });
-    m.def("end_tab_item", ImGui::EndTabItem);
+
+    m.def("begin_plot", [&](std::string label,
+                            array_like<float> size,
+                            ImPlotFlags flags) {
+
+        ImVec2 plotSize = ImGui::GetContentRegionAvail();
+
+        if (size.shape()[0] > 0) {
+            assert_shape(size, {{2}});
+            const float* data = size.data();
+            plotSize = ImVec2(data[0], data[1]);
+        } 
+
+        return ImPlot::BeginPlot(label.c_str(), plotSize, flags);
+    },
+    py::arg("label") = "",
+    py::arg("size") = py::array_t<float>(),
+    py::arg("flags") = ImPlotFlags_None);
+
+    m.def("end_plot", &ImPlot::EndPlot);
+
+    m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
+
+        ImPlot::SetupAxis(
+            axis,
+            label.empty() ? NULL : label.c_str(),
+            flags);
+    },
+    py::arg("axis"),
+    py::arg("label") = "",
+    py::arg("flags") = ImPlotAxisFlags_None);
+
+    m.def("setup_axis_limits", [](ImAxis axis, double min, double max, ImPlotCond cond){ 
+
+        ImPlot::SetupAxisLimits(axis, min, max, cond);
+    },
+    py::arg("axis"),
+    py::arg("min"),
+    py::arg("max"),
+    py::arg("flags") = ImPlotCond_Once);
+
+    /**
+     * TODO: It would be better to let the python side pass a callback,
+     * which does the formatting.
+     *
+     * Could not yet figure out how to do this properly.
+     */
+
+    m.def("setup_axis_format", [](ImAxis axis, std::string fmt){ 
+
+        ImPlot::SetupAxisFormat(axis, fmt.c_str());
+    },
+    py::arg("axis"),
+    py::arg("fmt"));
+
+    m.def("setup_legend", [](ImPlotLocation location, ImPlotLegendFlags flags){
+
+        ImPlot::SetupLegend(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_NorthWest,
+    py::arg("flags") = ImPlotLegendFlags_None);
+
+    m.def("setup_mouse_text", [](ImPlotLocation location, ImPlotMouseTextFlags flags){
+
+        ImPlot::SetupMouseText(location, flags);
+    },
+    py::arg("location") = ImPlotLocation_SouthEast,
+    py::arg("flags") = ImPlotMouseTextFlags_None);
+
+    m.def("setup_axes", [](std::string xLabel,
+                           std::string yLabel,
+                           ImPlotAxisFlags xFlags,
+                           ImPlotAxisFlags yFlags) { 
+
+        ImPlot::SetupAxes(xLabel.c_str(), yLabel.c_str(), xFlags, yFlags);
+    },
+    py::arg("x_label"),
+    py::arg("y_label"),
+    py::arg("x_flags") = ImPlotAxisFlags_None,
+    py::arg("y_flags") = ImPlotAxisFlags_None);
+
+    m.def("setup_axes_limits", [](double xMin,
+                                  double xMax,
+                                  double yMin,
+                                  double yMax,
+                                  ImPlotCond cond) { 
+
+        ImPlot::SetupAxesLimits(xMin, xMax, yMin, yMax, cond);
+    },
+    py::arg("x_min"),
+    py::arg("x_max"),
+    py::arg("y_min"),
+    py::arg("y_max"),
+    py::arg("cond") = ImPlotCond_Once);
+
+    //// Sets an axis' ticks and optionally the labels. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, const double* values, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+    //// Sets an axis' ticks and optionally the labels for the next plot. To keep the default ticks, set #keep_default=true.
+    //IMPLOT_API void SetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks, const char* const labels[] = NULL, bool keep_default = false);
+
+    //// Sets the primary X and Y axes range limits. If ImPlotCond_Always is used, the axes limits will be locked (shorthand for two calls to SetupAxisLimits).
+    //IMPLOT_API void SetupAxesLimits(double x_min, double x_max, double y_min, double y_max, ImPlotCond cond = ImPlotCond_Once);
+
+    m.def("setup_finish", &ImPlot::SetupFinish);
 
     m.def("plot", [&](array_like<double> x,
                       array_like<double> y,
@@ -1844,6 +1958,41 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("shift") = 0.0,
     py::arg("horizontal") = false);
 
+    m.def("plot_image", [&](
+                std::string id,
+                py::array& image,
+                double x,
+                double y,
+                double displayWidth,
+                double displayHeight) {
+
+        ImageInfo info = interpretImage(image);
+        
+        if (displayWidth < 0) {
+            displayWidth = info.imageWidth;
+        }
+        if (displayHeight < 0) {
+            displayHeight = info.imageHeight;
+        }
+
+        GLuint textureId = uploadImage(id, info, image);
+
+        ImPlotPoint boundsMin(x, y);
+        ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImPlot::PlotImage(
+                id.c_str(),
+                (void*)(intptr_t)textureId,
+                boundsMin,
+                boundsMax);
+    },
+    py::arg("id"),
+    py::arg("image"),
+    py::arg("x") = 0,
+    py::arg("y") = 0,
+    py::arg("width") = -1,
+    py::arg("height") = -1);
+
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
                             array_like<double> color,
@@ -1959,32 +2108,7 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("rect"),
     py::arg("color") = py::array_t<double>());
 
-    m.def("is_plot_selected", ImPlot::IsPlotSelected);
-
-    m.def("get_plot_selection", [&]() {
-        return ImPlot::GetPlotSelection();
-    });
-
-    m.def("cancel_plot_selection", [&]() {
-        return ImPlot::CancelPlotSelection();
-    });
-
-    m.def("get_plot_pos", ImPlot::GetPlotPos);
-    m.def("get_plot_size", ImPlot::GetPlotSize);
-
-    m.def("get_plot_limits", [&]() {
-        return ImPlot::GetPlotLimits();
-    });
-
-    m.def("get_plot_mouse_pos", [&]() {
-        return ImPlot::GetPlotMousePos();
-    });
-
-    m.def("plot_contains", [&](ImPlotPoint point) {
-        return ImPlot::GetPlotLimits().Contains(point.x, point.y);
-    });
-
-    m.def("annotation", [&](
+    m.def("plot_annotation", [&](
                 double x,
                 double y,
                 std::string text,
@@ -2014,79 +2138,34 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
-    m.def("begin_popup_context_item", [&](std::string label) {
+    m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
-        return ImGui::BeginPopupContextItem(
-                label.empty() ? 0 : label.c_str());
-    },
-    py::arg("label") = "");
-
-    m.def("begin_popup", [&](std::string label) {
-
-        return ImGui::BeginPopup(label.c_str());
+    m.def("get_plot_selection", [&]() {
+        return ImPlot::GetPlotSelection();
     });
 
-    m.def("file_dialog_popup", [&](std::string label, std::string path, std::string confirmText) {
-
-        bool mod = ImGui::FileDialogPopup(label.c_str(), confirmText.c_str(), path);
-        viz.setMod(mod);
-
-        return path;
-    },
-    py::arg("label"),
-    py::arg("path"),
-    py::arg("confirmText") = "Ok");
-
-    m.def("begin_popup_modal", [&](std::string label) {
-
-        return ImGui::BeginPopupModal(
-                label.c_str(),
-                NULL,
-                ImGuiWindowFlags_AlwaysAutoResize);
+    m.def("cancel_plot_selection", [&]() {
+        return ImPlot::CancelPlotSelection();
     });
 
-    m.def("open_popup", [&](std::string label) {
+    m.def("get_plot_pos", ImPlot::GetPlotPos);
+    m.def("get_plot_size", ImPlot::GetPlotSize);
 
-        return ImGui::OpenPopup(label.c_str());
+    m.def("get_plot_limits", [&]() {
+        return ImPlot::GetPlotLimits();
     });
 
-    m.def("close_current_popup", ImGui::CloseCurrentPopup);
-    m.def("end_popup", ImGui::EndPopup);
+    m.def("get_plot_mouse_pos", [&]() {
+        return ImPlot::GetPlotMousePos();
+    });
 
-    m.def("get_id", [&](std::string id) {
-        return ImGui::GetID(id.c_str());
-    },
-    py::arg("id"));
+    m.def("plot_contains", [&](ImPlotPoint point) {
+        return ImPlot::GetPlotLimits().Contains(point.x, point.y);
+    });
 
-    m.def("push_id", [&](std::string id) {
-        ImGui::PushID(id.c_str());
-    },
-    py::arg("id"));
-
-    m.def("pop_id", ImGui::PopID);
-
-    m.def("set_item_default_focus", ImGui::SetItemDefaultFocus);
-
-    m.def("separator", ImGui::Separator);
-
-    m.def("selectable", [&](std::string label, bool selected, ImVec2 size) { 
-
-        bool s = ImGui::Selectable(label.c_str(), selected, 0, size);
-
-        if (selected != s) {
-            viz.setMod(true);
-        }
-
-        return s;
-    },
-    py::arg("label"),
-    py::arg("selected"),
-    py::arg("size") = ImVec2(0, 0));
-
-    m.def("get_content_region_avail", ImGui::GetContentRegionAvail);
-
-    m.def("begin_tooltip", ImGui::BeginTooltip);
-    m.def("end_tooltip", ImGui::EndTooltip);
+    /**
+     * SVG export
+     */
 
     m.def("begin_svg", [&]() {
 
@@ -2140,19 +2219,27 @@ PYBIND11_MODULE(cppimviz, m) {
         return txt.str();
     });
 
-    m.def("get_clipboard", [&]() { 
+    /**
+     * Image export
+     */
 
-        const char* str = glfwGetClipboardString(NULL);
+    m.def("get_pixels", [&](int x, int y, int width, int height) {
 
-        if (nullptr == str) { 
-            return std::string("");
-        } else {
-            return std::string(str);
-        }
-    });
+        py::array_t<uint8_t> pixels({width, height, 4});
 
-    m.def("set_clipboard", [&](std::string str) { 
+        int w, h;
+        glfwGetWindowSize(viz.window, &w, &h);
 
-        glfwSetClipboardString(NULL, str.c_str());
+        glReadPixels(
+                x, h - y - height,
+                width, height,
+                GL_RGBA,
+                GL_UNSIGNED_BYTE,
+                pixels.mutable_data());
+
+        // y-axis is flipped when loading directly from gpu
+        // need to flip back and copy to fix memory layout
+
+        return pixels[py::slice(height, 0, -1)].attr("copy")();
     });
 }
