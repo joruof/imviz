@@ -52,6 +52,8 @@ def attrs_as_dict(obj):
         attrs = obj.__getstate__()
     elif hasattr(obj, "__dict__"):
         attrs = obj.__dict__
+    elif hasattr(obj, "__slots__"):
+        attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
     elif isinstance(obj, dict):
         attrs = obj
 
