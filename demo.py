@@ -8,6 +8,16 @@ import pandas as pd
 import imviz as viz
 
 
+class SlotClass:
+
+    __slots__ = ('a', 'b')
+
+    def __init__(self):
+
+        self.a = 0
+        self.b = "1"
+
+
 class Demo:
 
     def __init__(self):
@@ -76,6 +86,8 @@ class Demo:
         self.perf_ys = np.random.rand(64, 3600).reshape((-1,))
 
         self.blab = 5
+
+        self.slotted_obj = SlotClass()
 
     def __autogui__(s, **kwargs):
 

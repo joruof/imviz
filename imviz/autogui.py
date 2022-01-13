@@ -201,6 +201,8 @@ def render(obj,
 
     if hasattr(obj, "__dict__"):
         attr_dict = obj.__dict__
+    elif hasattr(obj, "__slots__"):
+        attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
     elif isinstance(obj, dict):
         attr_dict = obj
     else:
