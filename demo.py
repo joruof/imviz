@@ -349,7 +349,16 @@ class Demo:
 
                 if viz.begin_plot("Test Plot"):
 
+                    viz.setup_finish()
+
+                    dl = viz.get_plot_drawlist()
+
+                    viz.push_plot_clip_rect(0.0)
+                    dl.add_line((0.0, 0.0), (1000.0, 1000.0), (1.0, 0.0, 0.0, 1.0), 2.0)
+                    viz.pop_plot_clip_rect()
+
                     viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
+
 
                     viz.end_plot()
 

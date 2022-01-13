@@ -2,6 +2,7 @@
 #include <ios>
 #include <pybind11/attr.h>
 #include <pybind11/cast.h>
+#include <pybind11/detail/common.h>
 #include <regex>
 #include <sstream>
 #include <iomanip>
@@ -719,6 +720,22 @@ PYBIND11_MODULE(cppimviz, m) {
         .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
         .value("APPEARING", ImGuiCond_Appearing);
 
+    py::enum_<ImDrawFlags_>(m, "DrawFlags")
+        .value("NONE", ImDrawFlags_None)
+        .value("CLOSED", ImDrawFlags_Closed)
+        .value("ROUND_CORNERS_TOP_LEFT", ImDrawFlags_RoundCornersTopLeft)
+        .value("ROUND_CORNERS_TOP_RIGHT", ImDrawFlags_RoundCornersTopRight)
+        .value("ROUND_CORNERS_BOTTOM_LEFT", ImDrawFlags_RoundCornersBottomLeft)
+        .value("ROUND_CORNERS_BOTTOM_RIGHT", ImDrawFlags_RoundCornersBottomRight)
+        .value("ROUND_CORNERS_NONE", ImDrawFlags_RoundCornersNone)
+        .value("ROUND_CORNERS_TOP", ImDrawFlags_RoundCornersTop)
+        .value("ROUND_CORNERS_BOTTOM", ImDrawFlags_RoundCornersBottom)
+        .value("ROUND_CORNERS_LEFT", ImDrawFlags_RoundCornersLeft)
+        .value("ROUND_CORNERS_RIGHT", ImDrawFlags_RoundCornersRight)
+        .value("ROUND_CORNERS_ALL", ImDrawFlags_RoundCornersAll)
+        .value("ROUND_CORNERS_DEFAULT", ImDrawFlags_RoundCornersDefault_)
+        .value("ROUND_CORNERS_MASK", ImDrawFlags_RoundCornersMask_);
+
     py::enum_<ImPlotFlags_>(m, "PlotFlags", py::arithmetic())
         .value("NONE", ImPlotFlags_None)
         .value("NO_TITLE", ImPlotFlags_NoTitle)
@@ -972,12 +989,12 @@ PYBIND11_MODULE(cppimviz, m) {
         return viz.mod;
     });
 
-    m.def("mod_any", [&]() {
-        return viz.mod_any;
-    });
-
     m.def("set_mod", [&](bool m) {
         viz.setMod(m);
+    });
+
+    m.def("mod_any", [&]() {
+        return viz.mod_any;
     });
 
     m.def("clear_mod_any", [&]() { 
@@ -2242,4 +2259,140 @@ PYBIND11_MODULE(cppimviz, m) {
 
         return pixels[py::slice(height, 0, -1)].attr("copy")();
     });
+
+    /**
+     * DrawLists
+     */
+
+    m.def("get_plot_drawlist",
+            &ImPlot::GetPlotDrawList,
+            py::return_value_policy::reference);
+
+    m.def("push_plot_clip_rect", &ImPlot::PushPlotClipRect);
+
+    m.def("pop_plot_clip_rect", &ImPlot::PopPlotClipRect);
+
+    py::class_<ImDrawList>(m, "DrawList")
+        .def("add_line", [&](
+                    ImDrawList& dl,
+                    ImVec2& p1,
+                    ImVec2& p2,
+                    ImVec4 col,
+                    float thickness){
+
+            dl.AddLine(p1, p2, ImGui::GetColorU32(col), thickness);
+        },
+        py::arg("p1"),
+        py::arg("p2"),
+        py::arg("col"),
+        py::arg("thickness") = 1.0
+        )
+        .def("add_rect", [&](
+                    ImDrawList& dl,
+                    ImVec2& pMin,
+                    ImVec2& pMax,
+                    ImVec4 col,
+                    float rounding,
+                    ImDrawFlags flags,
+                    float thickness){
+
+            dl.AddRect(
+                    pMin,
+                    pMax,
+                    ImGui::GetColorU32(col),
+                    rounding,
+                    flags,
+                    thickness);
+        },
+        py::arg("p_min"),
+        py::arg("p_max"),
+        py::arg("col"),
+        py::arg("rounding") = 0.0,
+        py::arg("flags") = ImDrawFlags_None,
+        py::arg("thickness") = 1.0
+        )
+        .def("add_rect_filled", [&](
+                    ImDrawList& dl,
+                    ImVec2& pMin,
+                    ImVec2& pMax,
+                    ImVec4 col,
+                    float rounding,
+                    ImDrawFlags flags) {
+
+            dl.AddRectFilled(
+                    pMin,
+                    pMax,
+                    ImGui::GetColorU32(col),
+                    rounding,
+                    flags);
+        },
+        py::arg("p_min"),
+        py::arg("p_max"),
+        py::arg("col"),
+        py::arg("rounding") = 0.0,
+        py::arg("flags") = ImDrawFlags_None
+        )
+        .def("add_rect_filled_multi_color", [&](
+                    ImDrawList& dl,
+                    ImVec2& pMin,
+                    ImVec2& pMax,
+                    ImVec4 ul,
+                    ImVec4 ur,
+                    ImVec4 br,
+                    ImVec4 bl) {
+
+            dl.AddRectFilledMultiColor(
+                    pMin,
+                    pMax,
+                    ImGui::GetColorU32(ul),
+                    ImGui::GetColorU32(ur),
+                    ImGui::GetColorU32(br),
+                    ImGui::GetColorU32(bl));
+        },
+        py::arg("p_min"),
+        py::arg("p_max"),
+        py::arg("col_up_left"),
+        py::arg("col_up_right"),
+        py::arg("col_bot_right"),
+        py::arg("col_bot_left")
+        )
+        .def("add_circle", [&](
+                    ImDrawList& dl,
+                    ImVec2& center,
+                    float radius,
+                    ImVec4 col,
+                    int numSegments,
+                    float thickness){
+
+            dl.AddCircle(
+                    center,
+                    radius,
+                    ImGui::GetColorU32(col),
+                    numSegments,
+                    thickness);
+        },
+        py::arg("center"),
+        py::arg("radius"),
+        py::arg("col"),
+        py::arg("num_segments"),
+        py::arg("thickness") = 1.0
+        )
+        .def("add_circle_filled", [&](
+                    ImDrawList& dl,
+                    ImVec2& center,
+                    float radius,
+                    ImVec4 col,
+                    int numSegments){
+
+            dl.AddCircleFilled(
+                    center,
+                    radius,
+                    ImGui::GetColorU32(col),
+                    numSegments);
+        },
+        py::arg("center"),
+        py::arg("radius"),
+        py::arg("col"),
+        py::arg("num_segments")
+        );
 }
