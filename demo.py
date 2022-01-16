@@ -227,6 +227,11 @@ class Demo:
                     viz.setup_axis(viz.Axis.X1, "x")
                     viz.setup_axis(viz.Axis.Y1, "y")
 
+                    viz.plot_circle(10, 10, 5,
+                            label="circle",
+                            color=(1.0, 0.0, 0.0),
+                            line_weight=2)
+
                     viz.plot_image("image",
                                    s.img,
                                    x=0, y=0,

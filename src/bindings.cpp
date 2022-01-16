@@ -2155,6 +2155,43 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
+    m.def("plot_circle", [&](
+                double x,
+                double y,
+                double radius,
+                std::string label,
+                array_like<double> color,
+                size_t segments,
+                float lineWeight) {
+
+        size_t steps = segments + 1;
+
+        std::vector<double> xs(steps);
+        std::vector<double> ys(steps);
+
+        double step = M_PI * 2 / segments;
+
+        for (size_t i = 0; i < steps; ++i) {
+            double angle = step * i;
+            xs[i] = x + radius * std::cos(angle);
+            ys[i] = y + radius * std::sin(angle);
+        }
+
+        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
+        ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(color));
+        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), steps);
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleVar();
+    },
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("radius"),
+    py::arg("label") = "",
+    py::arg("color") = py::array(),
+    py::arg("segments") = 36,
+    py::arg("line_weight") = 1.0f
+    );
+
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
     m.def("get_plot_selection", [&]() {
@@ -2263,6 +2300,10 @@ PYBIND11_MODULE(cppimviz, m) {
     /**
      * DrawLists
      */
+
+    m.def("get_window_drawlist",
+            [&]() { return ImGui::GetCurrentWindow()->DrawList; },
+            py::return_value_policy::reference);
 
     m.def("get_plot_drawlist",
             &ImPlot::GetPlotDrawList,
