@@ -41,25 +41,6 @@ def full_type(o):
     return module + '.' + cls.__qualname__
 
 
-def attrs_as_dict(obj):
-    """
-    Tries different methods to get a dict representation of obj.
-    """
-
-    attrs = None
-
-    if hasattr(obj, "__getstate__"):
-        attrs = obj.__getstate__()
-    elif hasattr(obj, "__dict__"):
-        attrs = obj.__dict__
-    elif hasattr(obj, "__slots__"):
-        attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
-    elif isinstance(obj, dict):
-        attrs = obj
-
-    return attrs
-
-
 def ext_setattr(obj, name, value):
     """
     Sets attributes for objects and key-value pairs for dicts.
@@ -154,7 +135,18 @@ class Serializer:
                     jvs.append(jv)
             return jvs
 
-        attrs = attrs_as_dict(obj)
+        # try to get a dict representation of the object
+
+        attrs = None
+
+        if hasattr(obj, "__getstate__"):
+            attrs = obj.__getstate__()
+        elif hasattr(obj, "__dict__"):
+            attrs = obj.__dict__
+        elif hasattr(obj, "__slots__"):
+            attrs = {n: getattr(obj, n) for n in obj.__slots__}
+        elif isinstance(obj, dict):
+            attrs = obj
 
         if attrs is None:
             # in case we don't find any serializeable attributes
@@ -162,7 +154,7 @@ class Serializer:
             if type(obj) in self.primitives:
                 return obj
             else:
-                print(f"Warning: cannot save object of type {full_type(obj)}")
+                print(f"Warning: cannot save object {key} of type {full_type(obj)}")
                 return Skip
 
         ser_attrs = {}
@@ -216,11 +208,21 @@ class Loader:
                 json_obj = np.array(json_obj["data"], dtype=json_obj["dtype"])
                 jt = np.ndarray
 
-        attrs = attrs_as_dict(obj)
+        # try to get a dict representation of the object
+
+        attrs = None
+
+        if hasattr(obj, "__dict__"):
+            attrs = obj.__dict__
+        elif hasattr(obj, "__slots__"):
+            attrs = {n: getattr(obj, n) for n in obj.__slots__}
+        elif isinstance(obj, dict):
+            attrs = obj
 
         # now check how we should continue
 
         if attrs is not None and jt == dict:
+
             # handles general objects and dicts
             if hasattr(obj, "__setstate__"):
                 ld = {k: self.load(None, v) for k, v in json_obj.items()}
