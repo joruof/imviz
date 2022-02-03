@@ -18,7 +18,7 @@ def configure_ini_path(module):
     main_file_name = os.path.basename(module.__file__).rsplit(".")[0]
     ini_path = os.path.join(
             os.path.abspath(os.path.dirname(module.__file__)),
-            "imviz_" + main_file_name + ".ini")
+            "." + main_file_name + ".imviz.ini")
 
     set_ini_path(ini_path)
     load_ini(ini_path)
