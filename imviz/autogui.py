@@ -35,6 +35,11 @@ def render(obj,
         viz.text(f"{name}: None")
         return obj
 
+    if obj_type == bool:
+        if name == "":
+            name = str(path[-1])
+        return viz.checkbox(name, obj)
+
     if isinstance(obj, numbers.Integral):
         if name == "":
             name = str(path[-1])
@@ -49,11 +54,6 @@ def render(obj,
         if name == "":
             name = str(path[-1])
         return viz.input(name, obj)
-
-    if obj_type == bool:
-        if name == "":
-            name = str(path[-1])
-        return viz.checkbox(name, obj)
 
     if obj_type == tuple:
 
