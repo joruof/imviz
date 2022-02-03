@@ -8,12 +8,9 @@ except ModuleNotFoundError:
     sys.path.append(os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "../build"))
     from cppimviz import *
-    print("Using development imviz")
 
 
 def configure_ini_path(module):
-
-    print(module)
 
     if not hasattr(module, "__file__"):
         return
