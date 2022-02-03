@@ -66,6 +66,8 @@ struct ImViz {
     bool mod = false;
     bool mod_any = false;
 
+    std::string iniFilePath = "";
+
     // initially update for two whole seconds (assuming vsync)
     int powerSaveFrameCounter = 120;
 
@@ -116,7 +118,7 @@ struct ImViz {
 
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.IniFilename = "./imviz.ini";
+        io.IniFilename = NULL;
 
         ImPlot::GetStyle().AntiAliasedLines = true;
 
@@ -1071,7 +1073,7 @@ PYBIND11_MODULE(cppimviz, m) {
         return !glfwWindowShouldClose(viz.window);
     },
     py::arg("vsync") = true,
-    py::arg("powersave") = true,
+    py::arg("powersave") = false,
     py::arg("timeout") = 1.0);
 
     /*
@@ -1510,6 +1512,34 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("same_line", []() {
         ImGui::SameLine();
     });
+
+    /**
+     * Imgui config helper functions
+     */
+
+    m.def("set_ini_path", [&](std::string& path) {
+
+        viz.iniFilePath = path;
+        ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = viz.iniFilePath.c_str();
+    });
+
+    m.def("get_ini_path", []() {
+
+        return std::string(ImGui::GetIO().IniFilename);
+    });
+
+    m.def("load_ini", [](std::string path) {
+
+        ImGui::LoadIniSettingsFromDisk(path.c_str());
+    },
+    py::arg("path"));
+
+    m.def("save_ini", [](std::string path) {
+
+        ImGui::SaveIniSettingsToDisk(path.c_str());
+    },
+    py::arg("path"));
 
     /**
      * Imgui window helper functions

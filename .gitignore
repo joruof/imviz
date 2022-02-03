@@ -1,6 +1,6 @@
 build
 dist
-imviz.ini
+*.ini
 __pycache__
 .cache
 *.egg-info

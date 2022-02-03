@@ -8,6 +8,7 @@ For specific needs not covered by this simple implementation, you may use
 this module as a reference for your own (development) main module.
 """
 
+import sys
 import time
 import argparse
 import traceback
@@ -16,6 +17,30 @@ import traceback
 from pydoc import locate
 
 import imviz as viz
+
+
+def loop(cls, func_name):
+
+    viz.configure_ini_path(sys.modules[cls.__module__])
+
+    obj = cls()
+    func = getattr(obj, func_name)
+
+    broken = False
+
+    while viz.wait(vsync=True):
+
+        if viz.update_autoreload():
+            broken = False
+
+        try:
+            if not broken:
+                func()
+            else:
+                time.sleep(0.5)
+        except Exception:
+            traceback.print_exc()
+            broken = True
 
 
 def main():
@@ -35,29 +60,12 @@ def main():
 
     args = parser.parse_args()
 
-    broken = False
-
     cls = locate(args.class_name)
     if cls is None:
         print(f"Could not find function {args.func_name}")
         return
 
-    obj = cls()
-    func = getattr(obj, args.func_name)
-
-    while viz.wait(vsync=True):
-
-        if viz.update_autoreload():
-            broken = False
-
-        try:
-            if not broken:
-                func()
-            else:
-                time.sleep(0.5)
-        except Exception:
-            traceback.print_exc()
-            broken = True
+    loop(cls, args.func_name)
 
 
 if __name__ == "__main__":
