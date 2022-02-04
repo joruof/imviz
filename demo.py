@@ -255,6 +255,8 @@ class Demo:
                              fmt="-s",
                              label="small_squares")
 
+                    viz.plot([], line_weight=3, fmt="-s", label="zero len array")
+
                     s.drag_point = viz.drag_point("draggable",
                                                   s.drag_point,
                                                   color=(1.0, 0.0, 0.0),

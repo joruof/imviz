@@ -539,9 +539,7 @@ PlotArrayInfo interpretPlotArrays(
         info.count = std::min(x.shape()[0], y.shape()[0]);
         info.xDataPtr = x.data();
         info.yDataPtr = y.data();
-    }
-
-    if (info.count == 0) {
+    } else {
         throw std::runtime_error(
                 "Plot data with x-shape "
                 + shapeToStr(x)
