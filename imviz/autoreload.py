@@ -115,10 +115,9 @@ def scan_modules(requests, results):
             try:
                 if mtime_table[name] < mtime:
                     needs_reload.append(name)
+                    mtime_table[name] = mtime
             except KeyError:
-                pass
-
-            mtime_table[name] = mtime
+                mtime_table[name] = mtime
 
         results.put(needs_reload)
 
