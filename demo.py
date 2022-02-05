@@ -109,7 +109,6 @@ class Demo:
         if viz.button("Start Task"):
             viz.update_task("test_task", func_name, 1)
 
-
         # menus
 
         if viz.begin_main_menu_bar():
@@ -377,7 +376,6 @@ class Demo:
                     viz.pop_plot_clip_rect()
 
                     viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
-
 
                     viz.end_plot()
 
