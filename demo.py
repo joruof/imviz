@@ -3,9 +3,12 @@ Inspired by the imgui/implot demo files this file demonstrates the usage of
 imviz by example.
 """
 
+import sys
 import numpy as np
 import pandas as pd
+
 import imviz as viz
+import imviz.dev
 
 
 class SlotClass:
@@ -91,6 +94,9 @@ class Demo:
 
     def __autogui__(s, **kwargs):
 
+        if not viz.wait():
+            sys.exit()
+
         icon = np.zeros((17, 17, 4)) * 255
         icon[::2, ::2, 0] = 255
         icon[::2, ::2, 1] = 255
@@ -108,7 +114,6 @@ class Demo:
 
         if viz.button("Start Task"):
             viz.update_task("test_task", func_name, 1)
-
 
         # menus
 
@@ -415,10 +420,7 @@ class Demo:
 
 def main():
 
-    demo = Demo()
-
-    while viz.wait(vsync=True):
-        viz.autogui(demo)
+    viz.dev.launch(Demo, "__autogui__")
 
 
 if __name__ == "__main__":

@@ -8,15 +8,40 @@ For specific needs not covered by this simple implementation, you may use
 this module as a reference for your own (development) main module.
 """
 
+import os
 import sys
 import time
 import argparse
 import traceback
+import importlib
 
 # i like this
 from pydoc import locate
 
 import imviz as viz
+
+
+def launch(cls, func_name):
+
+    file_path = os.path.abspath(sys.modules[cls.__module__].__file__)
+
+    cls_name = os.path.basename(file_path).rsplit(".")[0]
+    cls_name += "." + cls.__qualname__
+
+    try:
+        pp = os.environ["PYTHONPATH"]
+    except KeyError:
+        pp = ""
+
+    os.environ["PYTHONPATH"] = pp + ":" + os.path.dirname(file_path)
+
+    os.execlpe("python3",
+               "python3",
+               "-m",
+               "imviz.dev",
+               cls_name,
+               func_name,
+               os.environ)
 
 
 def loop(cls, func_name):
@@ -28,7 +53,7 @@ def loop(cls, func_name):
 
     broken = False
 
-    while viz.wait(vsync=True):
+    while True:
 
         if viz.update_autoreload():
             broken = False
@@ -38,6 +63,8 @@ def loop(cls, func_name):
                 func()
             else:
                 time.sleep(0.5)
+        except SystemExit:
+            return
         except Exception:
             traceback.print_exc()
             broken = True
@@ -61,8 +88,9 @@ def main():
     args = parser.parse_args()
 
     cls = locate(args.class_name)
+
     if cls is None:
-        print(f"Could not find function {args.func_name}")
+        print(f"Could not find class {args.class_name}")
         return
 
     loop(cls, args.func_name)
