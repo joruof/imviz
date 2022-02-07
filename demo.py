@@ -383,7 +383,6 @@ class Demo:
 
                     viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
 
-
                     viz.end_plot()
 
                 viz.tree_pop()
