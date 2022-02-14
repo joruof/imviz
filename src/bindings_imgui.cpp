@@ -563,6 +563,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     },
     py::arg("id"));
 
+    m.def("push_id", [&](int id) {
+        ImGui::PushID(id);
+    },
+    py::arg("id"));
+
+    m.def("push_override_id", [&](unsigned int id) {
+        ImGui::PushOverrideID(id);
+    },
+    py::arg("id"));
+
     m.def("pop_id", ImGui::PopID);
 
     m.def("get_id", [&](std::string id) {

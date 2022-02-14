@@ -284,6 +284,8 @@ class Demo:
                     viz.plot_annotation(5, 5, "foo")
                     viz.plot_annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
+                    viz.push_override_id(viz.get_plot_id())
+
                     if viz.begin_popup("##PlotContext"):
                         if not s.popup_open:
                             s.popup_plot_pos = viz.get_plot_mouse_pos()
@@ -299,6 +301,8 @@ class Demo:
                         viz.end_popup()
                     else:
                         s.popup_open = False
+
+                    viz.pop_id()
 
                     for i in range(len(s.drag_dots)):
                         s.drag_dots[i] = viz.drag_point(f"dot_#{i}",

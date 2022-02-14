@@ -3,6 +3,10 @@
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
 
+#include "implot_internal.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     /**
@@ -689,5 +693,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("plot_contains", [&](ImPlotPoint point) {
         return ImPlot::GetPlotLimits().Contains(point.x, point.y);
+    });
+
+    m.def("get_plot_id", [&]() {
+        return ImPlot::GetCurrentPlot()->ID;
     });
 }
