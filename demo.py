@@ -3,9 +3,12 @@ Inspired by the imgui/implot demo files this file demonstrates the usage of
 imviz by example.
 """
 
+import sys
 import numpy as np
 import pandas as pd
+
 import imviz as viz
+import imviz.dev
 
 
 class SlotClass:
@@ -90,6 +93,9 @@ class Demo:
         self.slotted_obj = SlotClass()
 
     def __autogui__(s, **kwargs):
+
+        if not viz.wait():
+            sys.exit()
 
         icon = np.zeros((17, 17, 4)) * 255
         icon[::2, ::2, 0] = 255
@@ -278,6 +284,8 @@ class Demo:
                     viz.plot_annotation(5, 5, "foo")
                     viz.plot_annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
 
+                    viz.push_override_id(viz.get_plot_id())
+
                     if viz.begin_popup("##PlotContext"):
                         if not s.popup_open:
                             s.popup_plot_pos = viz.get_plot_mouse_pos()
@@ -293,6 +301,8 @@ class Demo:
                         viz.end_popup()
                     else:
                         s.popup_open = False
+
+                    viz.pop_id()
 
                     for i in range(len(s.drag_dots)):
                         s.drag_dots[i] = viz.drag_point(f"dot_#{i}",
@@ -413,10 +423,7 @@ class Demo:
 
 def main():
 
-    demo = Demo()
-
-    while viz.wait(vsync=True):
-        viz.autogui(demo)
+    viz.dev.launch(Demo, "__autogui__")
 
 
 if __name__ == "__main__":
