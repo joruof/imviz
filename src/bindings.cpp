@@ -1,6 +1,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <GL/glew.h>
+
 #include "implot.h"
 #include "implot_internal.h"
 
@@ -12,6 +14,7 @@
 #include "binding_helpers.hpp"
 #include "bindings_implot.hpp"
 #include "bindings_imgui.hpp"
+#include "shader_program.hpp"
 
 /**
  * This allows us to handle imgui assertions via exceptions on the python side.
@@ -391,4 +394,52 @@ PYBIND11_MODULE(cppimviz, m) {
 
         return pixels[py::slice(height, 0, -1)].attr("copy")();
     });
+
+    /**
+     * Simple renderer
+     */
+
+    py::class_<ShaderProgram>(m, "ShaderProgram")
+        .def(py::init<std::string, std::string>())
+        .def("get_uniforms", [](ShaderProgram& p) { 
+            glUseProgram(p.id);
+
+            GLint count;
+            glGetProgramiv(p.id, GL_ACTIVE_UNIFORMS, &count);
+
+            std::cout << count << std::endl;
+
+            for (GLint i = 0; i < count; i++)
+            {
+                GLint size; 
+                GLenum type; 
+                const GLsizei bufSize = 128; 
+                GLchar name[bufSize]; 
+                GLsizei length; 
+
+                glGetActiveUniform(p.id, (GLuint)i, bufSize, &length, &size, &type, name);
+                printf("Uniform #%d Type: %u Name: %s Size: %d\n", i, type, name, size);
+            }
+        })
+        .def("get_attributes", [](ShaderProgram& p) { 
+
+            glUseProgram(p.id);
+
+            GLint count;
+            glGetProgramiv(p.id, GL_ACTIVE_ATTRIBUTES, &count);
+
+            std::cout << count << std::endl;
+
+            for (GLint i = 0; i < count; i++)
+            {
+                GLint size; 
+                GLenum type; 
+                const GLsizei bufSize = 128; 
+                GLchar name[bufSize]; 
+                GLsizei length; 
+
+                glGetActiveAttrib(p.id, (GLuint)i, bufSize, &length, &size, &type, name);
+                printf("Uniform #%d Type: %u Name: %s Size: %d\n", i, type, name, size);
+            }
+        });
 }
