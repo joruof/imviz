@@ -14,7 +14,7 @@
 #include "binding_helpers.hpp"
 #include "bindings_implot.hpp"
 #include "bindings_imgui.hpp"
-#include "shader_program.hpp"
+// #include "shader_program.hpp"
 
 /**
  * This allows us to handle imgui assertions via exceptions on the python side.
@@ -414,7 +414,6 @@ PYBIND11_MODULE(cppimviz, m) {
 
     /**
      * Simple renderer
-     */
 
     py::class_<ShaderProgram>(m, "ShaderProgram")
         .def(py::init<std::string, std::string>())
@@ -459,4 +458,5 @@ PYBIND11_MODULE(cppimviz, m) {
                 printf("Uniform #%d Type: %u Name: %s Size: %d\n", i, type, name, size);
             }
         });
+     */
 }
