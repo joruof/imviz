@@ -267,11 +267,24 @@ PYBIND11_MODULE(cppimviz, m) {
     });
 
     m.def("mod_any", [&]() {
-        return viz.mod_any;
+        return viz.mod_any.back();
     });
 
-    m.def("clear_mod_any", [&]() { 
-        viz.mod_any = false;
+    m.def("clear_mod_any", [&]() {
+        viz.mod_any.back() = false;
+    });
+
+    m.def("push_mod_any", [&]() {
+        viz.mod_any.push_back(false);
+    });
+
+    m.def("pop_mod_any", [&]() {
+        bool lastMod = viz.mod_any.back();
+        if (viz.mod_any.size() > 1) {
+            viz.mod_any.pop_back();
+            viz.mod_any.back() = lastMod | viz.mod_any.back();
+        }
+        return lastMod;
     });
 
     m.def("trigger", [&]() {

@@ -251,5 +251,5 @@ void ImViz::trigger () {
 void ImViz::setMod(bool m) {
 
     mod = m;
-    mod_any |= m;
+    mod_any.back() = mod_any.back() | m;
 }

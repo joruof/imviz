@@ -18,7 +18,10 @@ struct ImViz {
     bool figurePlotOpen = false;
 
     bool mod = false;
-    bool mod_any = false;
+    std::vector<bool> mod_any = {false};
+
+    float rotation = 0.0f;
+    int rotationStartIndex = 0;
 
     std::string iniFilePath = "";
 

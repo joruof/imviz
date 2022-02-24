@@ -53,7 +53,7 @@ class Demo:
         # selection
 
         self.items = ["mars", "venus", "apollo", "zeus", "hera"]
-        self.selection = ""
+        self.selection = 0
         self.multi_selection = []
 
         self.sel_idx = 0
@@ -91,6 +91,12 @@ class Demo:
         self.blab = 5
 
         self.slotted_obj = SlotClass()
+
+        # for plot modifier test
+
+        self.mod_position = (10, 10)
+        self.mod_rotation = np.pi/4
+        self.mod_scale = (1, 1)
 
     def __autogui__(s, **kwargs):
 
@@ -417,6 +423,30 @@ class Demo:
                 if svg := viz.end_svg():
                     with open("test.svg", "w+") as fd:
                         fd.write(svg)
+
+            if viz.tree_node("Plot Modifer Test"):
+
+                img = np.random.rand(10, 10)
+
+                if viz.begin_plot("test_plot", size=(500, 500)):
+
+                    viz.setup_finish()
+
+                    viz.begin_rotation(s.mod_rotation)
+                    viz.plot_image("img", img, x=s.mod_position[0]-s.mod_scale[0]/2, y=s.mod_position[1]-s.mod_scale[1]/2, width=s.mod_scale[0], height=s.mod_scale[1])
+                    viz.end_rotation()
+
+                    s.mod_position = viz.drag_point("pos_drag", s.mod_position)
+
+                    if viz.is_item_clicked():
+                        print("click")
+
+                    if viz.mod():
+                        print("mod")
+
+                    viz.end_plot()
+
+                viz.tree_pop()
 
         viz.end_window()
 
