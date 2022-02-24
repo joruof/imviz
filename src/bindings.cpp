@@ -267,7 +267,8 @@ PYBIND11_MODULE(cppimviz, m) {
     });
 
     m.def("mod_any", [&]() {
-        return viz.mod_any.back();
+        bool m = viz.mod_any.back();
+        return m;
     });
 
     m.def("clear_mod_any", [&]() {
