@@ -1,5 +1,6 @@
 import typing
 import numbers
+import itertools
 
 import numpy as np
 import imviz as viz
@@ -157,37 +158,65 @@ def render(obj,
                 width_avail, _ = viz.get_content_region_avail()
                 item_width = max(32, width_avail / obj.shape[1] - 8)
 
+                # this tremendously speeds up zarr array access
+                # because caching, lookup overhead, or something ...
+                arr_view = obj[:, :]
+
                 for i in range(obj.shape[0]):
                     for j in range(obj.shape[1]):
 
                         viz.set_next_item_width(item_width)
 
                         res = render(
-                                obj[i][j],
+                                arr_view[i, j],
                                 f"###{i},{j}",
                                 path=[*path, i, j],
                                 parents=[*parents, obj])
 
                         if viz.mod():
                             mod = True
-                            if obj.flags.writeable:
-                                obj[i][j] = res
+                            obj[i, j] = res
 
                         if j < obj.shape[1]-1:
                             viz.same_line()
             else:
-                for i in range(len(obj)):
+                # to avoid many array lookups in the loop
+                # we collect the requested indices in "path"
 
-                    res = render(
-                            obj[i],
-                            str(i),
-                            path=[*path, i],
-                            parents=[*parents, obj])
+                indices = tuple(itertools.takewhile(
+                        lambda x: type(x) == int, path[::-1]))[::-1]
 
-                    if viz.mod():
-                        mod = True
-                        if obj.flags.writeable:
+                li = len(indices)
+
+                if len(obj.shape) < 2:
+                    arr_view = obj[:]
+                    for i in range(len(arr_view)):
+                        # lookup happens here
+                        res = render(
+                                arr_view[i],
+                                str(i),
+                                path=[*path, i],
+                                parents=[*parents])
+                        if viz.mod():
                             obj[i] = res
+                elif len(obj.shape) - li == 2:
+                    # lookup happens here
+                    res = render(
+                            obj[indices],
+                            path=[*path],
+                            parents=[*parents])
+                    if viz.mod():
+                        obj[indices] = res
+                else:
+                    for i in range(obj.shape[li]):
+                        res = render(
+                                obj,
+                                str(i),
+                                path=[*path, i],
+                                parents=[*parents])
+
+                if viz.mod():
+                    mod = True
 
         if len(name) > 0 and tree_open:
             viz.tree_pop()
