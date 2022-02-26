@@ -43,12 +43,12 @@ def render(obj,
     if isinstance(obj, numbers.Integral):
         if name == "":
             name = str(path[-1])
-        return viz.drag(name, obj, 1.0, 0, 0)
+        return obj_type(viz.drag(name, obj, 1.0, 0, 0))
 
     if isinstance(obj, numbers.Real):
         if name == "":
             name = str(path[-1])
-        return viz.drag(name, obj)
+        return obj_type(viz.drag(name, obj))
 
     if obj_type == str:
         if name == "":
