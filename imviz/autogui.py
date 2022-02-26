@@ -142,11 +142,10 @@ def render(obj,
 
         return obj
 
-    if obj_type == np.ndarray or obj_type == np.memmap:
+    if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
 
         if len(name) > 0:
             tree_open = viz.tree_node(f"{name} {list(obj.shape)}")
-
         else:
             tree_open = True
 

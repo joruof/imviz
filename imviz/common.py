@@ -192,12 +192,13 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
 
     if AUTOSAVE_TIME < 0:
         viz.storage.load(obj, path)
+        AUTOSAVE_TIME = time.time()
 
-    viz.clear_mod_any()
+    viz.push_mod_any()
 
     yield
 
-    if viz.mod_any():
+    if viz.pop_mod_any():
         AUTOSAVE_REQ = True
         AUTOSAVE_TIME = time.time()
 

@@ -13,6 +13,7 @@ working with images or points clouds much easier.
 import os
 import json
 import types
+import numbers
 
 # i still like this
 from pydoc import locate
@@ -74,8 +75,6 @@ class Serializer:
 
         self.saved_arrays = set()
 
-        self.primitives = set([int, float, bool, str, None])
-
     def serialize(self, obj, key="", parent=None):
 
         if type(key) == str:
@@ -90,7 +89,7 @@ class Serializer:
 
         # special treatment for numpy arrays
         if type(obj) == np.ndarray:
-            if obj.size > 100:
+            if obj.size > 25:
 
                 Serializer.last_id += 1
 
@@ -151,7 +150,7 @@ class Serializer:
         if attrs is None:
             # in case we don't find any serializeable attributes
             # we check if we have a primitive type and return that
-            if type(obj) in self.primitives:
+            if isinstance(obj, (numbers.Integral, numbers.Real, str, type(None))):
                 return obj
             else:
                 print(f"Warning: cannot save object {key} of type {full_type(obj)}")
@@ -251,9 +250,17 @@ class Loader:
                 else:
                     jos.append(obj[i])
             return t(jos)
-        elif t == jt:
+        elif attrs is None:
             # this usually happens for primitive types
-            return json_obj
+            if t == jt:
+                return json_obj
+            else:
+                # if the types do no match,
+                # there is still a chance we can cast
+                try:
+                    return t(json_obj)
+                except Exception:
+                    pass
         elif obj is None:
             # we have nothing to match
             if jt == dict and "__class__" in json_obj:
