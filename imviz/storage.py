@@ -11,6 +11,7 @@ working with images or points clouds much easier.
 """
 
 import os
+import zarr
 import json
 import types
 import numbers
@@ -70,8 +71,7 @@ class Serializer:
         self.hide_private = hide_private
 
         self.ext_path = os.path.join(path, "extern")
-
-        os.makedirs(self.ext_path, exist_ok=True)
+        self.array_store = zarr.open(self.ext_path)
 
         self.saved_arrays = set()
 
@@ -93,11 +93,8 @@ class Serializer:
 
                 Serializer.last_id += 1
 
-                path = str(Serializer.last_id) + ".npy"
-                file_path = os.path.join(self.ext_path, path)
-
-                np.save(file_path, obj)
-                obj = np.load(file_path, mmap_mode="r+")
+                path = str(Serializer.last_id)
+                obj = self.array_store.array(path, obr)
 
                 if type(key) == str:
                     ext_setattr(parent, key, obj)
@@ -117,13 +114,11 @@ class Serializer:
                 }
 
         # already saved and memory-mapped numpy arrays
-        if type(obj) == np.memmap:
-            path = os.path.basename(obj.filename)
-            self.saved_arrays.add(path)
-            obj.flush()
+        if type(obj) == zarr.core.Array:
+            self.saved_arrays.add(obj.path)
             return {
                 "__class__": "__extern__",
-                "path": path
+                "path": obj.path
             }
 
         if type(obj) == list or type(obj) == tuple:
@@ -182,6 +177,7 @@ class Loader:
 
         self.path = path
         self.ext_path = os.path.join(path, "extern")
+        self.array_store = zarr.open(self.ext_path)
 
     def load(self, obj, json_obj):
 
@@ -196,12 +192,9 @@ class Loader:
             cls = json_obj["__class__"]
 
             if cls == "__extern__":
-                json_obj = np.load(os.path.join(
-                                 self.ext_path,
-                                 json_obj["path"]),
-                             mmap_mode="r+")
-                # we are lying about this one (actually np.memmap)
-                # in practice memmap should behave just like ndarray
+                json_obj = self.array_store[json_obj["path"]]
+                # we are lying about this one (actually zarr.core.Array)
+                # in practice it should behave (mostly) like ndarray
                 jt = np.ndarray
             elif cls == "numpy.ndarray":
                 json_obj = np.array(json_obj["data"], dtype=json_obj["dtype"])
@@ -303,11 +296,11 @@ def save(obj, directory):
 
     # remove unused external numpy arrays
 
-    on_disk = set(os.listdir(ser.ext_path))
+    on_disk = set(ser.array_store.keys())
     unused = on_disk - ser.saved_arrays
 
-    for f in unused:
-        os.remove(os.path.join(ser.ext_path, f))
+    for k in unused:
+        del ser.array_store[k]
 
 
 def load(obj, path):
