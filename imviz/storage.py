@@ -250,17 +250,6 @@ class Loader:
                 else:
                     jos.append(obj[i])
             return t(jos)
-        elif attrs is None:
-            # this usually happens for primitive types
-            if t == jt:
-                return json_obj
-            else:
-                # if the types do no match,
-                # there is still a chance we can cast
-                try:
-                    return t(json_obj)
-                except Exception:
-                    pass
         elif obj is None:
             # we have nothing to match
             if jt == dict and "__class__" in json_obj:
@@ -276,6 +265,17 @@ class Loader:
             else:
                 # just use whatever is contained in json
                 return json_obj
+        elif attrs is None:
+            # this usually happens for primitive types
+            if t == jt:
+                return json_obj
+            else:
+                # if the types do no match,
+                # there is still a chance we can cast
+                try:
+                    return t(json_obj)
+                except Exception:
+                    pass
         else:
             # nothing more we can do
             return obj
