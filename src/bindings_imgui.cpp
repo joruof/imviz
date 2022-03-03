@@ -182,40 +182,28 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     },
     py::arg("label"));
 
-    m.def("combo", [&](std::string label, py::list items, py::handle selection) {
+    m.def("combo", [&](std::string label, py::list items, int selectionIndex) {
 
         size_t len = items.size();
-
-        if (len == 0) {
-            return selection;
-        }
 
         std::vector<std::string> objStr(len);
         std::vector<const char*> objPtr(len);
 
-        int selectionIndex = 0;
-
         int i = 0;
         for (const py::handle& o : items) {
-
             objStr[i] = py::str(o);
             objPtr[i] = objStr[i].c_str();
-
-            if (o.equal(selection)) {
-                selectionIndex = i;
-            }
-
             i += 1;
         }
 
         bool mod = ImGui::Combo(label.c_str(), &selectionIndex, objPtr.data(), len);
         viz.setMod(mod);
 
-        return py::handle(items[selectionIndex]);
+        return selectionIndex;
     },
     py::arg("label"),
     py::arg("items"),
-    py::arg("selection") = py::none());
+    py::arg("selection_index") = 0);
 
     m.def("text", [&](py::handle obj, array_like<double> color) {
 
@@ -586,6 +574,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
      * DrawLists
      */
 
+
     m.def("get_window_drawlist",
             [&]() { return ImGui::GetCurrentWindow()->DrawList; },
             py::return_value_policy::reference);
@@ -721,4 +710,32 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         py::arg("col"),
         py::arg("num_segments")
         );
+
+    // Rotation functions inspired by:
+    // https://gist.github.com/carasuca/e72aacadcf6cf8139de46f97158f790f
+
+    m.def("begin_rotation", [&](float rad) {
+        viz.rotation = rad;
+        viz.rotationStartIndex = ImGui::GetWindowDrawList()->VtxBuffer.Size;
+    },
+    py::arg("rad"));
+
+    m.def("end_rotation", [&]() {
+
+        ImVec2 l(FLT_MAX, FLT_MAX), u(-FLT_MAX, -FLT_MAX);
+
+        auto& buf = ImGui::GetWindowDrawList()->VtxBuffer;
+        for (int i = viz.rotationStartIndex; i < buf.Size; i++)
+            l = ImMin(l, buf[i].pos), u = ImMax(u, buf[i].pos);
+
+        ImVec2 center((l.x+u.x)/2, (l.y+u.y)/2); 
+
+        float s = std::sin(viz.rotation);
+        float c = std::cos(viz.rotation);
+
+        center = ImRotate(center, s, c) - center;
+
+        for (int i = viz.rotationStartIndex; i < buf.Size; i++)
+            buf[i].pos = ImRotate(buf[i].pos, s, c) - center;
+    });
 }

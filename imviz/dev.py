@@ -13,7 +13,6 @@ import sys
 import time
 import argparse
 import traceback
-import importlib
 
 # i like this
 from pydoc import locate
@@ -28,12 +27,8 @@ def launch(cls, func_name):
     cls_name = os.path.basename(file_path).rsplit(".")[0]
     cls_name += "." + cls.__qualname__
 
-    try:
-        pp = os.environ["PYTHONPATH"]
-    except KeyError:
-        pp = ""
-
-    os.environ["PYTHONPATH"] = pp + ":" + os.path.dirname(file_path)
+    os.environ["PYTHONPATH"] = ":".join(
+            sys.path + [os.path.dirname(file_path)])
 
     os.execlpe("python3",
                "python3",

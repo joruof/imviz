@@ -110,4 +110,7 @@ setup(name="imviz",
       ext_modules=[CMakeExtension("cppimviz")],
       cmdclass=dict(build_ext=CMakeBuild),
       include_package_data=True,
+      install_requires=[
+            "numpy",
+          ]
       )
