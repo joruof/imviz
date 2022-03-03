@@ -1,3 +1,4 @@
+#include <imgui.h>
 #include <iostream>
 #include <stdexcept>
 
@@ -284,12 +285,18 @@ PYBIND11_MODULE(cppimviz, m) {
         try {
             viz.doUpdate(vsync);
         } catch (std::runtime_error& e) { 
-            // last resort: if we catch an error here, all we can do
-            // is create the context from scratch and hope for the best.
+            // last resort: if we catch an error here soft recovery failed
+            // recreate the context from scratch and hope for the best
 
             std::cerr << e.what() << std::endl;
 
             viz.setupImLibs();
+
+            // reconfigure and load ini
+            ImGuiIO& io = ImGui::GetIO();
+            io.IniFilename = viz.iniFilePath.c_str();
+            ImGui::LoadIniSettingsFromDisk(io.IniFilename);
+
             viz.prepareUpdate();
 
             return !glfwWindowShouldClose(viz.window);

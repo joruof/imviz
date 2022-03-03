@@ -47,6 +47,9 @@ ImViz::ImViz () {
 
 void ImViz::setupImLibs() {
 
+    if (imGuiCtx != nullptr) {
+        ImGui_ImplGlfw_Shutdown();
+    }
     if (imGuiCtx != nullptr) { 
         ImGui::DestroyContext(imGuiCtx);
     }

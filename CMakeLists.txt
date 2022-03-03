@@ -140,6 +140,7 @@ target_include_directories(${PY_TARGET_NAME} PUBLIC src/)
 
 target_compile_options(${PY_TARGET_NAME} PUBLIC
                         -DIMGUI_USER_CONFIG="im_user_config.h"
+                        -g
                         -O3
                         -Wall
                         -Wextra
