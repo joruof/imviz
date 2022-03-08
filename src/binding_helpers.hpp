@@ -28,6 +28,8 @@ void assertArrayShape(std::string name,
 template<typename T>
 ImVec4 interpretColor(T& color) {
 
+    assert_shape(color, {{-1}});
+
     ImVec4 c(0, 0, 0, 1);
     size_t colorLength = color.shape()[0];
 

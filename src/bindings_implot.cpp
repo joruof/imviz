@@ -336,6 +336,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                       array_like<double> y,
                       std::string fmt,
                       std::string label,
+                      array_like<double> color,
                       array_like<double> shade,
                       float shadeAlpha,
                       float lineWeight,
@@ -380,6 +381,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
 
+        ImPlot::SetNextLineStyle(interpretColor(color), lineWeight);
+
         // plot lines and markers
 
         if (groups[1] == "-") {
@@ -407,12 +410,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             }
         }
 
-        ImPlot::PopStyleVar(4);
+        ImPlot::PopStyleVar(3);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("fmt") = "-",
     py::arg("label") = "",
+    py::arg("color") = py::array(),
     py::arg("shade") = py::array(),
     py::arg("shade_alpha") = 0.3f,
     py::arg("line_weight") = 1.0f, 

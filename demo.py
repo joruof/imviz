@@ -438,12 +438,6 @@ class Demo:
 
                     s.mod_position = viz.drag_point("pos_drag", s.mod_position)
 
-                    if viz.is_item_clicked():
-                        print("click")
-
-                    if viz.mod():
-                        print("mod")
-
                     viz.end_plot()
 
                 viz.tree_pop()
