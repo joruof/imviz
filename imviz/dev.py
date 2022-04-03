@@ -10,7 +10,7 @@ this module as a reference for your own (development) main module.
 
 import os
 import sys
-import time
+import datetime
 import argparse
 import traceback
 
@@ -46,23 +46,54 @@ def loop(cls, func_name):
     obj = cls()
     func = getattr(obj, func_name)
 
-    broken = False
+    exception = None
+    exce_time = None
 
     while True:
-
-        if viz.update_autoreload():
-            broken = False
-
         try:
-            if not broken:
+            if viz.update_autoreload():
+                exception = None
+
+            if exception is None:
                 func()
             else:
-                time.sleep(0.5)
+                if not viz.wait():
+                    sys.exit()
+
+                cx, cy = viz.get_viewport_center()
+                w, h = viz.get_main_window_size()
+                w *= 0.95
+                h *= 0.95
+
+                if viz.begin_window("Error",
+                                    position=(cx - w/2, cy - h/2),
+                                    size=(w, h),
+                                    title_bar=False,
+                                    move=False,
+                                    resize=False):
+
+                    fade = min(1.0, (
+                        datetime.datetime.now().timestamp()
+                        - exce_time.timestamp()) / 1.0)
+                    col = (1.0, fade, fade)
+
+                    time_string = exce_time.strftime("%H:%M:%S")
+
+                    viz.text(f"Exception time {time_string}\n", color=col)
+                    viz.text(exception, color=col)
+                    viz.text("\n")
+
+                    viz.separator()
+
+                    viz.autogui(obj.__dict__, "application state")
+
+                viz.end_window()
         except SystemExit:
             return
         except Exception:
             traceback.print_exc()
-            broken = True
+            exception = traceback.format_exc()
+            exce_time = datetime.datetime.now()
 
 
 def main():

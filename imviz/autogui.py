@@ -2,7 +2,6 @@ import typing
 import numbers
 import itertools
 
-import numpy as np
 import imviz as viz
 
 from imviz.storage import ext_setattr

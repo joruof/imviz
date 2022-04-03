@@ -117,7 +117,6 @@ class Demo:
                 if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
                     print("Pressed Ctrl+K")
 
-
         if viz.button("Start Task"):
             viz.update_task("test_task", func_name, 1)
 
