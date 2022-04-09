@@ -72,7 +72,6 @@ import sys
 import types
 import queue
 import weakref
-import traceback
 
 from importlib import reload
 
@@ -86,12 +85,10 @@ import multiprocessing as mp
 
 def scan_modules(requests, results):
 
-    mtime_table = {}
-
     while True:
 
         try:
-            req = requests.get(timeout=2.0)
+            mtime_table, req = requests.get(timeout=2.0)
         except queue.Empty:
             return
 
@@ -119,17 +116,21 @@ def scan_modules(requests, results):
             except KeyError:
                 mtime_table[name] = mtime
 
-        results.put(needs_reload)
+        results.put((mtime_table, needs_reload))
 
 
 class ModuleReloader:
 
     def __init__(self):
 
+        self.waiting_for_scan = False
+
         self.init_subproc()
 
         # (module-name, name) -> weakref, for replacing old code objects
         self.old_objects = {}
+
+        self.mtime_table = {}
 
     def init_subproc(self):
 
@@ -150,6 +151,16 @@ class ModuleReloader:
         Check whether some modules need to be reloaded.
         """
 
+        # check if the module scan was completed
+
+        try:
+            self.mtime_table, changed = self.scan_results.get_nowait()
+            self.waiting_for_scan = False
+        except queue.Empty:
+            changed = []
+
+        # check if the process is still alive
+
         if not self.scan_process.is_alive():
             self.init_subproc()
 
@@ -165,32 +176,17 @@ class ModuleReloader:
                 except AttributeError:
                     continue
 
-            self.scan_requests.put(modules_to_scan)
+            self.scan_requests.put((self.mtime_table, modules_to_scan))
             self.waiting_for_scan = True
 
-            return False
-
-        # check if the module scan was completed
-
-        try:
-            changed = self.scan_results.get_nowait()
-            self.waiting_for_scan = False
-        except queue.Empty:
-            return False
-
-        # ok scan is complete, reload changed modules
+        # ok there are some modules we need to reload
 
         if changed == []:
             return False
 
         for modname in changed:
-
             m = sys.modules.get(modname, None)
-
-            try:
-                superreload(m, reload, self.old_objects)
-            except Exception:
-                traceback.print_exc()
+            superreload(m, reload, self.old_objects)
 
         return True
 

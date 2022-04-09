@@ -4,6 +4,7 @@ imviz by example.
 """
 
 import sys
+import time
 import numpy as np
 import pandas as pd
 
@@ -408,6 +409,16 @@ class Demo:
                     viz.text("What did you expect?")
                     viz.end_tooltip()
 
+                viz.style_colors_light()
+
+                if viz.begin_plot("Deschd Plot", size=(400, 300)):
+                    viz.setup_axes(r"$\theta$ $v[\frac{m}{s}]$", "")
+                    viz.plot([1, 2, 3], [4, 5, 6], fmt="-o", label="line", line_weight=3, marker_size=5)
+                    viz.plot([1, 2, 3], [8, 2, 5], fmt="-o", label="g.t.", line_weight=3, marker_size=5)
+                    viz.end_plot()
+
+                viz.style_colors_dark()
+
                 w, h = viz.get_content_region_avail()
 
                 for i in range(10):
@@ -420,6 +431,7 @@ class Demo:
                 viz.tree_pop()
 
                 if svg := viz.end_svg():
+                    svg = svg.replace("Source Sans Pro", "CMU Serif")
                     with open("test.svg", "w+") as fd:
                         fd.write(svg)
 
