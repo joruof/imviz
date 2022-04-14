@@ -108,6 +108,7 @@ set(SOURCE_FILES
     ./src/bindings_implot.cpp
     ./src/bindings_imgui.cpp
     ./src/source_sans_pro.cpp
+    ./src/load_image.cpp
     #./src/shader.cpp
     #./src/shader_program.cpp
    )
@@ -120,6 +121,8 @@ set(HEADER_FILES
     ./src/bindings_implot.hpp
     ./src/bindings_imgui.hpp
     ./src/source_sans_pro.hpp
+    ./src/load_image.hpp
+    ./src/stb_image.h
     #./src/shader.hpp
     #./src/shader_program.hpp
     )

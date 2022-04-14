@@ -1,5 +1,8 @@
 #include <imgui.h>
 #include <iostream>
+#include <pybind11/cast.h>
+#include <pybind11/numpy.h>
+#include <pybind11/pytypes.h>
 #include <stdexcept>
 
 #include <GL/glew.h>
@@ -15,6 +18,7 @@
 #include "binding_helpers.hpp"
 #include "bindings_implot.hpp"
 #include "bindings_imgui.hpp"
+#include "load_image.hpp"
 // #include "shader_program.hpp"
 
 /**
@@ -339,6 +343,28 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("vsync") = true,
     py::arg("powersave") = false,
     py::arg("timeout") = 1.0);
+
+    /**
+     * Image loading
+     */
+
+    m.def("load_image", [](std::string path, int forceChannels) {
+
+        int x = 0;
+        int y = 0;
+        int n = 0;
+
+        unsigned char* data = loadImage(path.c_str(), &x, &y, &n, forceChannels);
+        if (data == nullptr) {
+            return py::object(py::none()).release();
+        }
+        py::array_t<unsigned char> img({y, x, n}, data);
+        free(data);
+
+        return py::object(img).release();
+    },
+    py::arg("path"),
+    py::arg("channels") = 0);
 
     /**
      * SVG export

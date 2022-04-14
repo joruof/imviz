@@ -121,6 +121,12 @@ class Demo:
         if viz.button("Start Task"):
             viz.update_task("test_task", func_name, 1)
 
+        main_img = (255.0 - viz.load_image("latex/main1.png").copy().astype("float32"))/255
+        viz.text(main_img.shape)
+        viz.image("main", main_img)
+
+        viz.latex(r"Hello this is a formula: $\sum_i^T \alpha, \beta, \gamma$")
+
         # menus
 
         if viz.begin_main_menu_bar():
