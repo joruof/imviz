@@ -574,7 +574,6 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
      * DrawLists
      */
 
-
     m.def("get_window_drawlist",
             [&]() { return ImGui::GetCurrentWindow()->DrawList; },
             py::return_value_policy::reference);

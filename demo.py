@@ -99,6 +99,10 @@ class Demo:
         self.mod_rotation = np.pi/4
         self.mod_scale = (1, 1)
 
+        # selection test
+
+        self.selection_test = viz.Selection(["A", "B", "C"])
+
     def __autogui__(s, **kwargs):
 
         if not viz.wait():
@@ -121,11 +125,7 @@ class Demo:
         if viz.button("Start Task"):
             viz.update_task("test_task", func_name, 1)
 
-        main_img = (255.0 - viz.load_image("latex/main1.png").copy().astype("float32"))/255
-        viz.text(main_img.shape)
-        viz.image("main", main_img)
-
-        viz.latex(r"Hello this is a formula: $\sum_i^T \alpha, \beta, \gamma$")
+        viz.latex(r"$\sum_i^T \alpha, \textrm{in} [m/s] \beta, \gamma$")
 
         # menus
 
@@ -405,15 +405,15 @@ class Demo:
 
             if viz.tree_node("Column Test"):
 
-                if viz.button("test svg"):
-                    viz.begin_svg()
-
                 viz.text("(?)")
 
                 if viz.is_item_hovered():
                     viz.begin_tooltip()
                     viz.text("What did you expect?")
                     viz.end_tooltip()
+
+                if viz.button("test svg"):
+                    viz.begin_svg()
 
                 viz.style_colors_light()
 
@@ -424,6 +424,10 @@ class Demo:
                     viz.end_plot()
 
                 viz.style_colors_dark()
+
+                if svg := viz.end_svg():
+                    with open("test.svg", "w+") as fd:
+                        fd.write(svg)
 
                 w, h = viz.get_content_region_avail()
 
@@ -436,10 +440,6 @@ class Demo:
 
                 viz.tree_pop()
 
-                if svg := viz.end_svg():
-                    svg = svg.replace("Source Sans Pro", "CMU Serif")
-                    with open("test.svg", "w+") as fd:
-                        fd.write(svg)
 
             if viz.tree_node("Plot Modifer Test"):
 

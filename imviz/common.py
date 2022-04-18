@@ -240,7 +240,8 @@ def latex(text, dpi=120):
                      + text
                      + r" \end{document}")
 
-        proc = subprocess.run("latex -halt-on-error -interaction=nonstopmode lt.tex "
+        proc = subprocess.run("latex -halt-on-error -interaction=nonstopmode "
+                              + "lt.tex "
                               + f"&& dvipng -D {dpi} lt.dvi -o res.png",
                               shell=True,
                               cwd=LATEX_CACHE_DIR,
@@ -254,7 +255,34 @@ def latex(text, dpi=120):
             LATEX_IMG_CACHE[text_hash] = latex_img
         else:
             print(proc.stdout.decode("utf8") + "\n\n")
-            raise RuntimeError("Latex error (see console for details)")
+            raise RuntimeError("Latex error: see console for details")
 
     if latex_img is not None:
         viz.image(text_hash, latex_img)
+
+
+class Selection():
+    """
+    This class combines a combo box selection with a list of options.
+    """
+
+    def __init__(self, options=[], index=0):
+
+        self.options = options
+        self.index = 0
+
+    def __autogui__(self, name, **kwargs):
+
+        self.index = viz.combo(name, self.options, self.index)
+        viz.same_line()
+        self.options = viz.autogui(
+                self.options, f"###{name}_options")
+
+        return self
+
+    def selected(self):
+
+        try:
+            return self.options[self.index]
+        except IndexError:
+            return None
