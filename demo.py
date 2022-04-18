@@ -21,6 +21,15 @@ class SlotClass:
         self.b = "1"
 
 
+def test_func():
+
+    for i in range(10):
+        time.sleep(1)
+        print(i)
+
+    return 42
+
+
 class Demo:
 
     def __init__(self):
@@ -122,7 +131,12 @@ class Demo:
                     print("Pressed Ctrl+K")
 
         if viz.button("Start Task"):
-            viz.update_task("test_task", func_name, 1)
+            viz.task.update("test_task", test_func)
+
+        if res := viz.task.result("test_task"):
+            print(res)
+
+        viz.text(viz.task.active("test_task"))
 
         viz.latex(r"$\sum_i^T \alpha, \textrm{in} [m/s] \beta, \gamma$")
 

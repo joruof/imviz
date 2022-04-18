@@ -15,8 +15,6 @@ from contextlib import contextmanager
 
 from imviz.autoreload import ModuleReloader
 
-from concurrent.futures import ThreadPoolExecutor
-
 import imviz as viz
 
 
@@ -92,80 +90,6 @@ def update_autoreload():
         RELOADER = ModuleReloader()
 
     return RELOADER.reload()
-
-
-ASYNC_TASK_THREAD_POOL = ThreadPoolExecutor(32)
-ASYNC_TASK_FUTURES = {}
-ASYNC_TASK_RESULTS = {}
-ASYNC_TASK_UPDATED = False
-ASYNC_TASK_UPDATED = False
-
-
-def update_task(name, func, *args, **kwargs):
-    """
-    This calls the given function in a background thread
-    and returns either the latest computation result or None,
-    if the task was never completed before.
-
-    Multiple calls to this function will not queue tasks.
-
-    If the task is currently running, no new task will be started,
-    nor will the running task be interrupted.
-
-    Task names must be unique. Two calls with the same argument
-    "name" will refer to the same task.
-    """
-
-    global ASYNC_TASK_UPDATED
-    ASYNC_TASK_UPDATED = False
-
-    try:
-        task_future = ASYNC_TASK_FUTURES[name]
-    except KeyError:
-        task_future = None
-
-    if task_future is None:
-        ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
-                func, *args, **kwargs)
-    elif task_future.done():
-        ASYNC_TASK_UPDATED = True
-        ASYNC_TASK_FUTURES[name] = None
-        ASYNC_TASK_RESULTS[name] = task_future.result()
-        ASYNC_TASK_FUTURES[name] = ASYNC_TASK_THREAD_POOL.submit(
-                func, *args, **kwargs)
-
-    try:
-        res = ASYNC_TASK_RESULTS[name]
-    except KeyError:
-        res = None
-
-    return res
-
-
-def current_task_updated():
-
-    return ASYNC_TASK_UPDATED
-
-
-def cancel_task(name):
-
-    try:
-        task_future = ASYNC_TASK_FUTURES[name]
-        task_future.cancel()
-    except KeyError:
-        pass
-
-
-def get_task_active(name):
-
-    try:
-        task_future = ASYNC_TASK_FUTURES[name]
-        if task_future is None:
-            return False
-        else:
-            return not task_future.done()
-    except KeyError:
-        return False
 
 
 @contextmanager
