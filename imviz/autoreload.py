@@ -359,12 +359,10 @@ def superreload(module, reload=reload, old_objects=None, shell=None):
 
     # reload module
     try:
-        # clear namespace first from old cruft
+        # In contrast to the original superreload version
+        # we do not clear the namespace, as this produces
+        # (additional) problems when using multiple threads.
         old_dict = module.__dict__.copy()
-        old_name = module.__name__
-        module.__dict__.clear()
-        module.__dict__["__name__"] = old_name
-        module.__dict__["__loader__"] = old_dict["__loader__"]
     except (TypeError, AttributeError, KeyError):
         pass
 
