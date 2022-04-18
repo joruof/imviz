@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 
 import imviz as viz
-import imviz.dev
 
 
 class SlotClass:
