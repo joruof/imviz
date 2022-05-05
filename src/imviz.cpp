@@ -47,6 +47,9 @@ ImViz::ImViz () {
 
 void ImViz::setupImLibs() {
 
+    if (imGuiCtx != nullptr) {
+        ImGui_ImplGlfw_Shutdown();
+    }
     if (imGuiCtx != nullptr) { 
         ImGui::DestroyContext(imGuiCtx);
     }
@@ -159,6 +162,11 @@ void ImViz::doUpdate (bool useVsync) {
                  1.0f);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // this is here to ensure that images of any size can
+    // be loaded correctly from their raw image data
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     int display_w, display_h;
     glfwMakeContextCurrent(window);

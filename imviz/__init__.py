@@ -30,3 +30,6 @@ configure_ini_path(__main__)
 
 from imviz.common import *
 from imviz.autogui import render as autogui
+
+import imviz.dev
+import imviz.task

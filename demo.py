@@ -4,11 +4,11 @@ imviz by example.
 """
 
 import sys
+import time
 import numpy as np
 import pandas as pd
 
 import imviz as viz
-import imviz.dev
 
 
 class SlotClass:
@@ -19,6 +19,15 @@ class SlotClass:
 
         self.a = 0
         self.b = "1"
+
+
+def test_func():
+
+    for i in range(10):
+        time.sleep(1)
+        print(i)
+
+    return 42
 
 
 class Demo:
@@ -98,6 +107,10 @@ class Demo:
         self.mod_rotation = np.pi/4
         self.mod_scale = (1, 1)
 
+        # selection test
+
+        self.selection_test = viz.Selection(["A", "B", "C"])
+
     def __autogui__(s, **kwargs):
 
         if not viz.wait():
@@ -117,9 +130,15 @@ class Demo:
                 if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
                     print("Pressed Ctrl+K")
 
-
         if viz.button("Start Task"):
-            viz.update_task("test_task", func_name, 1)
+            viz.task.update("test_task", test_func)
+
+        if res := viz.task.result("test_task"):
+            print(res)
+
+        viz.text(viz.task.active("test_task"))
+
+        viz.latex(r"$\sum_i^T \alpha, \textrm{in} [m/s] \beta, \gamma$")
 
         # menus
 
@@ -399,15 +418,29 @@ class Demo:
 
             if viz.tree_node("Column Test"):
 
-                if viz.button("test svg"):
-                    viz.begin_svg()
-
                 viz.text("(?)")
 
                 if viz.is_item_hovered():
                     viz.begin_tooltip()
                     viz.text("What did you expect?")
                     viz.end_tooltip()
+
+                if viz.button("test svg"):
+                    viz.begin_svg()
+
+                viz.style_colors_light()
+
+                if viz.begin_plot("Deschd Plot", size=(400, 300)):
+                    viz.setup_axes(r"$\theta$ $v[\frac{m}{s}]$", "")
+                    viz.plot([1, 2, 3], [4, 5, 6], fmt="-o", label="line", line_weight=3, marker_size=5)
+                    viz.plot([1, 2, 3], [8, 2, 5], fmt="-o", label="g.t.", line_weight=3, marker_size=5)
+                    viz.end_plot()
+
+                viz.style_colors_dark()
+
+                if svg := viz.end_svg():
+                    with open("test.svg", "w+") as fd:
+                        fd.write(svg)
 
                 w, h = viz.get_content_region_avail()
 
@@ -420,9 +453,6 @@ class Demo:
 
                 viz.tree_pop()
 
-                if svg := viz.end_svg():
-                    with open("test.svg", "w+") as fd:
-                        fd.write(svg)
 
             if viz.tree_node("Plot Modifer Test"):
 
@@ -437,12 +467,6 @@ class Demo:
                     viz.end_rotation()
 
                     s.mod_position = viz.drag_point("pos_drag", s.mod_position)
-
-                    if viz.is_item_clicked():
-                        print("click")
-
-                    if viz.mod():
-                        print("mod")
 
                     viz.end_plot()
 
