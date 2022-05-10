@@ -677,12 +677,11 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
     m.def("get_plot_selection", [&]() {
-        return ImPlot::GetPlotSelection();
+        ImPlotRect sel = ImPlot::GetPlotSelection();
+        return ImVec4(sel.X.Min, sel.Y.Min, sel.X.Max, sel.Y.Max);
     });
 
-    m.def("cancel_plot_selection", [&]() {
-        return ImPlot::CancelPlotSelection();
-    });
+    m.def("cancel_plot_selection", ImPlot::CancelPlotSelection);
 
     m.def("get_plot_pos", ImPlot::GetPlotPos);
     m.def("get_plot_size", ImPlot::GetPlotSize);
