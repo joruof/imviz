@@ -6,6 +6,7 @@
 #include "implot_internal.h"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <pybind11/stl.h>
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
@@ -678,7 +679,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("get_plot_selection", [&]() {
         ImPlotRect sel = ImPlot::GetPlotSelection();
-        return ImVec4(sel.X.Min, sel.Y.Min, sel.X.Max, sel.Y.Max);
+        return std::vector<double>({sel.X.Min, sel.Y.Min, sel.X.Max, sel.Y.Max});
     });
 
     m.def("cancel_plot_selection", ImPlot::CancelPlotSelection);
