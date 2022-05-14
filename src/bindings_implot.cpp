@@ -682,7 +682,19 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         return std::vector<double>({sel.X.Min, sel.Y.Min, sel.X.Max, sel.Y.Max});
     });
 
+    m.def("plot_selection_ended", [&]() {
+        ImPlotContext& gp = *GImPlot;
+        ImGuiIO& IO = ImGui::GetIO();
+        return (ImPlot::GetCurrentPlot()->Selecting
+                and IO.MouseReleased[gp.InputMap.Select]);
+    });
+
     m.def("cancel_plot_selection", ImPlot::CancelPlotSelection);
+
+    m.def("hard_cancel_plot_selection", []() {
+        ImPlot::GetCurrentPlot()->Selected = false;
+        ImPlot::GetCurrentPlot()->Selecting = false;
+    });
 
     m.def("get_plot_pos", ImPlot::GetPlotPos);
     m.def("get_plot_size", ImPlot::GetPlotSize);
