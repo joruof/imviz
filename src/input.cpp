@@ -184,7 +184,6 @@ void clearMouseInput() {
     readState->mouseButtonEvents.clear();
     readState->cursorPosEvents.clear();
     readState->cursorEnterEvents.clear();
-    readState->scrollEvents.clear();
     readState->dropEvents.clear();
 }
 
