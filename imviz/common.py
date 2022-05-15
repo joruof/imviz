@@ -284,13 +284,13 @@ def mod_history(name, obj, timeout=0.5):
         MOD_HISTORIES[hist_id] = hist
 
     if UNDO_CANDIDATE == hist:
-        obj = hist.get_undo_state()
+        obj.__dict__ = hist.get_undo_state().__dict__
         hist.pos -= 1
         UNDO_CANDIDATE = None
         viz.set_mod(True)
 
     if REDO_CANDIDATE == hist:
-        obj = hist.get_redo_state()
+        obj.__dict__ = hist.get_redo_state().__dict__
         hist.pos += 1
         REDO_CANDIDATE = None
         viz.set_mod(True)
@@ -321,7 +321,7 @@ def mod_history(name, obj, timeout=0.5):
 
     viz.push_mod_any()
 
-    yield obj
+    yield
 
     if viz.pop_mod_any():
         hist.save_req = True
