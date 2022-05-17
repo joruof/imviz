@@ -700,7 +700,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("get_plot_size", ImPlot::GetPlotSize);
 
     m.def("get_plot_limits", [&]() {
-        return ImPlot::GetPlotLimits();
+        ImPlotRect rect = ImPlot::GetPlotLimits();
+        return std::vector<double>({rect.X.Min, rect.Y.Min, rect.X.Max, rect.Y.Max});
     });
 
     m.def("get_plot_mouse_pos", [&]() {
