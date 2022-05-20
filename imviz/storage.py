@@ -94,7 +94,7 @@ class Serializer:
                 Serializer.last_id += 1
 
                 path = str(Serializer.last_id)
-                obj = self.array_store.array(path, obr)
+                obj = self.array_store.array(path, obj)
 
                 if type(key) == str:
                     ext_setattr(parent, key, obj)
