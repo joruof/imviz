@@ -249,13 +249,15 @@ class Demo:
             if viz.tree_node("Plotting"):
 
                 sc = viz.get_pixels(0, 0, 300, 300)
-
                 viz.image("test_image", sc)
 
                 if viz.begin_plot("Plot"):
 
                     viz.setup_axis(viz.Axis.X1, "x")
                     viz.setup_axis(viz.Axis.Y1, "y")
+
+                    if viz.plot_selection_ended():
+                        viz.hard_cancel_plot_selection()
 
                     viz.plot_circle(10, 10, 5,
                             label="circle",

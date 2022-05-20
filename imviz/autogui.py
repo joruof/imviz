@@ -1,3 +1,4 @@
+import copy
 import typing
 import numbers
 import itertools
@@ -107,6 +108,7 @@ def render(obj,
         mod = False
 
         remove_list = []
+        duplicate = (None, None)
 
         if tree_open:
             for i in range(len(obj)):
@@ -119,6 +121,8 @@ def render(obj,
                 obj_tree_open = viz.tree_node(f"{node_name}###{i}")
 
                 if viz.begin_popup_context_item():
+                    if viz.menu_item("Duplicate"):
+                        duplicate = (i, copy.deepcopy(obj[i]))
                     if viz.menu_item("Remove"):
                         remove_list.append(i)
                         viz.set_mod(True)
@@ -133,6 +137,9 @@ def render(obj,
                             parents=[*parents, obj])
 
                     viz.tree_pop()
+
+            if duplicate[0] is not None:
+                obj.insert(duplicate[0], duplicate[1])
 
             for idx in remove_list:
                 obj.pop(idx)

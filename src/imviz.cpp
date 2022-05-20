@@ -93,16 +93,6 @@ void ImViz::prepareUpdate() {
 
     input::update();
 
-    ImGuiIO& io = ImGui::GetIO();
-
-    if (io.WantCaptureMouse) {
-        input::clearMouseInput();
-    }
-
-    if (io.WantCaptureKeyboard) {
-        input::clearKeyboardInput();
-    }
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();

@@ -4,6 +4,7 @@ This contains common and (mostly) helpful utils.
 
 import os
 import time
+import pickle
 import inspect
 import hashlib
 import traceback
@@ -109,30 +110,32 @@ def error_sink():
             viz.end_tooltip()
 
 
-AUTOSAVE_REQ = False
-AUTOSAVE_TIME = -1.0
+AUTOSAVE_REQ = {}
+AUTOSAVE_TIME = {}
 
 
 @contextmanager
 def autosave(obj, path=".imviz_save", timeout=0.5):
 
-    global AUTOSAVE_REQ
-    global AUTOSAVE_TIME
+    if path not in AUTOSAVE_REQ:
+        AUTOSAVE_REQ[path] = False
+    if path not in AUTOSAVE_TIME:
+        AUTOSAVE_TIME[path] = -1
 
-    if AUTOSAVE_TIME < 0:
+    if AUTOSAVE_TIME[path] < 0:
         viz.storage.load(obj, path)
-        AUTOSAVE_TIME = time.time()
+        AUTOSAVE_TIME[path] = time.time()
 
     viz.push_mod_any()
 
     yield
 
     if viz.pop_mod_any():
-        AUTOSAVE_REQ = True
-        AUTOSAVE_TIME = time.time()
+        AUTOSAVE_REQ[path] = True
+        AUTOSAVE_TIME[path] = time.time()
 
-    if AUTOSAVE_REQ and (time.time() - AUTOSAVE_TIME) > timeout:
-        AUTOSAVE_REQ = False
+    if AUTOSAVE_REQ[path] and (time.time() - AUTOSAVE_TIME[path]) > timeout:
+        AUTOSAVE_REQ[path] = False
         viz.storage.save(obj, path)
 
 
@@ -210,3 +213,120 @@ class Selection():
             return self.options[self.index]
         except IndexError:
             return None
+
+
+class ModHistory:
+
+    mod_counter = 0
+
+    def __init__(self):
+
+        self.pos = -1
+        self.history = []
+        self.time = 0
+        self.save_req = False
+
+    def save(self, obj):
+
+        ModHistory.mod_counter += 1
+        if self.pos < len(self.history) - 1:
+            self.history = self.history[:self.pos - len(self.history) + 1]
+        self.history.append((ModHistory.mod_counter, pickle.dumps(obj)))
+        self.pos += 1
+
+    def get_undo_id(self):
+
+        if self.pos - 1 >= 0:
+            return self.history[self.pos][0]
+        else:
+            return 0
+
+    def get_undo_state(self):
+
+        if self.pos - 1 >= 0:
+            return pickle.loads(self.history[self.pos-1][1])
+        else:
+            return None
+
+    def get_redo_id(self):
+
+        if self.pos + 1 <= len(self.history) - 1:
+            return self.history[self.pos][0]
+        else:
+            return 0
+
+    def get_redo_state(self):
+
+        if self.pos + 1 <= len(self.history) - 1:
+            return pickle.loads(self.history[self.pos+1][1])
+        else:
+            return None
+
+
+MOD_HISTORIES = {}
+UNDO_CANDIDATE = None
+REDO_CANDIDATE = None
+
+
+@contextmanager
+def mod_history(name, obj, timeout=0.5):
+
+    global UNDO_CANDIDATE
+    global REDO_CANDIDATE
+
+    hist_id = viz.get_id(name)
+
+    try:
+        hist = MOD_HISTORIES[hist_id]
+    except KeyError:
+        hist = ModHistory()
+        hist.save(obj)
+        MOD_HISTORIES[hist_id] = hist
+
+    if UNDO_CANDIDATE == hist:
+        obj.__dict__ = hist.get_undo_state().__dict__
+        hist.pos -= 1
+        UNDO_CANDIDATE = None
+        viz.set_mod(True)
+
+    if REDO_CANDIDATE == hist:
+        obj.__dict__ = hist.get_redo_state().__dict__
+        hist.pos += 1
+        REDO_CANDIDATE = None
+        viz.set_mod(True)
+
+    for ke in viz.get_key_events():
+        if ke.action == viz.RELEASE:
+            continue
+        if ke.mod != viz.MOD_CONTROL:
+            continue
+        if ke.key == viz.KEY_Y:
+            if hist.get_redo_id() == 0:
+                break
+            if REDO_CANDIDATE is None:
+                REDO_CANDIDATE = hist
+                break
+            if REDO_CANDIDATE.get_redo_id() > hist.get_redo_id():
+                REDO_CANDIDATE = hist
+                break
+        if ke.key == viz.KEY_Z:
+            if hist.get_undo_id() == 0:
+                break
+            if UNDO_CANDIDATE is None:
+                UNDO_CANDIDATE = hist
+                break
+            if UNDO_CANDIDATE.get_undo_id() < hist.get_undo_id():
+                UNDO_CANDIDATE = hist
+                break
+
+    viz.push_mod_any()
+
+    yield
+
+    if viz.pop_mod_any():
+        hist.save_req = True
+        hist.time = time.time()
+
+    if hist.save_req and (time.time() - hist.time) > timeout:
+        hist.save_req = False
+        hist.save(obj)

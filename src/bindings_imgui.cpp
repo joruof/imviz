@@ -514,6 +514,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("get_window_pos", ImGui::GetWindowPos);
     m.def("get_window_size", ImGui::GetWindowSize);
 
+    m.def("want_capture_mouse", []() {
+        ImGuiIO& io = ImGui::GetIO();
+        return io.WantCaptureMouse;
+    });
+
+    m.def("want_capture_keyboard", []() {
+        ImGuiIO& io = ImGui::GetIO();
+        return io.WantCaptureKeyboard;
+    });
+
     /**
      * Imgui item helper functions
      */
