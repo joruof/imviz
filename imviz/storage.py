@@ -261,7 +261,6 @@ class Loader:
                     del ld["__class__"]
                 obj.update(ld)
             else:
-                print(type(obj), attrs)
                 for k, v in attrs.items():
                     if k in json_obj:
                         ext_setattr(obj, k, self.load(v, json_obj[k]))

@@ -496,14 +496,16 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
                             array_like<double> color,
-                            double radius) {
+                            double radius,
+                            ImPlotDragToolFlags flags) {
 
         double x = point.data()[0];
         double y = point.data()[1];
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragPoint(ImGui::GetID(label.c_str()), &x, &y, c, radius);
+        bool mod = ImPlot::DragPoint(
+                ImGui::GetID(label.c_str()), &x, &y, c, radius, flags);
         viz.setMod(mod);
 
         return py::make_tuple(x, y);
@@ -511,7 +513,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("point"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("radius") = 4.0);
+    py::arg("radius") = 4.0,
+    py::arg("flags"));
 
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
