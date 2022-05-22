@@ -130,6 +130,14 @@ class Demo:
                 if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
                     print("Pressed Ctrl+K")
 
+        if viz.button("Enter Fullscreen"):
+            viz.enter_fullscreen()
+
+        viz.same_line()
+
+        if viz.button("Leave Fullscreen"):
+            viz.leave_fullscreen()
+
         if viz.button("Start Task"):
             viz.task.update("test_task", test_func)
 

@@ -60,6 +60,21 @@ PYBIND11_MODULE(cppimviz, m) {
     },
     py::arg("size"));
 
+    m.def("enter_fullscreen", [&]() {
+
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+        glfwSetWindowMonitor(viz.window, monitor,
+                             0, 0,
+                             mode->width, mode->height,
+                             mode->refreshRate);
+    });
+
+    m.def("leave_fullscreen", [&]() {
+        glfwSetWindowMonitor(viz.window, nullptr, 0, 0, 800, 600, 0);
+    });
+
     m.def("get_main_window_size", [&]() {
         int w, h;
         glfwGetWindowSize(viz.window, &w, &h);
