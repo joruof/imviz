@@ -26,30 +26,28 @@ def patch_zarr_indexing():
     """
     Evil, dark-magic, monkey-patching to make zarr array indexing
     behave even more like numpy indexing.
-
-    This may produce unexpected performance characteristics, because
-    it forces the data resulting from the **first part** of the
-    __getitem__ argument tuple to be loaded into memory completely.
-
-    If the __getitem__ argument tuple has more then one part,
-    these parts are then applied on the in-memory data,
-    which resulted from the first part of the expression.
+    Will hopefully become unnecessary in future zarr versions.
     """
 
-    original_func = zarr.Array.__getitem__
+    original_getitem = zarr.Array.__getitem__
+    original_setitem = zarr.Array.__setitem__
 
     def new_getitem(self, selection):
 
         try:
-            return original_func(self, selection)
-        except IndexError as e:
-            if len(selection) > 1:
-                np_result = original_func(self, selection[0])
-                return np_result.__getitem__((slice(None), *selection[1:]))
-            else:
-                raise e
+            return original_getitem(self, selection)
+        except IndexError:
+            return self.oindex[selection]
+
+    def new_setitem(self, selection, values):
+
+        try:
+            original_setitem(self, selection, values)
+        except IndexError:
+            self.oindex[selection] = values
 
     zarr.Array.__getitem__ = new_getitem
+    zarr.Array.__setitem__ = new_setitem
 
 
 patch_zarr_indexing()
@@ -259,8 +257,11 @@ class Loader:
                 # if obj is dict-like and empty,
                 # we accept whatever is stored in the json file
                 ld = {k: self.load(None, v) for k, v in json_obj.items()}
+                if "__class__" in ld:
+                    del ld["__class__"]
                 obj.update(ld)
             else:
+                print(type(obj), attrs)
                 for k, v in attrs.items():
                     if k in json_obj:
                         ext_setattr(obj, k, self.load(v, json_obj[k]))
