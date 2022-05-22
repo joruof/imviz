@@ -314,6 +314,8 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("wait", [&](bool vsync, bool powersave, double timeout) {
 
+        resetDragDrop();
+
         // release the gil here so that other threads
         // may do something valueable while we wait 
         py::gil_scoped_release release;

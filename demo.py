@@ -194,6 +194,21 @@ class Demo:
 
         if viz.begin_window("Demo"):
 
+            viz.button("source")
+
+            if viz.begin_drag_drop_source():
+                array = np.zeros((10, ))
+                viz.set_drag_drop_payload("state", array)
+                viz.text(array)
+                viz.end_drag_drop_source()
+
+            viz.button("Target 2")
+
+            if viz.begin_drag_drop_target():
+                if (res := viz.accept_drag_drop_payload("state")) is not None:
+                    print("Got drag and drop:", res)
+                viz.end_drag_drop_target()
+
             viz.autogui(s.__dict__, "State Autogui")
 
             if viz.tree_node("Input"):

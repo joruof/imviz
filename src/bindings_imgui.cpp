@@ -10,6 +10,9 @@
 #include "imgui_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
 
+static py::object dragDropRef = py::none();
+static int dragDropClearCounter = 0;
+
 void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
     /**
@@ -22,6 +25,19 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ONCE", ImGuiCond_Once)
         .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
         .value("APPEARING", ImGuiCond_Appearing);
+
+    py::enum_<ImGuiDragDropFlags_>(m, "DragDropFlags", py::arithmetic())
+        .value("NONE", ImGuiDragDropFlags_None)
+        .value("SOURCE_EXTERN", ImGuiDragDropFlags_SourceExtern)
+        .value("SOURCE_ALLOW_NULL_ID", ImGuiDragDropFlags_SourceAllowNullID)
+        .value("SOURCE_NO_DISABLE_HOVER", ImGuiDragDropFlags_SourceNoDisableHover)
+        .value("SOURCE_NO_PREVIEW_TOOLTIP", ImGuiDragDropFlags_SourceNoPreviewTooltip)
+        .value("SOURCE_AUTO_EXPIRE_PAYLOAD", ImGuiDragDropFlags_SourceAutoExpirePayload)
+        .value("SOURCE_NO_HOLD_TO_OPEN_OTHERS", ImGuiDragDropFlags_SourceNoHoldToOpenOthers)
+        .value("ACCEPT_PEEK_ONLY", ImGuiDragDropFlags_AcceptPeekOnly)
+        .value("ACCEPT_BEFORE_DELIVERY", ImGuiDragDropFlags_AcceptBeforeDelivery)
+        .value("ACCEPT_NO_PREVIEW_TOOLTIP", ImGuiDragDropFlags_AcceptNoPreviewTooltip)
+        .value("ACCEPT_NO_DRAW_DEFAULT_RECT", ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
 
     py::enum_<ImDrawFlags_>(m, "DrawFlags")
         .value("NONE", ImDrawFlags_None)
@@ -581,6 +597,47 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("get_item_id", ImGui::GetItemID);
 
     /**
+     * Drag'n'drop
+     */
+
+    m.def("begin_drag_drop_source", ImGui::BeginDragDropSource,
+        py::arg("flags") = ImGuiDragDropFlags_None);
+    m.def("end_drag_drop_source", ImGui::EndDragDropSource);
+
+    m.def("begin_drag_drop_target", ImGui::BeginDragDropTarget);
+    m.def("end_drag_drop_target", ImGui::EndDragDropTarget);
+
+    m.def("set_drag_drop_payload", [](
+                std::string id,
+                py::object payload,
+                ImGuiCond cond) {
+
+        dragDropRef = payload;
+        dragDropClearCounter += 2;
+
+        int placeholder = 1;
+        return ImGui::SetDragDropPayload(id.c_str(), &placeholder, sizeof(int), cond);
+    },
+    py::arg("id"),
+    py::arg("payload"),
+    py::arg("cond") = ImGuiCond_None);
+
+    m.def("accept_drag_drop_payload", [](
+                std::string id,
+                ImGuiDragDropFlags flags) -> py::handle {
+
+        const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(id.c_str(), flags);
+
+        if (payload) {
+            return dragDropRef;
+        }
+
+        return py::object(py::none());
+    },
+    py::arg("id"),
+    py::arg("flags") = ImGuiDragDropFlags_None);
+
+    /**
      * DrawLists
      */
 
@@ -747,4 +804,13 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         for (int i = viz.rotationStartIndex; i < buf.Size; i++)
             buf[i].pos = ImRotate(buf[i].pos, s, c) - center;
     });
+}
+
+void resetDragDrop() {
+
+    if (dragDropClearCounter > 0) {
+        dragDropClearCounter -= 1;
+    } else {
+        dragDropRef = py::none();
+    }
 }
