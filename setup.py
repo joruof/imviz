@@ -96,7 +96,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setup(name="imviz",
-      version="0.1.21",
+      version="0.1.22",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
@@ -111,6 +111,6 @@ setup(name="imviz",
       cmdclass=dict(build_ext=CMakeBuild),
       include_package_data=True,
       install_requires=[
-            "numpy", "zarr"
+            "numpy", "zarr>=2.11.3"
           ]
       )

@@ -11,7 +11,6 @@ working with images or points clouds much easier.
 """
 
 import os
-import zarr
 import json
 import types
 import numbers
@@ -19,7 +18,41 @@ import numbers
 # i still like this
 from pydoc import locate
 
+import zarr
 import numpy as np
+
+
+def patch_zarr_indexing():
+    """
+    Evil, dark-magic, monkey-patching to make zarr array indexing
+    behave even more like numpy indexing.
+
+    This may produce unexpected performance characteristics, because
+    it forces the data resulting from the **first part** of the
+    __getitem__ argument tuple to be loaded into memory completely.
+
+    If the __getitem__ argument tuple has more then one part,
+    these parts are then applied on the in-memory data,
+    which resulted from the first part of the expression.
+    """
+
+    original_func = zarr.Array.__getitem__
+
+    def new_getitem(self, selection):
+
+        try:
+            return original_func(self, selection)
+        except IndexError as e:
+            if len(selection) > 1:
+                np_result = original_func(self, selection[0])
+                return np_result.__getitem__((slice(None), *selection[1:]))
+            else:
+                raise e
+
+    zarr.Array.__getitem__ = new_getitem
+
+
+patch_zarr_indexing()
 
 
 class Skip:
@@ -216,11 +249,17 @@ class Loader:
         if attrs is not None and jt == dict:
 
             # handles general objects and dicts
+
             if hasattr(obj, "__setstate__"):
                 ld = {k: self.load(None, v) for k, v in json_obj.items()}
                 if "__class__" in ld:
                     del ld["__class__"]
-                    obj.__setstate__(ld)
+                obj.__setstate__(ld)
+            elif isinstance(obj, dict) and len(obj) == 0:
+                # if obj is dict-like and empty,
+                # we accept whatever is stored in the json file
+                ld = {k: self.load(None, v) for k, v in json_obj.items()}
+                obj.update(ld)
             else:
                 for k, v in attrs.items():
                     if k in json_obj:
