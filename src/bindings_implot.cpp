@@ -4,8 +4,7 @@
 #include "imviz.hpp"
 
 #include "implot_internal.h"
-#include <imgui.h>
-#include <imgui_internal.h>
+#include <implot.h>
 #include <pybind11/stl.h>
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
@@ -411,7 +410,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             }
         }
 
-        ImPlot::PopStyleVar(3);
+        ImPlot::PopStyleVar(4);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
@@ -675,8 +674,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label") = "",
     py::arg("color") = py::array(),
     py::arg("segments") = 36,
-    py::arg("line_weight") = 1.0f
-    );
+    py::arg("line_weight") = 1.0f);
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
@@ -710,6 +708,24 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("get_plot_mouse_pos", [&]() {
         return ImPlot::GetPlotMousePos();
     });
+
+    m.def("pixels_to_plot", [&](float x, float y, ImAxis xAxis, ImAxis yAxis) {
+        ImPlotPoint point = ImPlot::PixelsToPlot(x, y, xAxis, yAxis);
+        return std::vector<double>({point.x, point.y});
+    },
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("x_axis") = IMPLOT_AUTO,
+    py::arg("y_axis") = IMPLOT_AUTO);
+
+    m.def("plot_to_pixels", [&](double x, double y, ImAxis xAxis, ImAxis yAxis) {
+        ImVec2 point = ImPlot::PlotToPixels(x, y, xAxis, yAxis);
+        return std::vector<double>({point.x, point.y});
+    },
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("x_axis") = IMPLOT_AUTO,
+    py::arg("y_axis") = IMPLOT_AUTO);
 
     m.def("plot_contains", [&](ImPlotPoint point) {
         return ImPlot::GetPlotLimits().Contains(point.x, point.y);
