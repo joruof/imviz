@@ -514,7 +514,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("point"),
     py::arg("color") = py::array_t<double>(),
     py::arg("radius") = 4.0,
-    py::arg("flags"));
+    py::arg("flags") = ImPlotDragToolFlags_None);
 
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
