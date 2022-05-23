@@ -102,7 +102,7 @@ class Serializer:
         self.hide_private = hide_private
 
         self.ext_path = os.path.join(path, "extern")
-        self.array_store = zarr.open(self.ext_path)
+        self.array_store = zarr.open(zarr.LRUStoreCache(zarr.DirectoryStore(self.ext_path), None))
 
         self.saved_arrays = set()
 
@@ -208,7 +208,7 @@ class Loader:
 
         self.path = path
         self.ext_path = os.path.join(path, "extern")
-        self.array_store = zarr.open(self.ext_path)
+        self.array_store = zarr.open(zarr.LRUStoreCache(zarr.DirectoryStore(self.ext_path), None))
 
     def load(self, obj, json_obj):
 
