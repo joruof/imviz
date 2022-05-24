@@ -13,6 +13,7 @@ working with images or points clouds much easier.
 import os
 import json
 import types
+import shutil
 import numbers
 
 # i still like this
@@ -85,6 +86,20 @@ def ext_setattr(obj, name, value):
         setattr(obj, name, value)
 
 
+ZARR_CHUNK_STORES = {}
+
+
+def get_chunk_store(path):
+
+    try:
+        chunk_store = ZARR_CHUNK_STORES[path]
+    except KeyError:
+        chunk_store = zarr.LRUStoreCache(zarr.DirectoryStore(path), 10**9)
+        ZARR_CHUNK_STORES[path] = chunk_store
+
+    return chunk_store
+
+
 class Serializer:
     """
     Converts an object tree into a json serializeable object tree.
@@ -102,7 +117,7 @@ class Serializer:
         self.hide_private = hide_private
 
         self.ext_path = os.path.join(path, "extern")
-        self.array_store = zarr.open(zarr.LRUStoreCache(zarr.DirectoryStore(self.ext_path), None))
+        self.array_store = zarr.open(get_chunk_store(self.ext_path))
 
         self.saved_arrays = set()
 
@@ -208,7 +223,7 @@ class Loader:
 
         self.path = path
         self.ext_path = os.path.join(path, "extern")
-        self.array_store = zarr.open(zarr.LRUStoreCache(zarr.DirectoryStore(self.ext_path), None))
+        self.array_store = zarr.open(get_chunk_store(self.ext_path))
 
     def load(self, obj, json_obj):
 
@@ -340,6 +355,11 @@ def save(obj, directory):
 
     for k in unused:
         del ser.array_store[k]
+
+        # because zarr does not clean up emtpy folders
+        arr_path = os.path.join(ser.ext_path, k)
+        if os.path.isdir(arr_path):
+            shutil.rmtree(arr_path)
 
 
 def load(obj, path):
