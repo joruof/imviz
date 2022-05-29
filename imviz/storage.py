@@ -26,7 +26,7 @@ import numpy as np
 def patch_zarr_indexing():
     """
     Evil, dark-magic, monkey-patching to make zarr array indexing
-    behave even more like numpy indexing.
+    behave even more like numpy indexing. Also adds some caching.
     Will hopefully become unnecessary in future zarr versions.
     """
 
@@ -36,11 +36,29 @@ def patch_zarr_indexing():
     def new_getitem(self, selection):
 
         try:
-            return original_getitem(self, selection)
-        except IndexError:
-            return self.oindex[selection]
+            sel_cache = self._selection_cache
+        except AttributeError:
+            self._selection_cache = {}
+            sel_cache = self._selection_cache
+
+        try:
+            val = sel_cache[str(selection)]
+        except KeyError:
+            try:
+                val = original_getitem(self, selection)
+            except IndexError:
+                val = self.oindex[selection]
+
+            sel_cache[str(selection)] = val
+
+        return val
 
     def new_setitem(self, selection, values):
+
+        try:
+            self._selection_cache = {}
+        except AttributeError:
+            pass
 
         try:
             original_setitem(self, selection, values)
@@ -159,7 +177,7 @@ class Serializer:
                     "data": obj.tolist()
                 }
 
-        # already saved and memory-mapped numpy arrays
+        # already saved arrays
         if type(obj) == zarr.core.Array:
             self.saved_arrays.add(obj.path)
             return {

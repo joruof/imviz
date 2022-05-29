@@ -165,7 +165,7 @@ def render(obj,
                 item_width = max(32, width_avail / obj.shape[1] - 8)
 
                 # this tremendously speeds up zarr array access
-                # because caching, lookup overhead, or something ...
+                # because we are now operating on a numpy array
                 arr_view = obj[:, :]
 
                 for i in range(obj.shape[0]):
