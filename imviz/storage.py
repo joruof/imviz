@@ -395,7 +395,7 @@ def load(obj, path):
     unused = on_disk - lod.loaded_arrays
 
     for k in unused:
-        del ser.array_store[k]
+        del lod.array_store[k]
 
         # because zarr does not clean up emtpy folders
         arr_path = os.path.join(lod.ext_path, k)
