@@ -115,6 +115,8 @@ def render(obj,
 
                 node_name = str(i)
 
+                if hasattr(obj[i], "shape"):
+                    node_name += f" {list(obj[i].shape)}"
                 if hasattr(obj[i], "name"):
                     node_name += f" {obj[i].name}"
 
@@ -151,8 +153,17 @@ def render(obj,
 
     if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
 
+        # to avoid many array lookups in the loop
+        # we collect the requested indices in "path"
+        indices = tuple(itertools.takewhile(
+                lambda x: isinstance(x[0], int) and type(x[1]) == type(obj),
+                    zip(path[::-1], parents[::-1])))[::-1]
+        indices = tuple(i[0] for i in indices)
+
+        li = len(indices)
+
         if len(name) > 0:
-            tree_open = viz.tree_node(f"{name} {list(obj.shape)}")
+            tree_open = viz.tree_node(f"{name} {list(obj.shape)[li:]}")
         else:
             tree_open = True
 
@@ -189,11 +200,6 @@ def render(obj,
                 # to avoid many array lookups in the loop
                 # we collect the requested indices in "path"
 
-                indices = tuple(itertools.takewhile(
-                        lambda x: type(x) == int, path[::-1]))[::-1]
-
-                li = len(indices)
-
                 if len(obj.shape) < 2:
                     arr_view = obj[:]
                     for i in range(len(arr_view)):
@@ -202,7 +208,7 @@ def render(obj,
                                 arr_view[i],
                                 str(i),
                                 path=[*path, i],
-                                parents=[*parents])
+                                parents=[*parents, obj])
                         if viz.mod():
                             obj[i] = res
                 elif len(obj.shape) - li == 2:
@@ -210,7 +216,7 @@ def render(obj,
                     res = render(
                             obj[indices],
                             path=[*path],
-                            parents=[*parents])
+                            parents=[*parents, obj])
                     if viz.mod():
                         obj[indices] = res
                 else:
@@ -219,7 +225,7 @@ def render(obj,
                                 obj,
                                 str(i),
                                 path=[*path, i],
-                                parents=[*parents])
+                                parents=[*parents, obj])
 
                 if viz.mod():
                     mod = True
