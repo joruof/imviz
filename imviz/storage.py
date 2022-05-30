@@ -26,7 +26,7 @@ import numpy as np
 def patch_zarr_indexing():
     """
     Evil, dark-magic, monkey-patching to make zarr array indexing
-    behave even more like numpy indexing. Also adds some caching.
+    behave even more like numpy indexing. 
     Will hopefully become unnecessary in future zarr versions.
     """
 
@@ -36,29 +36,13 @@ def patch_zarr_indexing():
     def new_getitem(self, selection):
 
         try:
-            sel_cache = self._selection_cache
-        except AttributeError:
-            self._selection_cache = {}
-            sel_cache = self._selection_cache
-
-        try:
-            val = sel_cache[str(selection)]
-        except KeyError:
-            try:
-                val = original_getitem(self, selection)
-            except IndexError:
-                val = self.oindex[selection]
-
-            sel_cache[str(selection)] = val
+            val = original_getitem(self, selection)
+        except IndexError:
+            val = self.oindex[selection]
 
         return val
 
     def new_setitem(self, selection, values):
-
-        try:
-            self._selection_cache = {}
-        except AttributeError:
-            pass
 
         try:
             original_setitem(self, selection, values)
@@ -241,7 +225,10 @@ class Loader:
 
         self.path = path
         self.ext_path = os.path.join(path, "extern")
+
         self.array_store = zarr.open(get_chunk_store(self.ext_path))
+
+        self.loaded_arrays = set()
 
     def load(self, obj, json_obj):
 
@@ -256,7 +243,9 @@ class Loader:
             cls = json_obj["__class__"]
 
             if cls == "__extern__":
-                json_obj = self.array_store[json_obj["path"]]
+                path = json_obj["path"]
+                json_obj = self.array_store[path]
+                self.loaded_arrays.add(path)
                 # we are lying about this one (actually zarr.core.Array)
                 # in practice it should behave (mostly) like ndarray
                 jt = np.ndarray
@@ -385,6 +374,8 @@ def load(obj, path):
     Updates obj with data stored at the given path.
     """
 
+    print("starting loading")
+
     state_path = os.path.join(path, "state.json")
 
     if not os.path.exists(state_path):
@@ -395,4 +386,18 @@ def load(obj, path):
 
     Serializer.last_id = json_state["__imviz_last_id"]
 
-    Loader(path).load(obj, json_state)
+    lod = Loader(path)
+    lod.load(obj, json_state)
+
+    # remove unused external numpy arrays
+
+    on_disk = set(lod.array_store.keys())
+    unused = on_disk - lod.loaded_arrays
+
+    for k in unused:
+        del ser.array_store[k]
+
+        # because zarr does not clean up emtpy folders
+        arr_path = os.path.join(lod.ext_path, k)
+        if os.path.isdir(arr_path):
+            shutil.rmtree(arr_path)
