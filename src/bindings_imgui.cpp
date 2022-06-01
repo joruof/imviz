@@ -791,8 +791,10 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         ImVec2 l(FLT_MAX, FLT_MAX), u(-FLT_MAX, -FLT_MAX);
 
         auto& buf = ImGui::GetWindowDrawList()->VtxBuffer;
-        for (int i = viz.rotationStartIndex; i < buf.Size; i++)
-            l = ImMin(l, buf[i].pos), u = ImMax(u, buf[i].pos);
+        for (int i = viz.rotationStartIndex; i < buf.Size; i++) {
+            l = ImMin(l, buf[i].pos);
+            u = ImMax(u, buf[i].pos);
+        }
 
         ImVec2 center((l.x+u.x)/2, (l.y+u.y)/2); 
 

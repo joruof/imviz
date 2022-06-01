@@ -4,6 +4,7 @@
 #include "imviz.hpp"
 
 #include "implot_internal.h"
+#include <imgui.h>
 #include <implot.h>
 #include <pybind11/stl.h>
 
@@ -640,14 +641,47 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
-    m.def("plot_circle", [&](
-                double x,
-                double y,
-                double radius,
-                std::string label,
-                array_like<double> color,
-                size_t segments,
-                float lineWeight) {
+    m.def("plot_rect", [&](ImPlotPoint center,
+                           ImPlotPoint size,
+                           std::string label,
+                           array_like<double> color,
+                           float lineWeight) {
+
+        std::vector<double> xs(5);
+        std::vector<double> ys(5);
+
+        size.x /= 2.0;
+        size.y /= 2.0;
+
+        xs[0] = center.x - size.x;
+        ys[0] = center.y - size.y;
+        xs[1] = center.x + size.x;
+        ys[1] = center.y - size.y;
+        xs[2] = center.x + size.x;
+        ys[2] = center.y + size.y;
+        xs[3] = center.x - size.x;
+        ys[3] = center.y + size.y;
+        xs[4] = xs[0];
+        ys[4] = ys[0];
+
+        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
+        ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(color));
+        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), 5);
+        ImPlot::PopStyleColor();
+        ImPlot::PopStyleVar();
+    },
+    py::arg("center"),
+    py::arg("size"),
+    py::arg("label") = "",
+    py::arg("color") = py::array(),
+    py::arg("line_weight") = 1.0f);
+
+    m.def("plot_circle", [&](ImPlotPoint center,
+                             double radius,
+                             std::string label,
+                             array_like<double> color,
+                             size_t segments,
+                             float lineWeight) {
 
         size_t steps = segments + 1;
 
@@ -658,8 +692,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         for (size_t i = 0; i < steps; ++i) {
             double angle = step * i;
-            xs[i] = x + radius * std::cos(angle);
-            ys[i] = y + radius * std::sin(angle);
+            xs[i] = center.x + radius * std::cos(angle);
+            ys[i] = center.y + radius * std::sin(angle);
         }
 
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
@@ -668,13 +702,88 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
     },
-    py::arg("x"),
-    py::arg("y"),
+    py::arg("center"),
     py::arg("radius"),
     py::arg("label") = "",
     py::arg("color") = py::array(),
     py::arg("segments") = 36,
     py::arg("line_weight") = 1.0f);
+
+    m.def("plot_rect_filled", [&](ImPlotPoint center,
+                                  ImPlotPoint size,
+                                  array_like<double> color) {
+
+        ImDrawList& dl = *ImPlot::GetPlotDrawList();
+        auto& buf = dl.VtxBuffer;
+        int startIndex = buf.Size;
+
+        ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+        ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+        double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+        double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+
+        dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
+        dl._HalfPixel.x /= scaleX;
+        dl._HalfPixel.y /= scaleY;
+
+        ImVec2 c = ImPlot::PlotToPixels(center);
+
+        ImVec2 s((float)size.x/2.0f, (float)size.y/2.0f);
+        dl.AddRectFilled(ImVec2(0.0, 0.0) - s,
+                         s,
+                         ImGui::GetColorU32(interpretColor(color)));
+
+        for (int i = startIndex; i < buf.Size; i++) {
+            buf[i].pos.x = (double)buf[i].pos.x * scaleX + (double)c.x;
+            buf[i].pos.y = (double)buf[i].pos.y * scaleY + (double)c.y;
+        }
+
+        dl._InvTransformationScale = 1.0;
+        dl._HalfPixel.x = 0.5f;
+        dl._HalfPixel.y = 0.5f;
+    },
+    py::arg("center"),
+    py::arg("size"),
+    py::arg("color") = py::array());
+
+    m.def("plot_circle_filled", [&](ImPlotPoint center,
+                                    float radius,
+                                    array_like<double> color,
+                                    int segments) {
+
+        ImDrawList& dl = *ImPlot::GetPlotDrawList();
+        auto& buf = dl.VtxBuffer;
+        int startIndex = buf.Size;
+
+        ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+        ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+        double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+        double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+
+        dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
+        dl._HalfPixel.x /= scaleX;
+        dl._HalfPixel.y /= scaleY;
+
+        ImVec2 c = ImPlot::PlotToPixels(center);
+
+        dl.AddCircleFilled({0.0, 0.0},
+                           radius,
+                           ImGui::GetColorU32(interpretColor(color)),
+                           segments);
+
+        for (int i = startIndex; i < buf.Size; i++) {
+            buf[i].pos.x = (double)buf[i].pos.x * scaleX + (double)c.x;
+            buf[i].pos.y = (double)buf[i].pos.y * scaleY + (double)c.y;
+        }
+
+        dl._InvTransformationScale = 1.0;
+        dl._HalfPixel.x = 0.5f;
+        dl._HalfPixel.y = 0.5f;
+    },
+    py::arg("center"),
+    py::arg("radius"),
+    py::arg("color") = py::array(),
+    py::arg("segments") = 36);
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
