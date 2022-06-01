@@ -123,6 +123,7 @@ class Demo:
         viz.set_main_window_icon(icon)
 
         viz.set_main_window_title("Demo")
+        viz.show_imgui_demo(True)
         viz.show_implot_demo(True)
 
         for e in viz.get_key_events():

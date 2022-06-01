@@ -484,6 +484,17 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
      * Imgui config helper functions
      */
 
+    m.def("set_viewports_enable", [&](bool value) {
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        if (value) {
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        } else {
+            io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+        }
+    });
+
     m.def("set_ini_path", [&](std::string& path) {
 
         viz.iniFilePath = path;

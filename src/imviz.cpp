@@ -70,14 +70,15 @@ void ImViz::setupImLibs() {
     ImGui::SetCurrentContext(imGuiCtx);
     ImPlot::SetCurrentContext(imPlotCtx);
 
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.IniFilename = NULL;
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.IniFilename = NULL;
-
-    ImPlot::GetStyle().AntiAliasedLines = true;
+    io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
 
     // loading font
 
@@ -143,7 +144,7 @@ void ImViz::doUpdate (bool useVsync) {
     recover();
 
     ImGui::Render();
-    
+
     // background color taken from the one-and-only tomorrow-night theme
 
     glClearColor(0.11372549019607843,
@@ -170,6 +171,14 @@ void ImViz::doUpdate (bool useVsync) {
 
     glfwSwapInterval(useVsync);
     glfwSwapBuffers(window);
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
 }
 
 void ImViz::recover()
