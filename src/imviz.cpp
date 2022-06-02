@@ -1,5 +1,6 @@
 #include "imviz.hpp"
 
+#include <imgui.h>
 #include <iostream>
 
 #include "input.hpp"

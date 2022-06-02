@@ -711,22 +711,33 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("plot_rect_filled", [&](ImPlotPoint center,
                                   ImPlotPoint size,
-                                  array_like<double> color) {
+                                  array_like<double> color,
+                                  bool usePlotTrans,
+                                  bool usePlotScale) {
 
         ImDrawList& dl = *ImPlot::GetPlotDrawList();
         auto& buf = dl.VtxBuffer;
         int startIndex = buf.Size;
 
-        ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
-        ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
-        double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
-        double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+        double scaleX = 1.0;
+        double scaleY = 1.0;
 
-        dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
-        dl._HalfPixel.x /= scaleX;
-        dl._HalfPixel.y /= scaleY;
+        if (usePlotScale) {
+            ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+            ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+            scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+            scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
 
-        ImVec2 c = ImPlot::PlotToPixels(center);
+            dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
+            dl._HalfPixel.x /= scaleX;
+            dl._HalfPixel.y /= scaleY;
+        }
+
+        ImVec2 c(center.x, center.y);
+
+        if (usePlotTrans) {
+            c = ImPlot::PlotToPixels(center);
+        }
 
         ImVec2 s((float)size.x/2.0f, (float)size.y/2.0f);
         dl.AddRectFilled(ImVec2(0.0, 0.0) - s,
@@ -744,27 +755,116 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     },
     py::arg("center"),
     py::arg("size"),
-    py::arg("color") = py::array());
+    py::arg("color") = py::array(),
+    py::arg("use_plot_trans") = true,
+    py::arg("use_plot_scale") = true);
 
-    m.def("plot_circle_filled", [&](ImPlotPoint center,
-                                    float radius,
-                                    array_like<double> color,
-                                    int segments) {
+    m.def("plot_rect_border", [&](ImPlotPoint center,
+                                  ImPlotPoint size,
+                                  array_like<double> color,
+                                  bool usePlotTrans,
+                                  bool usePlotScale) {
 
         ImDrawList& dl = *ImPlot::GetPlotDrawList();
         auto& buf = dl.VtxBuffer;
         int startIndex = buf.Size;
 
-        ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
-        ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
-        double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
-        double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+        double scaleX = 1.0;
+        double scaleY = 1.0;
 
-        dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
-        dl._HalfPixel.x /= scaleX;
-        dl._HalfPixel.y /= scaleY;
+        if (usePlotScale) {
+            ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+            ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+            scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+            scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
 
-        ImVec2 c = ImPlot::PlotToPixels(center);
+            dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
+            dl._HalfPixel.x /= scaleX;
+            dl._HalfPixel.y /= scaleY;
+        }
+
+        ImVec2 c(center.x, center.y);
+
+        if (usePlotTrans) {
+            c = ImPlot::PlotToPixels(center);
+        }
+
+        ImVec2 s((float)size.x/2.0f, (float)size.y/2.0f);
+        dl.AddRect(ImVec2(0.0, 0.0) - s,
+                   s,
+                   ImGui::GetColorU32(interpretColor(color)));
+
+        for (int i = startIndex; i < buf.Size; i++) {
+            buf[i].pos.x = (double)buf[i].pos.x * scaleX + (double)c.x;
+            buf[i].pos.y = (double)buf[i].pos.y * scaleY + (double)c.y;
+        }
+
+        dl._InvTransformationScale = 1.0;
+        dl._HalfPixel.x = 0.5f;
+        dl._HalfPixel.y = 0.5f;
+    },
+    py::arg("center"),
+    py::arg("size"),
+    py::arg("color") = py::array(),
+    py::arg("use_plot_trans") = true,
+    py::arg("use_plot_scale") = true);
+
+    m.def("plot_quad_filled", [&](array_like<double> points,
+                                  array_like<double> color,
+                                  bool usePlotTrans) {
+
+        assert_shape(points, {{4, 2}});
+
+        ImVec2 p0(points.at(0, 0), points.at(0, 1));
+        ImVec2 p1(points.at(1, 0), points.at(1, 1));
+        ImVec2 p2(points.at(2, 0), points.at(2, 1));
+        ImVec2 p3(points.at(3, 0), points.at(3, 1));
+
+        if (usePlotTrans) {
+            p0 = ImPlot::PlotToPixels(p0);
+            p1 = ImPlot::PlotToPixels(p1);
+            p2 = ImPlot::PlotToPixels(p2);
+            p3 = ImPlot::PlotToPixels(p3);
+        }
+
+        ImDrawList& dl = *ImPlot::GetPlotDrawList();
+        dl.AddQuadFilled(p0, p1, p2, p3,
+                         ImGui::GetColorU32(interpretColor(color)));
+    },
+    py::arg("points"),
+    py::arg("color") = py::array(),
+    py::arg("use_plot_trans") = true);
+
+    m.def("plot_circle_filled", [&](ImPlotPoint center,
+                                    float radius,
+                                    array_like<double> color,
+                                    int segments,
+                                    bool usePlotTrans,
+                                    bool usePlotScale) {
+
+        ImDrawList& dl = *ImPlot::GetPlotDrawList();
+        auto& buf = dl.VtxBuffer;
+        int startIndex = buf.Size;
+
+        double scaleX = 1.0;
+        double scaleY = 1.0;
+
+        if (usePlotScale) {
+            ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+            ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+            scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+            scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+
+            dl._InvTransformationScale = 1.0 / (scaleX + scaleY) * 0.5f;
+            dl._HalfPixel.x /= scaleX;
+            dl._HalfPixel.y /= scaleY;
+        }
+
+        ImVec2 c(center.x, center.y);
+
+        if (usePlotTrans) {
+            c = ImPlot::PlotToPixels(center);
+        }
 
         dl.AddCircleFilled({0.0, 0.0},
                            radius,
@@ -783,7 +883,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("center"),
     py::arg("radius"),
     py::arg("color") = py::array(),
-    py::arg("segments") = 36);
+    py::arg("segments") = 36,
+    py::arg("use_plot_trans") = true,
+    py::arg("use_plot_scale") = true);
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
