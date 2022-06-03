@@ -8,10 +8,41 @@
 #endif
 
 #include "imgui_internal.h"
+#include "implot_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
 
 static py::object dragDropRef = py::none();
 static int dragDropClearCounter = 0;
+
+namespace ImPlot {
+
+    double PreciseAxisPlotToPixels (ImPlotAxis& axs, double plt) {
+
+        if (axs.IsLog()) {
+            plt      = plt <= 0.0 ? IMPLOT_LOG_ZERO : plt;
+            double t = ImLog10(plt / axs.Range.Min) / axs.LogD;
+            plt      = ImLerp(axs.Range.Min, axs.Range.Max, (float)t);
+        }
+        return axs.PixelMin + axs.LinM * (plt - axs.Range.Min);
+    }
+
+    ImPlotPoint PrecisePlotToPixels(double x, double y, ImAxis x_idx = IMPLOT_AUTO, ImAxis y_idx = IMPLOT_AUTO) {
+
+        ImPlotContext& gp = *GImPlot;
+        IM_ASSERT_USER_ERROR(gp.CurrentPlot != NULL, "PrecisePlotToPixels() needs to be called between BeginPlot() and EndPlot()!");
+        IM_ASSERT_USER_ERROR(x_idx == IMPLOT_AUTO || (x_idx >= ImAxis_X1 && x_idx < ImAxis_Y1),    "X-Axis index out of bounds!");
+        IM_ASSERT_USER_ERROR(y_idx == IMPLOT_AUTO || (y_idx >= ImAxis_Y1 && y_idx < ImAxis_COUNT), "Y-Axis index out of bounds!");
+
+        SetupLock();
+
+        ImPlotPlot& plot = *gp.CurrentPlot;
+        ImPlotAxis& x_axis = x_idx == IMPLOT_AUTO ? plot.Axes[plot.CurrentX] : plot.Axes[x_idx];
+        ImPlotAxis& y_axis = y_idx == IMPLOT_AUTO ? plot.Axes[plot.CurrentY] : plot.Axes[y_idx];
+
+        return ImPlotPoint(PreciseAxisPlotToPixels(x_axis, x),
+                           PreciseAxisPlotToPixels(y_axis, y));
+    }
+}
 
 void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
@@ -679,10 +710,11 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::class_<ImDrawList>(m, "DrawList")
         .def("push_plot_transform", [&](ImDrawList& dl) {
 
-            ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
-            ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
-            double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
-            double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+            ImPlotPoint a = ImPlot::PrecisePlotToPixels(0.0, 0.0);
+            ImPlotPoint b = ImPlot::PrecisePlotToPixels(10.0e7, 10.0e7);
+
+            double scaleX = std::abs((b.x - a.x) / 10.0e7);
+            double scaleY = std::abs((b.y - a.y) / 10.0e7);
 
             ImMatrix mat = ImMatrix::Scaling(scaleX, -scaleY);
             mat.m20 = a.x;
