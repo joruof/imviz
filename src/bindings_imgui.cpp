@@ -660,45 +660,118 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             &ImPlot::GetPlotDrawList,
             py::return_value_policy::reference);
 
-    m.def("push_plot_clip_rect", &ImPlot::PushPlotClipRect);
+    m.def("push_clip_rect", [](ImVec2 pMin, ImVec2 pMax, bool intersect) {
+        ImGui::PushClipRect(pMin, pMax, intersect);
+    },
+    py::arg("p_min"),
+    py::arg("p_max"),
+    py::arg("intersect") = false);
+
+    m.def("pop_clip_rect", &ImGui::PopClipRect);
+
+    m.def("push_plot_clip_rect", [](float expand) {
+        ImPlot::PushPlotClipRect(expand);
+    },
+    py::arg("expand") = 0.0);
 
     m.def("pop_plot_clip_rect", &ImPlot::PopPlotClipRect);
 
     py::class_<ImDrawList>(m, "DrawList")
+        .def("push_plot_transform", [&](ImDrawList& dl) {
+
+            ImVec2 a = ImPlot::PlotToPixels(0.0, 0.0);
+            ImVec2 b = ImPlot::PlotToPixels(10.0e7, 10.0e7);
+            double scaleX = std::abs(((double)b.x - (double)a.x) / 10.0e7);
+            double scaleY = std::abs(((double)b.y - (double)a.y) / 10.0e7);
+
+            ImMatrix mat = ImMatrix::Scaling(scaleX, -scaleY);
+            mat.m20 = a.x;
+            mat.m21 = a.y;
+
+            dl.PushTransformation(mat);
+        })
+        .def("push_transform", [&](ImDrawList& dl,
+                                   ImVec2 trans,
+                                   double rot,
+                                   ImVec2 scale) {
+
+            ImMatrix mat = ImMatrix::Combine(ImMatrix::Rotation(rot),
+                                             ImMatrix::Scaling(scale.x, scale.y));
+            mat.m20 = trans.x;
+            mat.m21 = trans.y;
+
+            dl.PushTransformation(mat);
+        },
+        py::arg("trans") = ImVec2(0.0, 0.0),
+        py::arg("rot") = 0.0,
+        py::arg("scale") = ImVec2(1.0, 1.0)
+        )
+        .def("pop_transform", [&](ImDrawList& dl) {
+            dl.PopTransformation();
+        })
         .def("add_line", [&](
                     ImDrawList& dl,
                     ImVec2& p1,
                     ImVec2& p2,
-                    ImVec4 col,
+                    array_like<double> col,
                     float thickness){
 
-            dl.AddLine(p1, p2, ImGui::GetColorU32(col), thickness);
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddLine(p1,
+                       p2,
+                       ImGui::GetColorU32(interpretColor(col)),
+                       thickness);
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("p1"),
         py::arg("p2"),
-        py::arg("col"),
+        py::arg("col") = py::array(),
+        py::arg("thickness") = 1.0
+        )
+        .def("add_polyline", [&](
+                    ImDrawList& dl,
+                    array_like<float> points,
+                    array_like<double> col,
+                    ImDrawFlags flags,
+                    float thickness) {
+
+            assert_shape(points, {{-1, 2}});
+
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddPolyline((ImVec2*)points.data(),
+                           points.shape(0),
+                           ImGui::GetColorU32(interpretColor(col)),
+                           flags,
+                           thickness);
+            dl.ApplyTransformation(startIndex);
+        },
+        py::arg("points"),
+        py::arg("col") = py::array(),
+        py::arg("flags") = ImDrawFlags_None,
         py::arg("thickness") = 1.0
         )
         .def("add_rect", [&](
                     ImDrawList& dl,
                     ImVec2& pMin,
                     ImVec2& pMax,
-                    ImVec4 col,
+                    array_like<double> col,
                     float rounding,
                     ImDrawFlags flags,
                     float thickness){
 
+            unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddRect(
                     pMin,
                     pMax,
-                    ImGui::GetColorU32(col),
+                    ImGui::GetColorU32(interpretColor(col)),
                     rounding,
                     flags,
                     thickness);
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("p_min"),
         py::arg("p_max"),
-        py::arg("col"),
+        py::arg("col") = py::array(),
         py::arg("rounding") = 0.0,
         py::arg("flags") = ImDrawFlags_None,
         py::arg("thickness") = 1.0
@@ -707,16 +780,18 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                     ImDrawList& dl,
                     ImVec2& pMin,
                     ImVec2& pMax,
-                    ImVec4 col,
+                    array_like<double> col,
                     float rounding,
                     ImDrawFlags flags) {
 
+            unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddRectFilled(
                     pMin,
                     pMax,
-                    ImGui::GetColorU32(col),
+                    ImGui::GetColorU32(interpretColor(col)),
                     rounding,
                     flags);
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("p_min"),
         py::arg("p_max"),
@@ -728,18 +803,21 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                     ImDrawList& dl,
                     ImVec2& pMin,
                     ImVec2& pMax,
-                    ImVec4 ul,
-                    ImVec4 ur,
-                    ImVec4 br,
-                    ImVec4 bl) {
+                    array_like<double> ul,
+                    array_like<double> ur,
+                    array_like<double> br,
+                    array_like<double> bl) {
 
+            unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddRectFilledMultiColor(
                     pMin,
                     pMax,
-                    ImGui::GetColorU32(ul),
-                    ImGui::GetColorU32(ur),
-                    ImGui::GetColorU32(br),
-                    ImGui::GetColorU32(bl));
+                    ImGui::GetColorU32(interpretColor(ul)),
+                    ImGui::GetColorU32(interpretColor(ur)),
+                    ImGui::GetColorU32(interpretColor(br)),
+                    ImGui::GetColorU32(interpretColor(bl))
+                    );
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("p_min"),
         py::arg("p_max"),
@@ -748,75 +826,114 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         py::arg("col_bot_right"),
         py::arg("col_bot_left")
         )
+        .def("add_quad", [&](
+                    ImDrawList& dl,
+                    array_like<double> points,
+                    array_like<double> col,
+                    float thickness){
+
+            assert_shape(points, {{4, 2}});
+
+            ImVec2 p0(points.at(0, 0), points.at(0, 1));
+            ImVec2 p1(points.at(1, 0), points.at(1, 1));
+            ImVec2 p2(points.at(2, 0), points.at(2, 1));
+            ImVec2 p3(points.at(3, 0), points.at(3, 1));
+
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddQuad(
+                    p0,
+                    p1,
+                    p2,
+                    p3,
+                    ImGui::GetColorU32(interpretColor(col)),
+                    thickness);
+            dl.ApplyTransformation(startIndex);
+        },
+        py::arg("points"),
+        py::arg("col") = py::array(),
+        py::arg("thickness") = 1.0
+        )
+        .def("add_quad_filled", [&](
+                    ImDrawList& dl,
+                    array_like<double> points,
+                    array_like<double> col){
+
+            assert_shape(points, {{4, 2}});
+
+            ImVec2 p0(points.at(0, 0), points.at(0, 1));
+            ImVec2 p1(points.at(1, 0), points.at(1, 1));
+            ImVec2 p2(points.at(2, 0), points.at(2, 1));
+            ImVec2 p3(points.at(3, 0), points.at(3, 1));
+
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddQuadFilled(
+                    p0,
+                    p1,
+                    p2,
+                    p3,
+                    ImGui::GetColorU32(interpretColor(col)));
+            dl.ApplyTransformation(startIndex);
+        },
+        py::arg("points"),
+        py::arg("col") = py::array()
+        )
         .def("add_circle", [&](
                     ImDrawList& dl,
                     ImVec2& center,
                     float radius,
-                    ImVec4 col,
+                    array_like<double> col,
                     int numSegments,
                     float thickness){
 
+            unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddCircle(
                     center,
                     radius,
-                    ImGui::GetColorU32(col),
+                    ImGui::GetColorU32(interpretColor(col)),
                     numSegments,
                     thickness);
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("center"),
         py::arg("radius"),
-        py::arg("col"),
-        py::arg("num_segments"),
+        py::arg("col") = py::array(),
+        py::arg("num_segments") = 36,
         py::arg("thickness") = 1.0
         )
         .def("add_circle_filled", [&](
                     ImDrawList& dl,
                     ImVec2& center,
                     float radius,
-                    ImVec4 col,
+                    array_like<double> col,
                     int numSegments){
 
+            unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddCircleFilled(
                     center,
                     radius,
-                    ImGui::GetColorU32(col),
+                    ImGui::GetColorU32(interpretColor(col)),
                     numSegments);
+            dl.ApplyTransformation(startIndex);
         },
         py::arg("center"),
         py::arg("radius"),
-        py::arg("col"),
-        py::arg("num_segments")
-        );
+        py::arg("col") = py::array(),
+        py::arg("num_segments") = 36)
+        .def("add_text", [&](
+                    ImDrawList& dl,
+                    ImVec2 position,
+                    std::string text,
+                    array_like<double> col) {
 
-    // Rotation functions inspired by:
-    // https://gist.github.com/carasuca/e72aacadcf6cf8139de46f97158f790f
-
-    m.def("begin_rotation", [&](float rad) {
-        viz.rotation = rad;
-        viz.rotationStartIndex = ImGui::GetWindowDrawList()->VtxBuffer.Size;
-    },
-    py::arg("rad"));
-
-    m.def("end_rotation", [&]() {
-
-        ImVec2 l(FLT_MAX, FLT_MAX), u(-FLT_MAX, -FLT_MAX);
-
-        auto& buf = ImGui::GetWindowDrawList()->VtxBuffer;
-        for (int i = viz.rotationStartIndex; i < buf.Size; i++) {
-            l = ImMin(l, buf[i].pos);
-            u = ImMax(u, buf[i].pos);
-        }
-
-        ImVec2 center((l.x+u.x)/2, (l.y+u.y)/2); 
-
-        float s = std::sin(viz.rotation);
-        float c = std::cos(viz.rotation);
-
-        center = ImRotate(center, s, c) - center;
-
-        for (int i = viz.rotationStartIndex; i < buf.Size; i++)
-            buf[i].pos = ImRotate(buf[i].pos, s, c) - center;
-    });
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddText(position,
+                       ImGui::GetColorU32(interpretColor(col)),
+                       text.c_str());
+            dl.ApplyTransformation(startIndex);
+        },
+        py::arg("position"),
+        py::arg("text"),
+        py::arg("col") = py::array());
 }
 
 void resetDragDrop() {
