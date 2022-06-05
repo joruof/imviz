@@ -12,7 +12,8 @@ def render(obj,
            name="",
            path=[],
            parents=[],
-           annotation=None):
+           annotation=None,
+           ignore_custom=False):
     """
     This inspects the given object and renders a gui
     (with best effort) for all fields of the object.
@@ -25,12 +26,13 @@ def render(obj,
 
     obj_type = type(obj)
 
-    if hasattr(obj, "__autogui__"):
+    if hasattr(obj, "__autogui__") and not ignore_custom:
         return obj.__autogui__(
                 name=name,
                 path=path,
                 parents=parents,
-                annotation=annotation)
+                annotation=annotation,
+                ignore_custom=ignore_custom)
 
     if obj is None:
         viz.text(f"{name}: None")
@@ -78,7 +80,8 @@ def render(obj,
                     render(obj[i],
                            "",
                            path=[*path, i],
-                           parents=[*parents, obj])
+                           parents=[*parents, obj],
+                           ignore_custom=ignore_custom)
 
                     viz.tree_pop()
 
@@ -136,7 +139,8 @@ def render(obj,
                             obj[i],
                             "",
                             path=[*path, i],
-                            parents=[*parents, obj])
+                            parents=[*parents, obj],
+                            ignore_custom=ignore_custom)
 
                     viz.tree_pop()
 
@@ -188,7 +192,8 @@ def render(obj,
                                 arr_view[i, j],
                                 f"###{i},{j}",
                                 path=[*path, i, j],
-                                parents=[*parents, obj])
+                                parents=[*parents, obj],
+                                ignore_custom=ignore_custom)
 
                         if viz.mod():
                             mod = True
@@ -208,7 +213,8 @@ def render(obj,
                                 arr_view[i],
                                 str(i),
                                 path=[*path, i],
-                                parents=[*parents, obj])
+                                parents=[*parents, obj],
+                                ignore_custom=ignore_custom)
                         if viz.mod():
                             obj[i] = res
                 elif len(obj.shape) - li == 2:
@@ -216,7 +222,8 @@ def render(obj,
                     res = render(
                             obj[indices],
                             path=[*path],
-                            parents=[*parents, obj])
+                            parents=[*parents, obj],
+                            ignore_custom=ignore_custom)
                     if viz.mod():
                         obj[indices] = res
                 else:
@@ -225,7 +232,8 @@ def render(obj,
                                 obj,
                                 str(i),
                                 path=[*path, i],
-                                parents=[*parents, obj])
+                                parents=[*parents, obj],
+                                ignore_custom=ignore_custom)
 
                 if viz.mod():
                     mod = True
@@ -272,7 +280,8 @@ def render(obj,
                         name=k,
                         path=[*path, k],
                         parents=[*parents, obj],
-                        annotation=annot)
+                        annotation=annot,
+                        ignore_custom=ignore_custom)
 
             try:
                 ext_setattr(obj, k, new_v)

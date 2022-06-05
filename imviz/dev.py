@@ -1,5 +1,6 @@
 import os
 import sys
+import inspect
 import datetime
 import traceback
 
@@ -32,15 +33,23 @@ def loop(cls, func_name):
     obj = cls()
     func = getattr(obj, func_name)
 
-    exception = None
-    exce_time = None
+    exc_str = None
+    exc_time = None
+    exc_type = None
+    exc_value = None
+    exc_tb = None
+    exc_frames = None
+    exc_frame_idx = -1
+    exc_code = None
+
+    new_stack_frame_sel = False
 
     while True:
         try:
             if viz.update_autoreload():
-                exception = None
+                exc_str = None
 
-            if exception is None:
+            if exc_str is None:
                 func()
             else:
                 if not viz.wait():
@@ -51,32 +60,87 @@ def loop(cls, func_name):
                 w *= 0.95
                 h *= 0.95
 
-                if viz.begin_window("Error",
-                                    position=(cx - w/2, cy - h/2),
-                                    size=(w, h),
-                                    title_bar=False,
-                                    move=False,
-                                    resize=False):
+                if viz.begin_window("Exception"):
 
                     fade = min(1.0, (
                         datetime.datetime.now().timestamp()
-                        - exce_time.timestamp()) / 1.0)
+                        - exc_time.timestamp()) / 1.0)
                     col = (1.0, fade, fade)
 
-                    time_string = exce_time.strftime("%H:%M:%S")
+                    time_string = exc_time.strftime("%H:%M:%S")
 
                     viz.text(f"Exception time {time_string}\n", color=col)
-                    viz.text(exception, color=col)
+                    viz.text(exc_str, color=col)
                     viz.text("\n")
 
                     viz.separator()
 
-                    viz.autogui(obj.__dict__, "application state")
+                    for i, f in enumerate(exc_frames):
+                        if viz.selectable(
+                                f"{os.path.basename(f.filename)}"
+                                + " at line {f.lineno} in {f.function}",
+                                i == exc_frame_idx):
+                            exc_frame_idx = i
+                            with open(f.filename) as fd:
+                                exc_code = fd.readlines()
+                                new_stack_frame_sel = True
 
                 viz.end_window()
+
+                if viz.begin_window("Local variables"):
+                    f_locals = exc_frames[exc_frame_idx].frame.f_locals
+                    viz.autogui(f_locals, ignore_custom=True)
+                viz.end_window()
+
+                if viz.begin_window("App state"):
+                    viz.autogui(obj.__dict__)
+                viz.end_window()
+
+                if viz.begin_window("Source code"):
+                    if viz.begin_table("code", 2,
+                                       viz.TableFlags.BORDERS_INNER_V):
+
+                        viz.table_setup_column(
+                                "line_numbers",
+                                viz.TableColumnFlags.WIDTH_FIXED
+                                | viz.TableColumnFlags.NO_RESIZE)
+
+                        viz.table_setup_column(
+                                "source",
+                                viz.TableColumnFlags.WIDTH_STRETCH)
+
+                        for i, l in enumerate(exc_code):
+                            if i == exc_frames[exc_frame_idx].lineno-1:
+                                lineno_color = (1.0, 0.3, 0.3)
+                                source_color = (1.0, 0.3, 0.3)
+                                if new_stack_frame_sel:
+                                    viz.set_scroll_here_y(0.5)
+                                    new_stack_frame_sel = False
+                            else:
+                                lineno_color = (0.4, 0.4, 0.4)
+                                source_color = (1.0, 1.0, 1.0)
+
+                            viz.table_next_column()
+                            viz.text(str(i+1), color=lineno_color)
+                            viz.table_next_column()
+                            viz.text(l, color=source_color)
+                            viz.table_next_row()
+                        viz.end_table()
+                viz.end_window()
+
         except SystemExit:
             return
         except Exception:
             traceback.print_exc()
-            exception = traceback.format_exc()
-            exce_time = datetime.datetime.now()
+
+            # collect information about the exception
+            exc_str = traceback.format_exc()
+            exc_time = datetime.datetime.now()
+            (exc_type, exc_value, exc_tb) = sys.exc_info()
+            exc_frames = inspect.getinnerframes(exc_tb)
+            exc_frame_idx = max(0, len(exc_frames) - 1)
+
+            with open(exc_frames[-1].filename) as fd:
+                exc_code = fd.readlines()
+
+            new_stack_frame_sel = True

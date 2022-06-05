@@ -26,7 +26,7 @@ import numpy as np
 def patch_zarr_indexing():
     """
     Evil, dark-magic, monkey-patching to make zarr array indexing
-    behave even more like numpy indexing. 
+    behave even more like numpy indexing.
     Will hopefully become unnecessary in future zarr versions.
     """
 
@@ -373,8 +373,6 @@ def load(obj, path):
     """
     Updates obj with data stored at the given path.
     """
-
-    print("starting loading")
 
     state_path = os.path.join(path, "state.json")
 

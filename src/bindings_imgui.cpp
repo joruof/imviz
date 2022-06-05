@@ -2,6 +2,7 @@
 
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
+#include <imgui.h>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -70,7 +71,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ACCEPT_NO_PREVIEW_TOOLTIP", ImGuiDragDropFlags_AcceptNoPreviewTooltip)
         .value("ACCEPT_NO_DRAW_DEFAULT_RECT", ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
 
-    py::enum_<ImDrawFlags_>(m, "DrawFlags")
+    py::enum_<ImDrawFlags_>(m, "DrawFlags", py::arithmetic())
         .value("NONE", ImDrawFlags_None)
         .value("CLOSED", ImDrawFlags_Closed)
         .value("ROUND_CORNERS_TOP_LEFT", ImDrawFlags_RoundCornersTopLeft)
@@ -85,6 +86,83 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ROUND_CORNERS_ALL", ImDrawFlags_RoundCornersAll)
         .value("ROUND_CORNERS_DEFAULT", ImDrawFlags_RoundCornersDefault_)
         .value("ROUND_CORNERS_MASK", ImDrawFlags_RoundCornersMask_);
+
+    py::enum_<ImGuiTableFlags_>(m, "TableFlags", py::arithmetic())
+        .value("NONE", ImGuiTableFlags_None)
+        .value("RESIZABLE", ImGuiTableFlags_Resizable)
+        .value("REORDERABLE", ImGuiTableFlags_Reorderable)
+        .value("HIDEABLE", ImGuiTableFlags_Hideable)
+        .value("SORTABLE", ImGuiTableFlags_Sortable)
+        .value("NO_SAVED_SETTINGS", ImGuiTableFlags_NoSavedSettings)
+        .value("CONTEXT_MENU_IN_BODY", ImGuiTableFlags_ContextMenuInBody)
+        .value("ROWBG", ImGuiTableFlags_RowBg)
+        .value("BORDERS_INNER_H", ImGuiTableFlags_BordersInnerH)
+        .value("BORDERS_OUTER_H", ImGuiTableFlags_BordersOuterH)
+        .value("BORDERS_INNER_V", ImGuiTableFlags_BordersInnerV)
+        .value("BORDERS_OUTER_V", ImGuiTableFlags_BordersOuterV)
+        .value("BORDERS_H", ImGuiTableFlags_BordersH)
+        .value("BORDERS_V", ImGuiTableFlags_BordersV)
+        .value("BORDERS_INNER", ImGuiTableFlags_BordersInner)
+        .value("BORDERS_OUTER", ImGuiTableFlags_BordersOuter)
+        .value("BORDERS", ImGuiTableFlags_Borders)
+        .value("NO_BORDERS_IN_BODY", ImGuiTableFlags_NoBordersInBody)
+        .value("NO_BORDERS_IN_BODY_UNTIL_RESIZE", ImGuiTableFlags_NoBordersInBodyUntilResize)
+        .value("SIZING_FIXED_FIT", ImGuiTableFlags_SizingFixedFit)
+        .value("SIZING_FIXED_SAME", ImGuiTableFlags_SizingFixedSame)
+        .value("SIZING_STRETCH_PROP", ImGuiTableFlags_SizingStretchProp)
+        .value("SIZING_STRETCH_SAME", ImGuiTableFlags_SizingStretchSame)
+        .value("NO_HOST_EXTEND_X", ImGuiTableFlags_NoHostExtendX)
+        .value("NO_HOST_EXTEND_Y", ImGuiTableFlags_NoHostExtendY)
+        .value("NO_KEEP_COLUMNS_VISIBLE", ImGuiTableFlags_NoKeepColumnsVisible)
+        .value("PRECISE_WIDTHS", ImGuiTableFlags_PreciseWidths)
+        .value("NO_CLIP", ImGuiTableFlags_NoClip)
+        .value("PAD_OUTER_X", ImGuiTableFlags_PadOuterX)
+        .value("NO_PAD_OUTER_X", ImGuiTableFlags_NoPadOuterX)
+        .value("NO_PAD_INNER_X", ImGuiTableFlags_NoPadInnerX)
+        .value("SCROLL_X", ImGuiTableFlags_ScrollX)
+        .value("SCROLL_Y", ImGuiTableFlags_ScrollY)
+        .value("SORT_MULTI", ImGuiTableFlags_SortMulti)
+        .value("SORT_TRISTATE", ImGuiTableFlags_SortTristate)
+        .value("SIZINGMASK_", ImGuiTableFlags_SizingMask_);
+
+    py::enum_<ImGuiTableColumnFlags_>(m, "TableColumnFlags", py::arithmetic())
+        .value("NONE", ImGuiTableColumnFlags_None)
+        .value("DISABLED", ImGuiTableColumnFlags_Disabled)
+        .value("DEFAULT_HIDE", ImGuiTableColumnFlags_DefaultHide)
+        .value("DEFAULT_SORT", ImGuiTableColumnFlags_DefaultSort)
+        .value("WIDTH_STRETCH", ImGuiTableColumnFlags_WidthStretch)
+        .value("WIDTH_FIXED", ImGuiTableColumnFlags_WidthFixed)
+        .value("NO_RESIZE", ImGuiTableColumnFlags_NoResize)
+        .value("NO_REORDER", ImGuiTableColumnFlags_NoReorder)
+        .value("NO_HIDE", ImGuiTableColumnFlags_NoHide)
+        .value("NO_CLIP", ImGuiTableColumnFlags_NoClip)
+        .value("NO_SORT", ImGuiTableColumnFlags_NoSort)
+        .value("NO_SORT_ASCENDING", ImGuiTableColumnFlags_NoSortAscending)
+        .value("NO_SORT_DESCENDING", ImGuiTableColumnFlags_NoSortDescending)
+        .value("NO_HEADER_LABEL", ImGuiTableColumnFlags_NoHeaderLabel)
+        .value("NO_HEADER_WIDTH", ImGuiTableColumnFlags_NoHeaderWidth)
+        .value("PREFER_SORT_ASCENDING", ImGuiTableColumnFlags_PreferSortAscending)
+        .value("PREFER_SORT_DESCENDING", ImGuiTableColumnFlags_PreferSortDescending)
+        .value("INDENT_ENABLE", ImGuiTableColumnFlags_IndentEnable)
+        .value("INDENT_DISABLE", ImGuiTableColumnFlags_IndentDisable)
+        .value("IS_ENABLED", ImGuiTableColumnFlags_IsEnabled)
+        .value("IS_VISIBLE", ImGuiTableColumnFlags_IsVisible)
+        .value("IS_SORTED", ImGuiTableColumnFlags_IsSorted)
+        .value("IS_HOVERED", ImGuiTableColumnFlags_IsHovered)
+        .value("WIDTH_MASK_", ImGuiTableColumnFlags_WidthMask_)
+        .value("INDENT_MASK_", ImGuiTableColumnFlags_IndentMask_)
+        .value("STATUS_MASK_", ImGuiTableColumnFlags_StatusMask_)
+        .value("NO_DIRECT_RESIZE_", ImGuiTableColumnFlags_NoDirectResize_);
+
+    py::enum_<ImGuiTableRowFlags_>(m, "TableRowFlags", py::arithmetic())
+        .value("NONE", ImGuiTableRowFlags_None)
+        .value("HEADERS", ImGuiTableRowFlags_Headers);
+
+    py::enum_<ImGuiTableBgTarget_>(m, "TableBgTarget")
+        .value("NONE", ImGuiTableBgTarget_None)
+        .value("ROW_BG_0", ImGuiTableBgTarget_RowBg0)
+        .value("ROW_BG_1", ImGuiTableBgTarget_RowBg1)
+        .value("CELL_BG", ImGuiTableBgTarget_CellBg);
 
     /*
      * Imgui widgets
@@ -145,6 +223,19 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("auto_resize") = false);
 
     m.def("end_window", ImGui::End);
+
+    m.def("begin_child", [](std::string label, ImVec2 size, bool border){
+
+        return ImGui::BeginChild(label.c_str(), size, border);
+    },
+    py::arg("label"),
+    py::arg("size") = ImVec2(0.0f, 0.0f),
+    py::arg("border") = false);
+
+    m.def("end_child", ImGui::EndChild);
+
+    m.def("set_scroll_here_x", ImGui::SetScrollHereX);
+    m.def("set_scroll_here_y", ImGui::SetScrollHereY);
 
     m.def("begin_popup_context_item", [&](std::string label) {
 
@@ -482,6 +573,48 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("selected"),
     py::arg("size") = ImVec2(0, 0));
+
+    /**
+     * Tables & Columns
+     */
+
+    m.def("begin_table", [&](std::string label,
+                             int columns,
+                             ImGuiTableFlags flags,
+                             ImVec2 outerSize,
+                             float innerWidth) {
+
+        return ImGui::BeginTable(label.c_str(), columns, flags, outerSize, innerWidth);
+    },
+    py::arg("label"),
+    py::arg("columns"),
+    py::arg("flags") = ImGuiTableFlags_None,
+    py::arg("outer_size") = ImVec2(0.0f, 0.0f),
+    py::arg("inner_width") = 0.0f);
+
+    m.def("end_table", &ImGui::EndTable);
+
+    m.def("table_next_row", [&](ImGuiTableRowFlags flags, float minRowHeight) {
+
+        ImGui::TableNextRow(flags, minRowHeight);
+    },
+    py::arg("flags") = ImGuiTableRowFlags_None,
+    py::arg("min_row_height") = 0.0f);
+
+    m.def("table_next_column", &ImGui::TableNextColumn);
+    m.def("table_set_column_index", &ImGui::TableSetColumnIndex);
+
+    m.def("table_setup_column", [&](std::string label,
+                                    ImGuiTableColumnFlags flags,
+                                    float initWidthOrWeight){
+        ImGui::TableSetupColumn(label.c_str(), flags, initWidthOrWeight);
+    },
+    py::arg("label"),
+    py::arg("flags") = ImGuiTableColumnFlags_None,
+    py::arg("init_width_or_weight") = 0.0f
+    );
+
+    m.def("table_headers_row", &ImGui::TableHeadersRow);
 
     /**
      * Imgui style functions
