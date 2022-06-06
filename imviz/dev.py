@@ -26,6 +26,16 @@ def launch(cls, func_name):
                os.environ)
 
 
+def try_load_source(path):
+
+    try:
+        with open(path) as fd:
+            source = fd.readlines()
+        return source
+    except Exception:
+        return ""
+
+
 def loop(cls, func_name):
 
     viz.configure_ini_path(sys.modules[cls.__module__])
@@ -81,9 +91,8 @@ def loop(cls, func_name):
                                 + " at line {f.lineno} in {f.function}",
                                 i == exc_frame_idx):
                             exc_frame_idx = i
-                            with open(f.filename) as fd:
-                                exc_code = fd.readlines()
-                                new_stack_frame_sel = True
+                            exc_code = try_load_source(f.filename)
+                            new_stack_frame_sel = True
 
                 viz.end_window()
 
@@ -139,8 +148,6 @@ def loop(cls, func_name):
             (exc_type, exc_value, exc_tb) = sys.exc_info()
             exc_frames = inspect.getinnerframes(exc_tb)
             exc_frame_idx = max(0, len(exc_frames) - 1)
-
-            with open(exc_frames[-1].filename) as fd:
-                exc_code = fd.readlines()
+            exc_code = try_load_source(exc_frames[-1].filename)
 
             new_stack_frame_sel = True
