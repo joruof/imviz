@@ -856,14 +856,17 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             dl.PushTransformation(mat);
         })
         .def("push_transform", [&](ImDrawList& dl,
-                                   ImVec2 trans,
+                                   array_like<double> trans,
                                    double rot,
-                                   ImVec2 scale) {
+                                   array_like<double> scale) {
+
+            assert_shape(trans, {{2}});
+            assert_shape(scale, {{2}});
 
             ImMatrix mat = ImMatrix::Combine(ImMatrix::Rotation(rot),
-                                             ImMatrix::Scaling(scale.x, scale.y));
-            mat.m20 = trans.x;
-            mat.m21 = trans.y;
+                                             ImMatrix::Scaling(scale.at(0), scale.at(1)));
+            mat.m20 = trans.at(0);
+            mat.m21 = trans.at(1);
 
             dl.PushTransformation(mat);
         },
