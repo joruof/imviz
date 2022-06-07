@@ -14,6 +14,9 @@ struct ImViz {
     ImGuiContext* imGuiCtx = nullptr;
     ImPlotContext* imPlotCtx = nullptr;
 
+    ImFont* smallFont;
+    ImFont* largeFont;
+
     bool currentWindowOpen = false;
     bool figurePlotOpen = false;
 

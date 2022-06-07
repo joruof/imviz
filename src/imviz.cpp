@@ -83,10 +83,15 @@ void ImViz::setupImLibs() {
 
     // loading font
 
-    io.Fonts->AddFontFromMemoryCompressedTTF(
+    smallFont = io.Fonts->AddFontFromMemoryCompressedTTF(
             getSourceSansProData(),
             getSourceSansProSize(),
             20.0);
+
+    largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+            getSourceSansProData(),
+            getSourceSansProSize(),
+            100.0);
 
     ImGui_ImplOpenGL3_CreateFontsTexture();
 }
