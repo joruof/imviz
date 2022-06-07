@@ -350,10 +350,14 @@ def save(obj, directory):
 
     rep["__imviz_last_id"] = Serializer.last_id
 
+    unfinished_path = os.path.join(directory, "unfinished.json")
+
+    with open(unfinished_path, "w+") as fd:
+        json.dump(rep, fd, indent=2)
+
     state_path = os.path.join(directory, "state.json")
 
-    with open(state_path, "w+") as fd:
-        json.dump(rep, fd, indent=2)
+    os.rename(unfinished_path, state_path)
 
     # remove unused external numpy arrays
 
