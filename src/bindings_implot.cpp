@@ -243,11 +243,39 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         return ImPlot::BeginPlot(label.c_str(), plotSize, flags);
     },
-    py::arg("label") = "",
+    py::arg("label"),
     py::arg("size") = py::array_t<float>(),
     py::arg("flags") = ImPlotFlags_None);
 
     m.def("end_plot", &ImPlot::EndPlot);
+
+    m.def("begin_subplots", [&](std::string label,
+                                int rows,
+                                int cols,
+                                array_like<float> size,
+                                ImPlotSubplotFlags flags) {
+
+        ImVec2 plotSize(-1, 0);
+
+        if (size.shape()[0] > 0) {
+            assert_shape(size, {{2}});
+            const float* data = size.data();
+            plotSize = ImVec2(data[0], data[1]);
+        }
+
+        return ImPlot::BeginSubplots(label.c_str(),
+                                     rows,
+                                     cols,
+                                     plotSize,
+                                     flags);
+    },
+    py::arg("label"),
+    py::arg("rows"),
+    py::arg("cols"),
+    py::arg("size") = py::array(),
+    py::arg("flags") = ImPlotSubplotFlags_None);
+
+    m.def("end_subplots", ImPlot::EndSubplots);
 
     m.def("setup_axis", [](ImAxis axis, std::string label, ImPlotAxisFlags flags){ 
 
