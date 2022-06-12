@@ -669,26 +669,39 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("offset") = py::array(),
     py::arg("clamp") = false);
 
-    m.def("plot_rect", [&](ImPlotPoint center,
+    m.def("plot_rect", [&](ImPlotPoint position,
                            ImPlotPoint size,
                            std::string label,
                            array_like<double> color,
+                           ImPlotPoint offset,
+                           float rotation,
                            float lineWeight) {
 
         std::vector<double> xs(5);
         std::vector<double> ys(5);
 
-        size.x /= 2.0;
-        size.y /= 2.0;
+        double px = -size.x * offset.x;
+        double py = -size.y * offset.y;
 
-        xs[0] = center.x - size.x;
-        ys[0] = center.y - size.y;
-        xs[1] = center.x + size.x;
-        ys[1] = center.y - size.y;
-        xs[2] = center.x + size.x;
-        ys[2] = center.y + size.y;
-        xs[3] = center.x - size.x;
-        ys[3] = center.y + size.y;
+        xs[0] = px;
+        ys[0] = py;
+        xs[1] = px + size.x;
+        ys[1] = py;
+        xs[2] = px + size.x;
+        ys[2] = py + size.y;
+        xs[3] = px;
+        ys[3] = py + size.y;
+
+        double s = std::sin(rotation);
+        double c = std::cos(rotation);
+
+        for (int i = 0; i < 4; ++i) {
+            double tx = c * xs[i] - s * ys[i] + position.x;
+            double ty = s * xs[i] + c * ys[i] + position.y;
+            xs[i] = tx;
+            ys[i] = ty;
+        }
+
         xs[4] = xs[0];
         ys[4] = ys[0];
 
@@ -698,10 +711,12 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
     },
-    py::arg("center"),
+    py::arg("position"),
     py::arg("size"),
     py::arg("label") = "",
     py::arg("color") = py::array(),
+    py::arg("offset") = ImPlotPoint(0.5f, 0.5f),
+    py::arg("rotation") = 0.0f,
     py::arg("line_weight") = 1.0f);
 
     m.def("plot_circle", [&](ImPlotPoint center,

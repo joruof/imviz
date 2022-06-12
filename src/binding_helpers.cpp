@@ -131,6 +131,12 @@ GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
     if (i.format == GL_RED) {
         GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
         glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+    } else if (i.format == GL_RGB) {
+        GLint swizzleMask[] = {GL_RED, GL_GREEN, GL_BLUE, GL_ONE};
+        glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+    } else if (i.format == GL_RGBA) {
+        GLint swizzleMask[] = {GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
+        glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
     }
 
     // setup parameters for display

@@ -886,9 +886,10 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         py::arg("rot") = 0.0,
         py::arg("scale") = ImVec2(1.0, 1.0)
         )
-        .def("pop_transform", [&](ImDrawList& dl) {
-            dl.PopTransformation();
-        })
+        .def("pop_transform", [&](ImDrawList& dl, int count) {
+            dl.PopTransformation(count);
+        },
+        py::arg("count") = 1)
         .def("add_line", [&](
                     ImDrawList& dl,
                     ImVec2& p1,
@@ -1113,6 +1114,39 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         },
         py::arg("position"),
         py::arg("text"),
+        py::arg("col") = py::array())
+        .def("add_image", [&](ImDrawList& dl,
+                              std::string label,
+                              py::array& image,
+                              ImVec2 pMin,
+                              ImVec2 pMax,
+                              ImVec2 uvMin,
+                              ImVec2 uvMax,
+                              array_like<double> col){
+
+            ImU32 c = IM_COL32_WHITE;
+            if (col.shape(0) != 0) {
+                c = ImGui::GetColorU32(interpretColor(col));
+            }
+
+            ImageInfo info = interpretImage(image);
+            GLuint textureId = uploadImage(label, info, image);
+
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddImage((void*)(intptr_t)textureId,
+                        pMin,
+                        pMax,
+                        uvMin,
+                        uvMax,
+                        c);
+            dl.ApplyTransformation(startIndex);
+        },
+        py::arg("label"),
+        py::arg("image"),
+        py::arg("p_min"),
+        py::arg("p_max"),
+        py::arg("uv_min") = ImVec2(0, 0),
+        py::arg("uv_max") = ImVec2(1, 1),
         py::arg("col") = py::array());
 }
 
