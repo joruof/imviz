@@ -12,12 +12,8 @@ class Demo:
             sys.exit()
 
         viz.set_main_window_title("Minimal Example")
-        # viz.set_main_window_size((1024, 768))
         if viz.begin_window(
             "Minimal Example",
-            # size=(1024, 768),
-            # position=(0, 0),
-            # resize=False,
         ):
             if viz.button("Press me to print"):
                 print("Button was pressed")
