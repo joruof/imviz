@@ -411,6 +411,19 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("min") = 0.0,
     py::arg("max") = 1.0);
 
+    m.def("slider_int", [&](const std::string title, int& value, const int min, const int max) {
+        
+        bool mod = ImGui::SliderInt(
+                title.c_str(), &value, min, max);
+        viz.setMod(mod);
+
+        return value;
+    }, 
+    py::arg("label"),
+    py::arg("value"),
+    py::arg("min") = 0,
+    py::arg("max") = 1);
+
     m.def("drag", [&](std::string title, int& value, float speed, int min, int max) {
         
         bool mod = ImGui::DragInt(title.c_str(), &value, speed, min, max);
