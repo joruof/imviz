@@ -23,6 +23,7 @@ def launch(cls, func_name):
                "imviz.dev_main",
                cls_name,
                func_name,
+               *sys.argv[1:],
                os.environ)
 
 

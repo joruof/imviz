@@ -31,7 +31,7 @@ def main():
             type=str,
             help="the name of the method to call")
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
 
     cls = locate(args.class_name)
 
