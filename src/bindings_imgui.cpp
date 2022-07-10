@@ -568,6 +568,30 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("tint") = py::array(),
     py::arg("border_col") = py::array());
 
+    m.def("image_texture", [&](
+                GLuint textureId,
+                ImVec2 size,
+                array_like<double> tint,
+                array_like<double> borderCol) {
+
+        ImVec4 bc = interpretColor(borderCol);
+        ImVec4 tn = interpretColor(tint);
+        if (tn.w < 0) {
+            tn = ImVec4(1, 1, 1, 1);
+        }
+
+        ImGui::Image((void*)(intptr_t)textureId,
+                     size,
+                     ImVec2(0, 0),
+                     ImVec2(1, 1),
+                     tn,
+                     bc);
+    },
+    py::arg("texture_id"),
+    py::arg("size"),
+    py::arg("tint") = py::array(),
+    py::arg("border_col") = py::array());
+
     m.def("separator", ImGui::Separator);
 
     m.def("begin_tooltip", ImGui::BeginTooltip);

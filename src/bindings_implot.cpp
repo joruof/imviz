@@ -487,7 +487,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("horizontal") = false);
 
     m.def("plot_image", [&](
-                std::string id,
+                std::string label,
                 py::array& image,
                 double x,
                 double y,
@@ -503,19 +503,43 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             displayHeight = info.imageHeight;
         }
 
-        GLuint textureId = uploadImage(id, info, image);
+        GLuint textureId = uploadImage(label, info, image);
 
         ImPlotPoint boundsMin(x, y);
         ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
 
         ImPlot::PlotImage(
-                id.c_str(),
+                label.c_str(),
                 (void*)(intptr_t)textureId,
                 boundsMin,
                 boundsMax);
     },
-    py::arg("id"),
+    py::arg("label"),
     py::arg("image"),
+    py::arg("x") = 0,
+    py::arg("y") = 0,
+    py::arg("width") = -1,
+    py::arg("height") = -1);
+
+    m.def("plot_image_texture", [&](
+                std::string label,
+                GLuint textureId,
+                double x,
+                double y,
+                double displayWidth,
+                double displayHeight) {
+
+        ImPlotPoint boundsMin(x, y);
+        ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImPlot::PlotImage(
+                label.c_str(),
+                (void*)(intptr_t)textureId,
+                boundsMin,
+                boundsMax);
+    },
+    py::arg("label"),
+    py::arg("texture_id"),
     py::arg("x") = 0,
     py::arg("y") = 0,
     py::arg("width") = -1,

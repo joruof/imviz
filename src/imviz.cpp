@@ -149,6 +149,10 @@ void ImViz::doUpdate (bool useVsync) {
     // (context receration implemented in wait() method)
     recover();
 
+    // ensure that the default framebuffer is always bound
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
     ImGui::Render();
 
     // background color taken from the one-and-only tomorrow-night theme
