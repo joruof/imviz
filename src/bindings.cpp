@@ -19,7 +19,6 @@
 #include "bindings_implot.hpp"
 #include "bindings_imgui.hpp"
 #include "load_image.hpp"
-// #include "shader_program.hpp"
 
 /**
  * This allows us to handle imgui assertions via exceptions on the python side.
@@ -106,17 +105,22 @@ PYBIND11_MODULE(cppimviz, m) {
         glfwShowWindow(viz.window);
     });
 
-    m.def("set_main_window_icon", [&](array_like<uint8_t> arr) {
+    m.def("set_main_window_icon", [&](array_like<uint8_t> icon) {
 
-        assert_shape(arr, {{-1, -1, 4}});
+        assert_shape(icon, {{-1, -1, 4}});
 
         GLFWimage img;
-        img.height = arr.shape(0);
-        img.width = arr.shape(1);
-        img.pixels = arr.mutable_data();
+        img.height = icon.shape(0);
+        img.width = icon.shape(1);
+        img.pixels = icon.mutable_data();
 
         glfwSetWindowIcon(viz.window, 1, &img);
-    });
+    },
+    R"raw(
+    This sets the icon of the main window shown in e.g. taskbars.
+    The *icon* must be an RGBA image given as an array_like with shape (-1, -1, 4).
+    )raw", 
+    py::arg("icon"));
 
     m.def("get_clipboard", [&]() { 
 
@@ -127,7 +131,11 @@ PYBIND11_MODULE(cppimviz, m) {
         } else {
             return std::string(str);
         }
-    });
+    },
+    R"raw(
+    Returns a string from the system clipboard.
+    )raw"
+    );
 
     m.def("set_clipboard", [&](std::string str) { 
 
@@ -141,28 +149,36 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("file_dialog_popup", [&](
                 std::string label,
                 std::string path,
-                std::string confirmText) {
+                std::string confirm_text) {
 
         bool mod = ImGui::FileDialogPopup(
-                label.c_str(), confirmText.c_str(), path);
+                label.c_str(), confirm_text.c_str(), path);
         viz.setMod(mod);
 
         return path;
     },
+    R"raw(
+    Creates a simple file chooser popup window with the given *label* as id.
+    To show the dialog it must be opened using "imviz.open_popup(*label*)".
+    The starting directory will be the given *path*.
+    The confirm button can be customized with the *confirm_text* argument.
+
+    Returns the path of the newly selected element.
+    )raw",
     py::arg("label"),
     py::arg("path"),
-    py::arg("confirmText") = "Ok");
+    py::arg("confirm_text") = "Ok");
 
     m.def("multiselect", [&](
                 std::string label,
-                py::list& values,
+                py::list& options,
                 py::list selection) {
 
         bool mod = false;
 
         if (ImGui::BeginPopup(label.c_str())) {
 
-            for (py::handle o : values) {
+            for (py::handle o : options) {
                 std::string ostr = py::str(o);
 
                 bool inList = selection.contains(o);
@@ -192,8 +208,16 @@ PYBIND11_MODULE(cppimviz, m) {
 
         return selection;
     },
+    R"raw(
+    Creates a button, which (on click) allows the selection of multiple options.
+    The *options* must be given as a python list of objects.
+    Each option will be converted via "str(...)" to a string to be rendered.
+    Options contained in the *selection* list will be rendered as selected.
+
+    Returns the new (possibly modified) selection of options as a list.
+    )raw",
     py::arg("label"),
-    py::arg("values"),
+    py::arg("options"),
     py::arg("selection"));
 
     m.def("dataframe", [&](
@@ -280,24 +304,57 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("mod", [&]() {
         return viz.mod;
-    });
+    },
+    R"raw(
+    In C++ most ImGui functions return their modification status as boolean,
+    while the actual data values are passed and modified by reference.
+
+    Because python does not allow pass-by-reference for primitive datatypes,
+    this behavior cannot be replicated exactly in python.
+
+    In imviz all functions instead return the modified data directly.
+    Whether data was modified by can be queried by using this function.
+    
+    It returns the modification status as set by the previous call.
+    )raw"
+    );
 
     m.def("set_mod", [&](bool m) {
         viz.setMod(m);
-    });
+    },
+    R"raw(
+    Can be used to overwrite the modification status flag.
+    )raw",
+    py::arg("mod")
+    );
 
     m.def("mod_any", [&]() {
         bool m = viz.mod_any.back();
         return m;
-    });
+    },
+    R"raw(
+    In contrast to the mod flag, the mod_any flag retuns the | ("or")
+    combination of the modification status flags of all previous calls.
+    Can be used to check, if data was modified by any function call in
+    a group of calls.
+    )raw"
+    );
 
     m.def("clear_mod_any", [&]() {
         viz.mod_any.back() = false;
-    });
+    },
+    R"raw(
+    Resets the mod_any flag to False.
+    )raw"
+    );
 
     m.def("push_mod_any", [&]() {
         viz.mod_any.push_back(false);
-    });
+    },
+    R"raw(
+    Pushes a cleared mod_any flag (False) to the mod_any stack.
+    )raw"
+    );
 
     m.def("pop_mod_any", [&]() {
         bool lastMod = viz.mod_any.back();
@@ -306,7 +363,11 @@ PYBIND11_MODULE(cppimviz, m) {
             viz.mod_any.back() = lastMod | viz.mod_any.back();
         }
         return lastMod;
-    });
+    },
+    R"raw(
+    Pops and returns the mod_any flag at the top of the mod_any stack.
+    )raw"
+    );
 
     m.def("trigger", [&]() {
         viz.trigger();
@@ -357,6 +418,27 @@ PYBIND11_MODULE(cppimviz, m) {
         viz.prepareUpdate();
         return !glfwWindowShouldClose(viz.window);
     },
+    R"raw(
+    This is the main update function of imviz.
+    It must be called once for each frame/update/tick of the application.
+
+    It is typically called as the condition for the main while loop of
+    the application. Like so:
+
+    ```
+    while viz.wait(...):
+        update_app()
+    ```
+
+    It returns False if the closing of the main application window was
+    requested, and True otherwise.
+
+    If *vsync* is True ```imviz.wait()``` will wait, to synchronize with
+    the monitor update rate.
+
+    If *powersave* is True the function will wait for max. *timeout* seconds,
+    if NO user input was detected. Otherwise it will return immediately.
+    )raw",
     py::arg("vsync") = true,
     py::arg("powersave") = false,
     py::arg("timeout") = 1.0);
@@ -380,6 +462,14 @@ PYBIND11_MODULE(cppimviz, m) {
 
         return py::object(img).release();
     },
+    R"raw(
+    Uses stb_image.h to load an image from *path* as a numpy array.
+    Supported are format: JPEG, PNG, TGA, BMP, PSD, GIF, HDR, PIC, PNM
+
+    Returns the image as numpy array or None, if loading failed.
+
+    The *channels* argument can be used to force a certain channel count.
+    )raw",
     py::arg("path"),
     py::arg("channels") = 0);
 
@@ -461,53 +551,19 @@ PYBIND11_MODULE(cppimviz, m) {
         // need to flip back and copy to fix memory layout
 
         return pixels[py::slice(height, 0, -1)].attr("copy")();
-    });
+    },
+    R"raw(
+    Cuts and returns the specified region from the main framebuffer of 
+    the application window.
 
-    /**
-     * Simple renderer
+    The region is specified in window coordinates, starting at the top
+    left corner of the window.
 
-    py::class_<ShaderProgram>(m, "ShaderProgram")
-        .def(py::init<std::string, std::string>())
-        .def("get_uniforms", [](ShaderProgram& p) { 
-            glUseProgram(p.id);
-
-            GLint count;
-            glGetProgramiv(p.id, GL_ACTIVE_UNIFORMS, &count);
-
-            std::cout << count << std::endl;
-
-            for (GLint i = 0; i < count; i++)
-            {
-                GLint size; 
-                GLenum type; 
-                const GLsizei bufSize = 128; 
-                GLchar name[bufSize]; 
-                GLsizei length; 
-
-                glGetActiveUniform(p.id, (GLuint)i, bufSize, &length, &size, &type, name);
-                printf("Uniform #%d Type: %u Name: %s Size: %d\n", i, type, name, size);
-            }
-        })
-        .def("get_attributes", [](ShaderProgram& p) { 
-
-            glUseProgram(p.id);
-
-            GLint count;
-            glGetProgramiv(p.id, GL_ACTIVE_ATTRIBUTES, &count);
-
-            std::cout << count << std::endl;
-
-            for (GLint i = 0; i < count; i++)
-            {
-                GLint size; 
-                GLenum type; 
-                const GLsizei bufSize = 128; 
-                GLchar name[bufSize]; 
-                GLsizei length; 
-
-                glGetActiveAttrib(p.id, (GLuint)i, bufSize, &length, &size, &type, name);
-                printf("Uniform #%d Type: %u Name: %s Size: %d\n", i, type, name, size);
-            }
-        });
-     */
+    The region will be returned as uint8-RGBA numpy array
+    with shape (height, width, 4).
+    )raw",
+    py::arg("x") = 0,
+    py::arg("y") = 0,
+    py::arg("width") = -1,
+    py::arg("height") = -1);
 }
