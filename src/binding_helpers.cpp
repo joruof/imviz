@@ -64,6 +64,121 @@ void assertArrayShape(std::string name,
     }
 }
 
+ImVec4 interpretColor(py::handle& color) {
+
+    std::string typeName = py::str(color.attr("__class__").attr("__name__"));
+
+    if (typeName == "str") {
+        std::string sc = py::str(color);
+
+        if (sc.size() == 1) {
+            // single char color codes
+            if (sc == "r") {
+                return ImVec4(1.0, 0.0, 0.0, 1.0);
+            } else if (sc == "g") {
+                return ImVec4(0.0, 1.0, 0.0, 1.0);
+            } else if (sc == "b") {
+                return ImVec4(0.0, 0.0, 1.0, 1.0);
+            } else if (sc == "y") {
+                return ImVec4(1.0, 1.0, 0.0, 1.0);
+            } else if (sc == "c") {
+                return ImVec4(0.0, 1.0, 1.0, 1.0);
+            } else if (sc == "m") {
+                return ImVec4(1.0, 0.0, 1.0, 1.0);
+            } else if (sc == "k") {
+                return ImVec4(0.0, 0.0, 0.0, 1.0);
+            } else if (sc == "w") {
+                return ImVec4(1.0, 1.0, 1.0, 1.0);
+            }
+        } else if (sc.size() > 1) {
+            if (sc[0] == '#') {
+                // css like hex colors
+                size_t pos = 0;
+                size_t colorNumber = std::stoul(sc.substr(1), &pos, 16);
+
+                ImVec4 c(0.0, 0.0, 0.0, 1.0);
+
+                if (sc.size() == 9) {
+                    // alpha 
+                    c.w = (double)(colorNumber & 0xff) / 255.0;
+                    colorNumber >>= 8;
+                }
+                // blue
+                c.z = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+                // green
+                c.y = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+                // red
+                c.x = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+
+                return c;
+            } else {
+                // full word colors
+                if (sc == "red") {
+                    return ImVec4(1.0, 0.0, 0.0, 1.0);
+                } else if (sc == "green") {
+                    return ImVec4(0.0, 1.0, 0.0, 1.0);
+                } else if (sc == "blue") {
+                    return ImVec4(0.0, 0.0, 1.0, 1.0);
+                } else if (sc == "yellow") {
+                    return ImVec4(1.0, 1.0, 0.0, 1.0);
+                } else if (sc == "cyan") {
+                    return ImVec4(0.0, 1.0, 1.0, 1.0);
+                } else if (sc == "magenta") {
+                    return ImVec4(1.0, 0.0, 1.0, 1.0);
+                } else if (sc == "white") {
+                    return ImVec4(1.0, 1.0, 1.0, 1.0);
+                } else if (sc == "key") {
+                    return ImVec4(0.0, 0.0, 0.0, 1.0);
+                } else if (sc == "black") {
+                    return ImVec4(0.0, 0.0, 0.0, 1.0);
+                } else if (sc == "gray") {
+                    return ImVec4(0.5, 0.5, 0.5, 1.0);
+                } else if (sc == "grey") {
+                    return ImVec4(0.5, 0.5, 0.5, 1.0);
+                }
+            }
+        }
+
+        return IMPLOT_AUTO_COL;
+    } else if (typeName == "float") {
+        float f = py::cast<float>(color);
+        return ImVec4(f, f, f, 1.0f);
+    } else if (typeName == "int") { 
+        float f = std::max(0, std::min(255, py::cast<int>(color)));
+        f /= 255.0;
+        return ImVec4(f, f, f, 1.0f);
+    }
+
+    array_like<double> colorArray = array_like<double>::ensure(color);
+
+    assert_shape(colorArray, {{-1}});
+
+    ImVec4 c(0, 0, 0, 1);
+    size_t colorLength = colorArray.shape()[0];
+
+    if (colorLength == 1) {
+        c.x = colorArray.data()[0];
+        c.y = colorArray.data()[0];
+        c.z = colorArray.data()[0];
+    } else if (colorLength == 3) {
+        c.x = colorArray.data()[0];
+        c.y = colorArray.data()[1];
+        c.z = colorArray.data()[2];
+    } else if (colorLength == 4) {
+        c.x = colorArray.data()[0];
+        c.y = colorArray.data()[1];
+        c.z = colorArray.data()[2];
+        c.w = colorArray.data()[3];
+    } else {
+        c = IMPLOT_AUTO_COL;
+    }
+
+    return c;
+}
+
 ImageInfo interpretImage(py::array& image) {
 
     assert_shape(image, {{-1, -1}, {-1, -1, 1}, {-1, -1, 3}, {-1, -1, 4}});
