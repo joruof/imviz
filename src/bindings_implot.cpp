@@ -365,7 +365,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                       array_like<double> y,
                       std::string fmt,
                       std::string label,
-                      array_like<double> color,
+                      py::handle color,
                       array_like<double> shade,
                       float shadeAlpha,
                       float lineWeight,
@@ -547,7 +547,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
-                            array_like<double> color,
+                            py::handle color,
                             double radius,
                             ImPlotDragToolFlags flags) {
 
@@ -570,7 +570,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
-                            array_like<double> color,
+                            py::handle color,
                             float width) {
 
         assert_shape(xs, {{-1}});
@@ -588,7 +588,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("plot_hlines", [&](std::string label,
                             array_like<double> ys,
-                            array_like<double> color,
+                            py::handle color,
                             float width) {
 
         assert_shape(ys, {{-1}});
@@ -606,7 +606,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("drag_vline", [&](std::string label,
                             double x,
-                            array_like<double> color,
+                            py::handle color,
                             double width) {
 
         ImVec4 c = interpretColor(color);
@@ -623,7 +623,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("drag_hline", [&](std::string label,
                             double y,
-                            array_like<double> color,
+                            py::handle color,
                             double width) {
 
         ImVec4 c = interpretColor(color);
@@ -640,7 +640,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("drag_rect", [&](std::string label,
                             array_like<double> rect,
-                            array_like<double> color) {
+                            py::handle color) {
 
         assert_shape(rect, {{4}});
 
@@ -667,7 +667,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 double x,
                 double y,
                 std::string text,
-                array_like<double> color,
+                py::handle color,
                 array_like<double> offset,
                 bool clamp) {
 
@@ -696,7 +696,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_rect", [&](ImPlotPoint position,
                            ImPlotPoint size,
                            std::string label,
-                           array_like<double> color,
+                           py::handle color,
                            ImPlotPoint offset,
                            float rotation,
                            float lineWeight) {
@@ -746,7 +746,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_circle", [&](ImPlotPoint center,
                              double radius,
                              std::string label,
-                             array_like<double> color,
+                             py::handle color,
                              size_t segments,
                              float lineWeight) {
 

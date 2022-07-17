@@ -343,7 +343,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("items"),
     py::arg("selection_index") = 0);
 
-    m.def("text", [&](py::handle obj, array_like<double> color) {
+    m.def("text", [&](py::handle obj, py::handle color) {
 
         ImVec4 c = interpretColor(color);
 
@@ -356,7 +356,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         }
     },
     py::arg("str"),
-    py::arg("color") = py::array_t<double>());
+    py::arg("color") = py::array());
 
     m.def("input", [&](std::string label, std::string& obj) {
         
@@ -1021,10 +1021,10 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                     ImDrawList& dl,
                     ImVec2& pMin,
                     ImVec2& pMax,
-                    array_like<double> ul,
-                    array_like<double> ur,
-                    array_like<double> br,
-                    array_like<double> bl) {
+                    py::handle ul,
+                    py::handle ur,
+                    py::handle br,
+                    py::handle bl) {
 
             unsigned int startIndex = dl._VtxCurrentIdx;
             dl.AddRectFilledMultiColor(
