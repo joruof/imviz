@@ -7,6 +7,7 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <string>
 
 namespace py = pybind11;
 
@@ -55,6 +56,27 @@ ImVec4 interpretColor(T& color) {
         } else if (sc.size() > 1) {
             if (sc[0] == '#') {
                 // css like hex colors
+                size_t pos = 0;
+                size_t colorNumber = std::stoul(sc.substr(1), &pos, 16);
+
+                ImVec4 c(0.0, 0.0, 0.0, 1.0);
+
+                if (sc.size() == 9) {
+                    // alpha 
+                    c.w = (double)(colorNumber & 0xff) / 255.0;
+                    colorNumber >>= 8;
+                }
+                // blue
+                c.z = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+                // green
+                c.y = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+                // red
+                c.x = (double)(colorNumber & 0xff) / 255.0;
+                colorNumber >>= 8;
+
+                return c;
             } else {
                 // full word colors
                 if (sc == "red") {
@@ -84,6 +106,13 @@ ImVec4 interpretColor(T& color) {
         }
 
         return IMPLOT_AUTO_COL;
+    } else if (typeName == "float") {
+        float f = py::cast<float>(color);
+        return ImVec4(f, f, f, 1.0f);
+    } else if (typeName == "int") { 
+        float f = std::max(0, std::min(255, py::cast<int>(color)));
+        f /= 255.0;
+        return ImVec4(f, f, f, 1.0f);
     }
 
     array_like<double> ac = array_like<double>::ensure(color);
