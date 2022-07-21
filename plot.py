@@ -216,6 +216,25 @@ class Demo:
 
                     poly_groups.append((cmd, merged_polys))
 
+                # offset all vertices
+
+                all_vtx_pos = []
+                for (cmd, polys) in poly_groups:
+                    for p in polys:
+                        for v in p.vertices:
+                            all_vtx_pos.append(v.pos)
+
+                canvas_min_vtx = np.array(all_vtx_pos).min(axis=0)
+                canvas_max_vtx = np.array(all_vtx_pos).max(axis=0)
+                canvas_dims = canvas_max_vtx - canvas_min_vtx
+
+                for (cmd, polys) in poly_groups:
+                    for p in polys:
+                        for i, v in enumerate(p.vertices):
+                            p.vertices[i].pos = v.pos - canvas_min_vtx
+
+                print(canvas_min_vtx)
+
                 # build a character lookup table based on
                 # uv coordinates of the font atlas texture
 
@@ -335,9 +354,10 @@ class Demo:
 
                 # output svg text
 
-                svg_txt = '<svg version="1.1" \
-                           xmlns="http://www.w3.org/2000/svg" \
-                           xmlns:xlink="http://www.w3.org/1999/xlink">\n'
+                svg_txt = ('<svg version="1.1" '
+                           + f'viewBox="0 0 {canvas_dims[0]} {canvas_dims[1]}" '
+                           + 'xmlns="http://www.w3.org/2000/svg" '
+                           + 'xmlns:xlink="http://www.w3.org/1999/xlink">\n')
 
                 # write clip rects
 
@@ -348,11 +368,11 @@ class Demo:
                     cy = cmd.clip_rect[1]
                     cw = cmd.clip_rect[2] - cx
                     ch = cmd.clip_rect[3] - cy
+                    cx -= canvas_min_vtx[0]
+                    cy -= canvas_min_vtx[1]
                     svg_txt += f'<clipPath id="clip_rect_{i}">'
-                    svg_txt += f'<rect x="{cx}" \
-                                       y="{cy}" \
-                                       width="{cw}" \
-                                       height="{ch}" />'
+                    svg_txt += f'<rect x="{cx}" y="{cy}" '
+                    svg_txt += f'width="{cw}" height="{ch}" />'
                     svg_txt += '</clipPath>\n'
 
                 svg_txt += "</defs>\n"
