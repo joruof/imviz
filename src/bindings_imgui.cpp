@@ -3,6 +3,7 @@
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
 #include <imgui.h>
+#include <pybind11/detail/common.h>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -11,6 +12,8 @@
 #include "imgui_internal.h"
 #include "implot_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
+
+#include "pybind11/stl.h"
 
 static py::object dragDropRef = py::none();
 static int dragDropClearCounter = 0;
@@ -865,6 +868,10 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
      * DrawLists
      */
 
+    m.def("disable_aa", [&]() {
+        ImGui::GetCurrentWindow()->DrawList->Flags = ImDrawListFlags_None;
+    });
+
     m.def("get_window_drawlist",
             [&]() { return ImGui::GetCurrentWindow()->DrawList; },
             py::return_value_policy::reference);
@@ -889,7 +896,86 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("pop_plot_clip_rect", &ImPlot::PopPlotClipRect);
 
+    m.def("get_font_atlas", [](){
+        ImGuiIO& io = ImGui::GetIO();
+        return io.Fonts;
+    }, py::return_value_policy::reference);
+
+    py::class_<ImFontAtlas>(m, "FontAtlas")
+        .def("get_texture_id", [&](ImFontAtlas& a) {
+            return (size_t)a.TexID;
+        })
+        .def("get_fonts", [&](ImFontAtlas& a) {
+            std::vector<ImFont*> fonts;
+            for (ImFont* f : a.Fonts) { 
+                fonts.push_back(f);
+            }
+            return fonts;
+        }, py::return_value_policy::reference);
+
+    py::class_<ImFont>(m, "Font")
+        .def_readonly("font_size", &ImFont::FontSize)
+        .def("get_index_lookup", [&](ImFont& f) {
+            std::vector<int> indexLookup;
+            for (ImWchar& c : f.IndexLookup) {
+                indexLookup.push_back(c);
+            }
+            return indexLookup;
+        })
+        .def("get_glyphs", [&](ImFont& f) {
+            std::vector<ImFontGlyph> glyphs;
+            for (ImFontGlyph& g : f.Glyphs) {
+                glyphs.push_back(g);
+            }
+            return glyphs;
+        });
+
+    py::class_<ImFontGlyph>(m, "ImFontGlyph")
+        .def_property_readonly("codepoint", [](ImFontGlyph& g) {
+                return (unsigned int)g.Codepoint;
+        })
+        .def_readonly("u0", &ImFontGlyph::U0)
+        .def_readonly("v0", &ImFontGlyph::V0)
+        .def_readonly("u1", &ImFontGlyph::U1)
+        .def_readonly("v1", &ImFontGlyph::V1)
+        .def_readonly("advance_x", &ImFontGlyph::AdvanceX);
+
+    py::class_<ImDrawCmd>(m, "DrawCmd")
+        .def_readwrite("clip_rect", &ImDrawCmd::ClipRect)
+        .def_property_readonly("texture_id", [](ImDrawCmd& cmd) {
+            return (size_t)cmd.TextureId;
+        })
+        .def_readwrite("vtx_offset", &ImDrawCmd::VtxOffset)
+        .def_readwrite("idx_offset", &ImDrawCmd::IdxOffset)
+        .def_readwrite("elem_count", &ImDrawCmd::ElemCount);
+
+    py::class_<ImDrawVert>(m, "DrawVert")
+        .def_readwrite("pos", &ImDrawVert::pos)
+        .def_readwrite("uv", &ImDrawVert::uv)
+        .def_readwrite("col", &ImDrawVert::col);
+
     py::class_<ImDrawList>(m, "DrawList")
+        .def("get_cmds", [&](ImDrawList& dl) { 
+            std::vector<ImDrawCmd> cmds;
+            for (ImDrawCmd& c : dl.CmdBuffer) { 
+                cmds.push_back(c);
+            }
+            return cmds;
+        })
+        .def("get_verts", [&](ImDrawList& dl) { 
+            std::vector<ImDrawVert> verts;
+            for (ImDrawVert& v : dl.VtxBuffer) { 
+                verts.push_back(v);
+            }
+            return verts;
+        })
+        .def("get_indices", [&](ImDrawList& dl) { 
+            std::vector<ImDrawIdx> idxs;
+            for (ImDrawIdx& i : dl.IdxBuffer) { 
+                idxs.push_back(i);
+            }
+            return idxs;
+        })
         .def("push_plot_transform", [&](ImDrawList& dl) {
 
             ImPlotPoint a = ImPlot::PrecisePlotToPixels(0.0, 0.0);
