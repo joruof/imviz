@@ -566,4 +566,50 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("y") = 0,
     py::arg("width") = -1,
     py::arg("height") = -1);
+
+    m.def("get_texture", [&](GLuint textureId) {
+
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        GLint w;
+        GLint h;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+
+        GLint internalFormat;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0,
+                                 GL_TEXTURE_INTERNAL_FORMAT, &internalFormat);
+
+        GLint d = 0;
+        if (internalFormat == GL_RED) {
+            d = 1;
+        } else if (internalFormat == GL_RGB) {
+            d = 3;
+        } else if (internalFormat == GL_RGBA) {
+            d = 4;
+        } else {
+            throw std::runtime_error("Unknown internal texture format!");
+        }
+
+        py::array_t<uint8_t> pixels({w, h, d});
+
+        glGetTexImage(GL_TEXTURE_2D,
+                      0,
+                      internalFormat,
+                      GL_UNSIGNED_BYTE,
+                      (void*)pixels.mutable_data(0));
+
+        return pixels;
+    },
+    R"raw(
+    Cuts and returns the specified region from the main framebuffer of 
+    the application window.
+
+    The region is specified in window coordinates, starting at the top
+    left corner of the window.
+
+    The region will be returned as uint8-RGBA numpy array
+    with shape (height, width, 4).
+    )raw",
+    py::arg("texture_id") = 0);
 }

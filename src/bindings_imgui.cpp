@@ -2,8 +2,11 @@
 
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
+#include <cmath>
 #include <imgui.h>
 #include <pybind11/detail/common.h>
+#include <sstream>
+#include <iomanip>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
