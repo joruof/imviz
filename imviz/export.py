@@ -6,6 +6,7 @@ This contains functions to export guis in various formats.
 import io
 import os
 import sys
+import time
 import base64
 import numpy as np
 
@@ -434,51 +435,94 @@ def drawlist_state_to_svg(state):
 
 
 plot_to_export = -1
+plot_export_path = os.path.abspath(os.getcwd())
 
 
-def begin_plot(*args, **kwargs):
+def wrap_begin(begin_func):
 
-    res = viz.begin_plot(*args, **kwargs)
+    def inner(*args, **kwargs):
 
-    global plot_to_export
+        res = begin_func(*args, **kwargs)
 
-    if plot_to_export == viz.get_plot_id():
-        viz.disable_aa()
+        global plot_to_export
 
-    return res
+        if plot_to_export == viz.get_plot_id():
+            viz.disable_aa()
+
+        return res
+
+    return inner
 
 
-def end_plot():
+def wrap_end(end_func):
 
-    dl = viz.get_window_drawlist()
+    def inner():
 
-    export_requested = False
+        dl = viz.get_window_drawlist()
 
-    current_plot_id = viz.get_plot_id()
+        current_plot_id = viz.get_plot_id()
 
-    viz.push_override_id(current_plot_id)
-    if viz.begin_popup("##PlotContext"):
-        if viz.begin_menu("Export"):
-            if viz.menu_item("As svg"):
-                export_requested = True
-            viz.end_menu()
-        viz.separator()
-        viz.end_popup()
-    viz.pop_id()
+        file_dialog_requested = False
 
-    viz.end_plot()
+        viz.push_override_id(current_plot_id)
+        if viz.begin_popup("##PlotContext"):
+            if viz.begin_menu("Export"):
+                if viz.menu_item("As svg"):
+                    file_dialog_requested = True
+                viz.end_menu()
+            viz.separator()
+            viz.end_popup()
 
-    global plot_to_export
+        if file_dialog_requested:
+            viz.open_popup("Select export path")
 
-    if plot_to_export == current_plot_id:
+        # create export path chooser
 
-        dl_state = export_drawlist_state(dl)
-        svg_txt = drawlist_state_to_svg(dl_state)
+        global plot_export_path
 
-        with open("test.svg", "w+") as fd:
-            fd.write(svg_txt)
+        export_requested = False
 
-        plot_to_export = -1
+        plot_export_path = viz.file_dialog_popup(
+                "Select export path",
+                plot_export_path,
+                "Export")
 
-    if export_requested:
-        plot_to_export = current_plot_id
+        if viz.mod():
+            export_requested = True
+
+        viz.pop_id()
+
+        end_func()
+
+        # do actual export
+
+        global plot_to_export
+
+        if plot_to_export == current_plot_id:
+
+            dl_state = export_drawlist_state(dl)
+            svg_txt = drawlist_state_to_svg(dl_state)
+
+            if os.path.isdir(plot_export_path):
+                plot_export_path += "/"
+            if plot_export_path.endswith("/"):
+                plot_export_path += f"plot_export_{int(time.time() * 10**9)}"
+            if not plot_export_path.endswith(".svg"):
+                plot_export_path += ".svg"
+
+            with open(plot_export_path, "w+") as fd:
+                fd.write(svg_txt)
+
+            plot_to_export = -1
+
+        if export_requested:
+            plot_to_export = current_plot_id
+
+    return inner
+
+
+begin_plot = wrap_begin(viz.begin_plot)
+begin_figure = wrap_begin(viz.begin_figure)
+
+end_plot = wrap_end(viz.end_plot)
+end_figure = wrap_end(viz.end_figure)
