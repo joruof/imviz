@@ -111,6 +111,6 @@ setup(name="imviz",
       cmdclass=dict(build_ext=CMakeBuild),
       include_package_data=True,
       install_requires=[
-            "numpy", "zarr>=2.11.3"
+            "numpy", "zarr>=2.11.3", "Pillow>=9.0.1"
           ]
       )

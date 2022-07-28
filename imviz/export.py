@@ -3,9 +3,13 @@ This contains functions to export guis in various formats.
 """
 
 
+import io
 import os
 import sys
+import base64
 import numpy as np
+
+from PIL import Image
 
 
 try:
@@ -328,6 +332,27 @@ def export_drawlist_state(dl):
 
 def polygon_to_svg(p):
 
+    if p.image is not None:
+
+        np_vtx = np.array([v.pos for v in p.vertices])
+        box_min = np_vtx.min(axis=0)
+        box_max = np_vtx.max(axis=0)
+        box_dims = box_max - box_min
+
+        with io.BytesIO() as fd:
+            img = Image.fromarray(p.image)
+            img.save(fd, "png")
+            fd.seek(0)
+            str_img = base64.b64encode(fd.read()).decode("utf8")
+
+        svg_txt = f'<image x="{box_min[0]:.3f}" y="{box_min[1]:.3f}" '
+        svg_txt += f'width="{box_dims[0]:.3f}" height="{box_dims[1]:.3f}" '
+        svg_txt += 'preserveAspectRatio="none" '
+        svg_txt += f'xlink:href="data:image/png;base64,{str_img}" '
+        svg_txt += '/>'
+
+        return svg_txt
+
     if len(p.text) == 0:
         svg_txt = '<polygon points="'
 
@@ -337,16 +362,6 @@ def polygon_to_svg(p):
                 svg_txt += " "
 
         svg_txt += f'" fill="{p.color}" fill-opacity="{p.alpha}" />'
-    elif image is not None:
-
-        np_vtx = np.array([v.pos for v in p.vertices])
-        box_min = np_vtx.min(axis=0)
-        box_max = np_vtx.max(axis=0)
-        box_dims = box_max - box_min
-
-        svg_txt = f'<image x="{box_min[0]:.3f}" y="{box_min[1]:.3f}" '
-        svg_txt += f'width="{box_dims[0]:.3f}" height="{box_dims[1]:.3f}" '
-        svg_txt += f'width="{box_dims[0]:.3f}" height="{box_dims[1]:.3f}" '
     else:
         np_vtx = np.array([v.pos for v in p.vertices])
         box_min = np_vtx.min(axis=0)
