@@ -6,6 +6,7 @@
 #include "implot_internal.h"
 #include <imgui.h>
 #include <implot.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
@@ -852,6 +853,11 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     });
 
     m.def("get_plot_id", [&]() {
-        return ImPlot::GetCurrentPlot()->ID;
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return py::object(py::none());
+        } else {
+            return py::cast(plot->ID);
+        }
     });
 }
