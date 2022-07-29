@@ -458,9 +458,13 @@ def wrap_end(end_func):
 
     def inner():
 
-        dl = viz.get_window_drawlist()
-
         current_plot_id = viz.get_plot_id()
+
+        if current_plot_id == None:
+            end_func()
+            return
+
+        dl = viz.get_window_drawlist()
 
         file_dialog_requested = False
 
