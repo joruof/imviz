@@ -937,6 +937,10 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .def_property_readonly("codepoint", [](ImFontGlyph& g) {
                 return (unsigned int)g.Codepoint;
         })
+        .def_readonly("x0", &ImFontGlyph::X0)
+        .def_readonly("y0", &ImFontGlyph::Y0)
+        .def_readonly("x1", &ImFontGlyph::X1)
+        .def_readonly("y1", &ImFontGlyph::Y1)
         .def_readonly("u0", &ImFontGlyph::U0)
         .def_readonly("v0", &ImFontGlyph::V0)
         .def_readonly("u1", &ImFontGlyph::U1)

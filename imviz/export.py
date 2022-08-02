@@ -56,6 +56,12 @@ class Polygon:
         self.last_char_x = 0.0
         self.last_char_y = 0.0
         self.vertical_text = False
+        self.start_x = 0.0
+        self.start_y = 0.0
+        self.x0 = 0.0
+        self.y0 = 0.0
+        self.x1 = 0.0
+        self.y1 = 0.0
 
         # only use if we have an image in the polygon
 
@@ -152,7 +158,14 @@ def export_polygons(state, dl):
                 if p_i1 < p_i0:
                     p_i1, p_i0 = p_i0, p_i1
 
-                excluded_vtxs = list(set(o.vertices) - set(intersect))[0]
+                excluded_vtxs = list(set(o.vertices) - set(intersect))
+
+                if len(excluded_vtxs) != 1:
+                    merged_polys.append(p)
+                    p = o
+                    continue
+
+                excluded_vtxs = excluded_vtxs[0]
 
                 if p_i1 - p_i0 == 1:
                     p.vertices.insert(p_i0+1, excluded_vtxs)
@@ -171,6 +184,7 @@ def export_text_polygons(state):
 
     fonts = viz.get_font_atlas().get_fonts()
     uv_to_char = {}
+
     for font in fonts:
         for g in font.get_glyphs():
             k = str(g.u0) + str(g.v0)
@@ -180,6 +194,10 @@ def export_text_polygons(state):
             v.text = c
             v.font_size = font.font_size
             v.advance = g.advance_x
+            v.x0 = g.x0
+            v.y0 = g.y0
+            v.x1 = g.x1
+            v.y1 = g.y1
 
             uv_to_char[k] = v
 
@@ -223,8 +241,10 @@ def export_text_polygons(state):
             p.text = char_info.text
             p.font_size = char_info.font_size
             p.advance = char_info.advance
-            p.last_char_x, p.last_char_y = np.array(
-                    [v.pos for v in p.vertices]).min(axis=0)
+            p.x0 = char_info.x0
+            p.y0 = char_info.y0
+            p.x1 = char_info.x1
+            p.y1 = char_info.y1
 
             # check if we have vertical text
 
@@ -235,11 +255,23 @@ def export_text_polygons(state):
 
             p.vertical_text = min_vtx is not min_uv
 
-            # correct y position in case of vertical text
+            # determine position
+
+            min_x, min_y = np.array(
+                        [v.pos for v in p.vertices]).min(axis=0)
+            max_x, max_y = np.array(
+                        [v.pos for v in p.vertices]).max(axis=0)
 
             if p.vertical_text:
-                _, p.last_char_y = np.array(
-                        [v.pos for v in p.vertices]).max(axis=0)
+                p.last_char_x = min_x
+                p.last_char_y = max_y
+                p.start_x = max_x - p.y1 + p.font_size/2
+                p.start_y = max_y + p.x0
+            else:
+                p.last_char_x = min_x
+                p.last_char_y = min_y
+                p.start_x = min_x - p.x0
+                p.start_y = min_y - p.y0 + p.font_size/2
 
             # check if we can merge it with a previous char
 
@@ -254,14 +286,16 @@ def export_text_polygons(state):
                 continue
 
             if p.vertical_text:
-                adv_ratio = (pp.last_char_y - p.last_char_y) / pp.advance
-                baseline_ok = abs(p.last_char_x - pp.last_char_x) < p.font_size / 2
+                adv_dist = ((pp.last_char_y - p.x0) - (p.last_char_y - pp.x0))
+                baseline_dist = abs((p.last_char_x - p.y0)
+                                    - (pp.last_char_x - pp.y0))
             else:
-                adv_ratio = (p.last_char_x - pp.last_char_x) / pp.advance
-                baseline_ok = abs(p.last_char_y - pp.last_char_y) < p.font_size / 2
+                adv_dist = ((p.last_char_x - p.x0) - (pp.last_char_x - pp.x0))
+                baseline_dist = abs((p.last_char_y - p.y0)
+                                    - (pp.last_char_y - pp.y0))
 
-            can_be_joined = (adv_ratio > 0.5 and adv_ratio < 1.5
-                             and baseline_ok
+            can_be_joined = (abs(adv_dist - pp.advance) < 1e-4
+                             and baseline_dist < 1e-4
                              and (pp.font_size == p.font_size)
                              and (pp.color == p.color)
                              and (pp.alpha == p.alpha)
@@ -273,14 +307,13 @@ def export_text_polygons(state):
 
             # join and continue
 
-            if adv_ratio > 1.2:
-                p.text = " " + p.text
-
             pp.text += p.text
             pp.vertices += p.vertices
             pp.advance = p.advance
             pp.last_char_x = p.last_char_x
             pp.last_char_y = p.last_char_y
+            pp.x0 = p.x0
+            pp.y0 = p.y0
 
         state.polygon_groups[i] = new_polys
 
@@ -364,23 +397,18 @@ def polygon_to_svg(p):
 
         svg_txt += f'" fill="{p.color}" fill-opacity="{p.alpha}" />'
     else:
-        np_vtx = np.array([v.pos for v in p.vertices])
-        box_min = np_vtx.min(axis=0)
-        box_max = np_vtx.max(axis=0)
-        box_dims = box_max - box_min
-
+        # no idea why this is necessary, but it works
         char_size = p.font_size * 0.8
 
         if p.vertical_text:
-            char_x = box_min[0] + p.font_size * 0.55
-            char_y = box_min[1] + box_dims[1]
             svg_txt = ('<text '
-                       + f'transform="translate({char_x:.3f}, {char_y:.3f}) '
+                       + 'transform="translate('
+                       + f'{p.start_x:.3f}, {p.start_y:.3f}) '
                        + 'rotate(-90)" ')
         else:
-            char_x = box_min[0]
-            char_y = box_min[1] + p.font_size * 0.55
-            svg_txt = f'<text x="{char_x:.3f}" y="{char_y:.3f}" '
+            svg_txt = f'<text x="{p.start_x:.3f}" y="{p.start_y:.3f}" '
+
+        svg_txt += 'dominant-baseline="mathematical" '
 
         svg_txt += (f'fill="{p.color}" fill-opacity="{p.alpha}" '
                     + 'style="font-family: Source Sans Pro; '
@@ -460,7 +488,7 @@ def wrap_end(end_func):
 
         current_plot_id = viz.get_plot_id()
 
-        if current_plot_id == None:
+        if current_plot_id is None:
             end_func()
             return
 
