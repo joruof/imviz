@@ -1,5 +1,5 @@
 """
-This contains functions to export guis in various formats.
+This contains functions to export plots in various formats.
 """
 
 
@@ -248,19 +248,15 @@ def export_text_polygons(state):
 
             # check if we have vertical text
 
-            min_vtx = min(p.vertices,
-                          key=lambda v: v.pos[0]**2 + v.pos[1]**2)
-            min_uv = min(p.vertices,
-                         key=lambda v: v.uv[0]**2 + v.uv[1]**2)
+            min_vtx = min(p.vertices, key=lambda v: v.pos[0]**2 + v.pos[1]**2)
+            min_uv = min(p.vertices, key=lambda v: v.uv[0]**2 + v.uv[1]**2)
 
             p.vertical_text = min_vtx is not min_uv
 
             # determine position
 
-            min_x, min_y = np.array(
-                        [v.pos for v in p.vertices]).min(axis=0)
-            max_x, max_y = np.array(
-                        [v.pos for v in p.vertices]).max(axis=0)
+            min_x, min_y = np.array([v.pos for v in p.vertices]).min(axis=0)
+            max_x, max_y = np.array([v.pos for v in p.vertices]).max(axis=0)
 
             if p.vertical_text:
                 p.last_char_x = min_x
@@ -286,16 +282,14 @@ def export_text_polygons(state):
                 continue
 
             if p.vertical_text:
-                adv_dist = ((pp.last_char_y - p.x0) - (p.last_char_y - pp.x0))
-                baseline_dist = abs((p.last_char_x - p.y0)
-                                    - (pp.last_char_x - pp.y0))
+                adv_dist = (pp.last_char_y - p.x0) - (p.last_char_y - pp.x0)
+                base_dist = (p.last_char_x - p.y0) - (pp.last_char_x - pp.y0)
             else:
-                adv_dist = ((p.last_char_x - p.x0) - (pp.last_char_x - pp.x0))
-                baseline_dist = abs((p.last_char_y - p.y0)
-                                    - (pp.last_char_y - pp.y0))
+                adv_dist = (p.last_char_x - p.x0) - (pp.last_char_x - pp.x0)
+                base_dist = (p.last_char_y - p.y0) - (pp.last_char_y - pp.y0)
 
             can_be_joined = (abs(adv_dist - pp.advance) < 1e-4
-                             and baseline_dist < 1e-4
+                             and abs(base_dist) < 1e-4
                              and (pp.font_size == p.font_size)
                              and (pp.color == p.color)
                              and (pp.alpha == p.alpha)
@@ -462,8 +456,12 @@ def drawlist_state_to_svg(state):
     return svg_txt
 
 
-plot_to_export = -1
-plot_export_path = os.path.abspath(os.getcwd())
+class PlotExport:
+
+    plot_id = -1
+    countdown = 0
+    filetype = ""
+    path = os.path.abspath(os.getcwd())
 
 
 def wrap_begin(begin_func):
@@ -472,9 +470,8 @@ def wrap_begin(begin_func):
 
         res = begin_func(*args, **kwargs)
 
-        global plot_to_export
-
-        if plot_to_export == viz.get_plot_id():
+        if (PlotExport.plot_id == viz.get_plot_id()
+                and PlotExport.countdown < 1):
             viz.disable_aa()
 
         return res
@@ -500,6 +497,10 @@ def wrap_end(end_func):
         if viz.begin_popup("##PlotContext"):
             if viz.begin_menu("Export"):
                 if viz.menu_item("As svg"):
+                    PlotExport.filetype = "svg"
+                    file_dialog_requested = True
+                if viz.menu_item("As png"):
+                    PlotExport.filetype = "png"
                     file_dialog_requested = True
                 viz.end_menu()
             viz.separator()
@@ -510,45 +511,62 @@ def wrap_end(end_func):
 
         # create export path chooser
 
-        global plot_export_path
-
-        export_requested = False
-
-        plot_export_path = viz.file_dialog_popup(
+        PlotExport.path = viz.file_dialog_popup(
                 "Select export path",
-                plot_export_path,
+                PlotExport.path,
                 "Export")
 
-        if viz.mod():
-            export_requested = True
+        export_requested = viz.mod()
 
         viz.pop_id()
+
+        plot_pos = viz.get_window_pos()
+        plot_size = viz.get_window_size()
 
         end_func()
 
         # do actual export
 
-        global plot_to_export
+        if PlotExport.plot_id == current_plot_id:
+            if PlotExport.countdown < 1:
 
-        if plot_to_export == current_plot_id:
+                if os.path.isdir(PlotExport.path):
+                    PlotExport.path += "/"
+                if PlotExport.path.endswith("/"):
+                    PlotExport.path += f"plot_{int(time.time() * 10**9)}"
 
-            dl_state = export_drawlist_state(dl)
-            svg_txt = drawlist_state_to_svg(dl_state)
+                if PlotExport.filetype == "svg":
 
-            if os.path.isdir(plot_export_path):
-                plot_export_path += "/"
-            if plot_export_path.endswith("/"):
-                plot_export_path += f"plot_export_{int(time.time() * 10**9)}"
-            if not plot_export_path.endswith(".svg"):
-                plot_export_path += ".svg"
+                    if not PlotExport.path.endswith(".svg"):
+                        PlotExport.path += ".svg"
 
-            with open(plot_export_path, "w+") as fd:
-                fd.write(svg_txt)
+                    dl_state = export_drawlist_state(dl)
+                    svg_txt = drawlist_state_to_svg(dl_state)
 
-            plot_to_export = -1
+                    with open(PlotExport.path, "w+") as fd:
+                        fd.write(svg_txt)
+
+                elif PlotExport.filetype == "png":
+
+                    if not PlotExport.path.endswith(".png"):
+                        PlotExport.path += ".png"
+
+                    pixels = viz.get_pixels(plot_pos[0],
+                                            plot_pos[1],
+                                            plot_size[0],
+                                            plot_size[1])
+
+                    Image.fromarray(pixels).save(PlotExport.path)
+
+                PlotExport.plot_id = -1
+                PlotExport.filetype = ""
+
+            else:
+                PlotExport.countdown -= 1
 
         if export_requested:
-            plot_to_export = current_plot_id
+            PlotExport.plot_id = current_plot_id
+            PlotExport.countdown += 2
 
     return inner
 

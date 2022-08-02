@@ -535,7 +535,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("get_pixels", [&](int x, int y, int width, int height) {
 
-        py::array_t<uint8_t> pixels({width, height, 4});
+        py::array_t<uint8_t> pixels({height, width, 4});
 
         int w, h;
         glfwGetWindowSize(viz.window, &w, &h);
@@ -550,7 +550,7 @@ PYBIND11_MODULE(cppimviz, m) {
         // y-axis is flipped when loading directly from gpu
         // need to flip back and copy to fix memory layout
 
-        return pixels[py::slice(height, 0, -1)].attr("copy")();
+        return pixels[py::slice(-1, -height-1, -1)].attr("copy")();
     },
     R"raw(
     Cuts and returns the specified region from the main framebuffer of 
