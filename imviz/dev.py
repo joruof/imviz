@@ -37,6 +37,43 @@ def try_load_source(path):
         return ""
 
 
+def render_source(code_str, error_line, new_stack_frame_sel):
+
+    if viz.begin_window("Source code"):
+        if viz.begin_table("code", 2,
+                           viz.TableFlags.BORDERS_INNER_V):
+
+            viz.table_setup_column(
+                    "line_numbers",
+                    viz.TableColumnFlags.WIDTH_FIXED
+                    | viz.TableColumnFlags.NO_RESIZE)
+
+            viz.table_setup_column(
+                    "source",
+                    viz.TableColumnFlags.WIDTH_STRETCH)
+
+            for i, l in enumerate(code_str):
+                if i == error_line:
+                    lineno_color = (1.0, 0.3, 0.3)
+                    source_color = (1.0, 0.3, 0.3)
+                    if new_stack_frame_sel:
+                        viz.set_scroll_here_y(0.5)
+                        new_stack_frame_sel = False
+                else:
+                    lineno_color = (0.4, 0.4, 0.4)
+                    source_color = (1.0, 1.0, 1.0)
+
+                viz.table_next_column()
+                viz.text(str(i+1), color=lineno_color)
+                viz.table_next_column()
+                viz.text(l, color=source_color)
+                viz.table_next_row()
+            viz.end_table()
+    viz.end_window()
+
+    return new_stack_frame_sel
+
+
 def loop(cls, func_name):
 
     viz.configure_ini_path(sys.modules[cls.__module__])
@@ -63,7 +100,7 @@ def loop(cls, func_name):
             if exc_str is None:
                 func()
             else:
-                if not viz.wait():
+                if not viz.wait(powersave=True):
                     sys.exit()
 
                 cx, cy = viz.get_viewport_center()
@@ -97,58 +134,48 @@ def loop(cls, func_name):
 
                 viz.end_window()
 
-                if viz.begin_window("Local variables"):
-                    f_locals = exc_frames[exc_frame_idx].frame.f_locals
-                    viz.autogui(f_locals, ignore_custom=True)
-                viz.end_window()
-
                 if viz.begin_window("App state"):
                     viz.autogui(obj.__dict__)
                 viz.end_window()
 
-                if viz.begin_window("Source code"):
-                    if viz.begin_table("code", 2,
-                                       viz.TableFlags.BORDERS_INNER_V):
+                if exc_type == SyntaxError:
 
-                        viz.table_setup_column(
-                                "line_numbers",
-                                viz.TableColumnFlags.WIDTH_FIXED
-                                | viz.TableColumnFlags.NO_RESIZE)
+                    viz.begin_window("Local variables")
+                    viz.end_window()
 
-                        viz.table_setup_column(
-                                "source",
-                                viz.TableColumnFlags.WIDTH_STRETCH)
+                    new_stack_frame_sel = render_source(
+                            exc_code,
+                            exc_value.lineno-1,
+                            new_stack_frame_sel)
 
-                        for i, l in enumerate(exc_code):
-                            if i == exc_frames[exc_frame_idx].lineno-1:
-                                lineno_color = (1.0, 0.3, 0.3)
-                                source_color = (1.0, 0.3, 0.3)
-                                if new_stack_frame_sel:
-                                    viz.set_scroll_here_y(0.5)
-                                    new_stack_frame_sel = False
-                            else:
-                                lineno_color = (0.4, 0.4, 0.4)
-                                source_color = (1.0, 1.0, 1.0)
+                else:
+                    if viz.begin_window("Local variables"):
+                        f_locals = exc_frames[exc_frame_idx].frame.f_locals
+                        viz.autogui(f_locals, ignore_custom=True)
+                    viz.end_window()
 
-                            viz.table_next_column()
-                            viz.text(str(i+1), color=lineno_color)
-                            viz.table_next_column()
-                            viz.text(l, color=source_color)
-                            viz.table_next_row()
-                        viz.end_table()
-                viz.end_window()
+                    new_stack_frame_sel = render_source(
+                            exc_code,
+                            exc_frames[exc_frame_idx].lineno-1,
+                            new_stack_frame_sel)
 
         except SystemExit:
             return
-        except Exception:
+        except Exception as e:
             traceback.print_exc()
 
             # collect information about the exception
             exc_str = traceback.format_exc()
             exc_time = datetime.datetime.now()
             (exc_type, exc_value, exc_tb) = sys.exc_info()
-            exc_frames = inspect.getinnerframes(exc_tb)
-            exc_frame_idx = max(0, len(exc_frames) - 1)
-            exc_code = try_load_source(exc_frames[-1].filename)
+
+            if isinstance(e, SyntaxError):
+                exc_frames = []
+                exc_frame_idx = 0
+                exc_code = try_load_source(e.filename)
+            else:
+                exc_frames = inspect.getinnerframes(exc_tb)
+                exc_frame_idx = max(0, len(exc_frames) - 1)
+                exc_code = try_load_source(exc_frames[-1].filename)
 
             new_stack_frame_sel = True
