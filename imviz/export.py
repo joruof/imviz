@@ -8,9 +8,16 @@ import os
 import sys
 import time
 import base64
+import subprocess
 import numpy as np
 
 from PIL import Image
+
+
+pdf_avail = subprocess.call("inkscape --version",
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE) == 0
 
 
 try:
@@ -19,6 +26,7 @@ except ModuleNotFoundError:
     sys.path.append(os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "../build"))
     import cppimviz as viz
+
 
 from imviz.common import bundle
 
@@ -471,7 +479,8 @@ def wrap_begin(begin_func):
         res = begin_func(*args, **kwargs)
 
         if (PlotExport.plot_id == viz.get_plot_id()
-                and PlotExport.countdown < 1):
+                and PlotExport.countdown < 1
+                and PlotExport.filetype != "png"):
             viz.disable_aa()
 
         return res
@@ -496,11 +505,14 @@ def wrap_end(end_func):
         viz.push_override_id(current_plot_id)
         if viz.begin_popup("##PlotContext"):
             if viz.begin_menu("Export"):
-                if viz.menu_item("As svg"):
-                    PlotExport.filetype = "svg"
+                if viz.menu_item("As pdf", enabled=pdf_avail):
+                    PlotExport.filetype = "pdf"
                     file_dialog_requested = True
                 if viz.menu_item("As png"):
                     PlotExport.filetype = "png"
+                    file_dialog_requested = True
+                if viz.menu_item("As svg"):
+                    PlotExport.filetype = "svg"
                     file_dialog_requested = True
                 viz.end_menu()
             viz.separator()
@@ -557,6 +569,33 @@ def wrap_end(end_func):
                                             plot_size[1])
 
                     Image.fromarray(pixels).save(PlotExport.path)
+
+                elif PlotExport.filetype == "pdf":
+
+                    # first export as svg
+
+                    tmp_path = f"/tmp/imviz_exp_{int(time.time() * 10**9)}.svg"
+
+                    dl_state = export_drawlist_state(dl)
+                    svg_txt = drawlist_state_to_svg(dl_state)
+
+                    with open(tmp_path, "w+") as fd:
+                        fd.write(svg_txt)
+
+                    # then convert to pdf
+
+                    if not PlotExport.path.endswith(".pdf"):
+                        PlotExport.path += ".pdf"
+
+                    exp_cmd = (f'inkscape --file="{tmp_path}" '
+                               + '--export-area-drawing '
+                               + '--without-gui '
+                               + f'--export-pdf="{PlotExport.path}"')
+
+                    subprocess.call(exp_cmd,
+                                    shell=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
 
                 PlotExport.plot_id = -1
                 PlotExport.filetype = ""
