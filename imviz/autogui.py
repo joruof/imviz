@@ -2,18 +2,33 @@ import copy
 import typing
 import numbers
 import itertools
+import traceback
 
 import imviz as viz
 
 from imviz.storage import ext_setattr
 
 
-def render(obj,
-           name="",
-           path=[],
-           parents=[],
-           annotation=None,
-           ignore_custom=False):
+def render(obj, name="", **kwargs):
+
+    try:
+        return try_render(obj, name, **kwargs)
+    except Exception as e:
+        viz.text(f"{name}: {e}")
+        if viz.is_item_hovered():
+            viz.begin_tooltip()
+            viz.text(traceback.format_exc())
+            viz.end_tooltip()
+
+    return obj
+
+
+def try_render(obj,
+               name="",
+               path=[],
+               parents=[],
+               annotation=None,
+               ignore_custom=False):
     """
     This inspects the given object and renders a gui
     (with best effort) for all fields of the object.
@@ -254,7 +269,7 @@ def render(obj,
     elif isinstance(obj, dict):
         attr_dict = obj
     else:
-        viz.text(f"{name}: " + "{}")
+        viz.text(f"{name}: " + "???")
         return obj
 
     if len(name) > 0:
