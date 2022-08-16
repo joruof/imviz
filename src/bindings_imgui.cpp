@@ -815,6 +815,17 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         return ImGui::IsItemHovered();
     });
 
+    m.def("get_mouse_drag_delta", [](int mouseButton, float lockThreshold) {
+        return ImGui::GetMouseDragDelta(mouseButton, lockThreshold);
+    },
+    py::arg("mouse_button") = 0,
+    py::arg("lock_threshold") = -1.0f);
+
+    m.def("reset_mouse_drag_delta", [](int mouseButton) {
+        ImGui::ResetMouseDragDelta(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
     /**
      * Imgui ID management functions
      */
