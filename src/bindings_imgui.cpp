@@ -761,6 +761,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("get_window_pos", ImGui::GetWindowPos);
     m.def("get_window_size", ImGui::GetWindowSize);
 
+    m.def("is_window_focused", [](){
+        return ImGui::IsWindowFocused();
+    });
+    m.def("is_window_focused", [](){
+        return ImGui::IsWindowHovered();
+    });
+    m.def("is_window_docked", ImGui::IsWindowDocked);
+    m.def("is_window_appearing", ImGui::IsWindowAppearing);
+    m.def("is_window_collapsed", ImGui::IsWindowCollapsed);
+
     m.def("want_capture_mouse", []() {
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;
