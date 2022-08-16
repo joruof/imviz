@@ -4,6 +4,7 @@
 #include "imviz.hpp"
 #include <cmath>
 #include <imgui.h>
+#include <pybind11/attr.h>
 #include <pybind11/detail/common.h>
 #include <sstream>
 #include <iomanip>
@@ -63,6 +64,24 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ONCE", ImGuiCond_Once)
         .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
         .value("APPEARING", ImGuiCond_Appearing);
+
+    py::enum_<ImGuiTreeNodeFlags_>(m, "TreeNodeFlags", py::arithmetic())
+        .value("NONE", ImGuiTreeNodeFlags_None)
+        .value("SELECTED", ImGuiTreeNodeFlags_Selected)
+        .value("FRAMED", ImGuiTreeNodeFlags_Framed)
+        .value("ALLOW_ITEM_OVERLAP", ImGuiTreeNodeFlags_AllowItemOverlap)
+        .value("NO_TREE_PUSH_ON_OPEN", ImGuiTreeNodeFlags_NoTreePushOnOpen)
+        .value("NO_AUTO_OPEN_NO_LOG", ImGuiTreeNodeFlags_NoAutoOpenOnLog)
+        .value("DEFAULT_OPEN", ImGuiTreeNodeFlags_DefaultOpen)
+        .value("OPEN_ON_DOUBLE_CLICK", ImGuiTreeNodeFlags_OpenOnDoubleClick)
+        .value("OPEN_ON_ARROW", ImGuiTreeNodeFlags_OpenOnArrow)
+        .value("LEAF", ImGuiTreeNodeFlags_Leaf)
+        .value("BULLET", ImGuiTreeNodeFlags_Bullet)
+        .value("FRAME_PADDING", ImGuiTreeNodeFlags_FramePadding)
+        .value("SPAN_AVAIL_WIDTH", ImGuiTreeNodeFlags_SpanAvailWidth)
+        .value("SPAN_FULL_WIDTH", ImGuiTreeNodeFlags_SpanFullWidth)
+        .value("NAV_LEFT_JUMPS_BACK_HERE", ImGuiTreeNodeFlags_NavLeftJumpsBackHere)
+        .value("COLLAPSING_HEADER", ImGuiTreeNodeFlags_CollapsingHeader);
 
     py::enum_<ImGuiDragDropFlags_>(m, "DragDropFlags", py::arithmetic())
         .value("NONE", ImGuiDragDropFlags_None)
@@ -306,17 +325,11 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     });
     m.def("end_tab_item", ImGui::EndTabItem);
 
-    m.def("tree_node", [&](std::string label, bool selected) {
-
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
-        if (selected) {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
-
+    m.def("tree_node", [&](std::string label, ImGuiTreeNodeFlags flags) {
         return ImGui::TreeNodeEx(label.c_str(), flags);
     },
     py::arg("label") = "",
-    py::arg("selected") = false);
+    py::arg("flags") = ImGuiTreeNodeFlags_None);
 
     m.def("tree_pop", ImGui::TreePop);
 
@@ -788,12 +801,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("is_item_focused", ImGui::IsItemFocused);
     m.def("is_item_active", ImGui::IsItemActive);
     m.def("is_item_activated", ImGui::IsItemActivated);
+    m.def("is_item_deactivated_after_edit", ImGui::IsItemDeactivatedAfterEdit);
+    m.def("is_item_deactivated", ImGui::IsItemDeactivated);
     m.def("is_item_visible", ImGui::IsItemVisible);
+    m.def("is_item_toggled_open", ImGui::IsItemToggledOpen);
+    m.def("is_item_toggled_selection", ImGui::IsItemToggledSelection);
+    m.def("is_item_edited", ImGui::IsItemEdited);
     m.def("is_item_clicked", [&](int mouseButton) {
         return ImGui::IsItemClicked(mouseButton);
     },
     py::arg("mouse_button") = 0);
-
     m.def("is_item_hovered", [&]() { 
         return ImGui::IsItemHovered();
     });
