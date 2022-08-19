@@ -316,6 +316,8 @@ class Loader:
                 except Exception:
                     print(f"Warning: skipping init of unknown type {cls_name}")
                     return Skip
+            elif jt == list:
+                return [self.load(None, v) for v in json_obj]
             else:
                 # just use whatever is contained in json
                 return json_obj
