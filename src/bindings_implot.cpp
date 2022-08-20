@@ -203,8 +203,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                             array_like<float> size,
                             ImPlotFlags flags) {
 
-        bool openState = true;
-        bool windowOpen = ImGui::Begin(label.c_str(), &openState);
+        viz.currentWindowOpen = true;
+        bool windowOpen = ImGui::Begin(label.c_str(), &viz.currentWindowOpen);
 
         ImVec2 plotSize = ImGui::GetContentRegionAvail();
 
