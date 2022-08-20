@@ -363,6 +363,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("setup_finish", &ImPlot::SetupFinish);
 
+    m.def("set_axis", &ImPlot::SetAxis);
+    m.def("set_axes", &ImPlot::SetAxes);
+
     m.def("plot", [&](array_like<double> x,
                       array_like<double> y,
                       std::string fmt,
