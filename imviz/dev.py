@@ -138,7 +138,7 @@ def loop(cls, func_name):
                     viz.autogui(obj.__dict__)
                 viz.end_window()
 
-                if isinstance(exc_type, SyntaxError):
+                if isinstance(exc_value, SyntaxError):
 
                     viz.begin_window("Local variables")
                     viz.end_window()
