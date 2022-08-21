@@ -142,7 +142,7 @@ void ImViz::prepareUpdate() {
     ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None
             | ImGuiDockNodeFlags_PassthruCentralNode;
 
-    ImGui::DockSpace(1, ImVec2(0.0f, 0.0f), dockspace_flags);
+    mainDockSpaceId = ImGui::DockSpace(1, ImVec2(0.0f, 0.0f), dockspace_flags);
 
     ImGui::End();
 }
@@ -155,7 +155,7 @@ void ImViz::doUpdate (bool useVsync) {
 
     // Try soft error recovery. At first we do not destroy the imgui context.
     // If recover fails, the second recovery stage will recreate the context.
-    // (context receration implemented in wait() method)
+    // (context recreation implemented in wait() method)
     recover();
 
     // ensure that the default framebuffer is always bound

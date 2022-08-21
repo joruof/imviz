@@ -383,8 +383,10 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         // interpret marker format
 
+        static std::regex re{"(-)?(o|s|d|\\*|\\+)?"};
+
         std::smatch match;
-        std::regex_search(fmt, match, viz.re);
+        std::regex_search(fmt, match, re);
 
         std::vector<std::string> groups;
         for (auto m : match) {

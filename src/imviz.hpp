@@ -17,6 +17,8 @@ struct ImViz {
     ImFont* smallFont;
     ImFont* largeFont;
 
+    ImGuiID mainDockSpaceId;
+
     bool currentWindowOpen = false;
     bool figurePlotOpen = false;
 
@@ -30,8 +32,6 @@ struct ImViz {
 
     // initially update for two whole seconds (assuming vsync)
     int powerSaveFrameCounter = 120;
-
-    std::regex re{"(-)?(o|s|d|\\*|\\+)?"};
 
     ImViz();
 

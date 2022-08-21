@@ -4,8 +4,6 @@
 #include "imviz.hpp"
 #include <cmath>
 #include <imgui.h>
-#include <pybind11/attr.h>
-#include <pybind11/detail/common.h>
 #include <sstream>
 #include <iomanip>
 
@@ -64,6 +62,13 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ONCE", ImGuiCond_Once)
         .value("FIRST_USE_EVER", ImGuiCond_FirstUseEver)
         .value("APPEARING", ImGuiCond_Appearing);
+
+    py::enum_<ImGuiDir_>(m, "Dir")
+        .value("NONE", ImGuiDir_None)
+        .value("LEFT", ImGuiDir_Left)
+        .value("RIGHT", ImGuiDir_Right)
+        .value("UP", ImGuiDir_Up)
+        .value("DOWN", ImGuiDir_Down);
 
     py::enum_<ImGuiTreeNodeFlags_>(m, "TreeNodeFlags", py::arithmetic())
         .value("NONE", ImGuiTreeNodeFlags_None)
@@ -188,6 +193,15 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("ROW_BG_0", ImGuiTableBgTarget_RowBg0)
         .value("ROW_BG_1", ImGuiTableBgTarget_RowBg1)
         .value("CELL_BG", ImGuiTableBgTarget_CellBg);
+
+    py::enum_<ImGuiDockNodeFlags_>(m, "DockNodeFlags")
+        .value("NONE", ImGuiDockNodeFlags_None)
+        .value("KEEP_ALIVE_ONLY", ImGuiDockNodeFlags_KeepAliveOnly)
+        .value("NO_DOCKING_IN_CENTRAL_NODE", ImGuiDockNodeFlags_NoDockingInCentralNode)
+        .value("PASSTHRU_CENTRAL_NODE", ImGuiDockNodeFlags_PassthruCentralNode)
+        .value("NO_SPLIT", ImGuiDockNodeFlags_NoSplit)
+        .value("NO_RESIZE", ImGuiDockNodeFlags_NoResize)
+        .value("AUTO_HIDE_TAB_BAR", ImGuiDockNodeFlags_AutoHideTabBar);
 
     /*
      * Imgui widgets
@@ -700,6 +714,36 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         ImGui::SameLine();
     });
 
+    m.def("get_main_dockspace_id", [&](){ return viz.mainDockSpaceId; });
+
+    m.def("dock_builder_add_node", [&](ImGuiID nodeId, ImGuiDockNodeFlags flags){
+        return ImGui::DockBuilderAddNode(nodeId, flags);
+    },
+    py::arg("node_id") = 0,
+    py::arg("flags") = ImGuiDockNodeFlags_None);
+
+    m.def("dock_builder_split_node", [&](ImGuiID nodeId, ImGuiDir splitDir, float ratio){
+
+        ImGuiID node_a = 0;
+        ImGuiID node_b = 0;
+        ImGui::DockBuilderSplitNode(nodeId, splitDir, ratio, &node_a, &node_b);
+
+        return py::make_tuple(node_a, node_b);
+    },
+    py::arg("nodeId") = 0,
+    py::arg("split_dir"),
+    py::arg("ratio"));
+
+    m.def("dock_builder_dock_window", [](std::string windowName, ImGuiID nodeId) {
+        ImGui::DockBuilderDockWindow(windowName.c_str(), nodeId);
+    },
+    py::arg("window_name"),
+    py::arg("node_id"));
+
+    m.def("dock_builder_remove_node", ImGui::DockBuilderRemoveNode);
+    m.def("dock_builder_remove_node_child_nodes", ImGui::DockBuilderRemoveNodeChildNodes);
+    m.def("dock_builder_finish", ImGui::DockBuilderFinish);
+
     /**
      * Imgui config helper functions
      */
@@ -733,11 +777,24 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     },
     py::arg("path"));
 
+    m.def("load_ini_from_str", [](std::string ini) {
+
+        ImGui::LoadIniSettingsFromMemory(ini.c_str(), ini.size());
+    },
+    py::arg("ini"));
+
     m.def("save_ini", [](std::string path) {
 
         ImGui::SaveIniSettingsToDisk(path.c_str());
     },
     py::arg("path"));
+
+    m.def("save_ini_to_str", []() {
+
+        size_t outSize = 0;
+        const char* chars = ImGui::SaveIniSettingsToMemory(&outSize);
+        return std::string(chars, outSize);
+    });
 
     /**
      * Imgui window helper functions
@@ -764,7 +821,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("is_window_focused", [](){
         return ImGui::IsWindowFocused();
     });
-    m.def("is_window_focused", [](){
+    m.def("is_window_hovered", [](){
         return ImGui::IsWindowHovered();
     });
     m.def("is_window_docked", ImGui::IsWindowDocked);
@@ -835,6 +892,13 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         ImGui::ResetMouseDragDelta(mouseButton);
     },
     py::arg("mouse_button") = 0);
+
+    m.def("begin_disabled", [](bool disabled) {
+        ImGui::BeginDisabled(disabled);
+    },
+    py::arg("disabled") = true);
+
+    m.def("end_disabled", &ImGui::EndDisabled);
 
     /**
      * Imgui ID management functions
