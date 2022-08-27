@@ -4,6 +4,7 @@
 #include "imviz.hpp"
 #include <cmath>
 #include <imgui.h>
+#include <pybind11/pytypes.h>
 #include <sstream>
 #include <iomanip>
 
@@ -973,17 +974,560 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
      * DrawLists
      */
 
+    struct VizMatrix
+    {
+        // Taken from this great patch: 
+        // https://github.com/ocornut/imgui/compare/master...thedmd:feature/draw-list-transformation
+
+        double m00, m01, m10, m11, m20, m21;
+        VizMatrix() { m00 = m11 = 1.0; m01 = m10 = m20 = m21 = 0.0; }
+        VizMatrix(double _m00, double _m01, double _m10, double _m11, double _m20, double _m21)
+        { m00 = _m00; m01 = _m01; m10 = _m10; m11 = _m11; m20 = _m20; m21 = _m21; }
+#ifdef IM_MATRIX_CLASS_EXTRA // Define constructor and implicit cast operators in imconfig.h to convert back<>forth from your math types and VizMatrix.
+        IM_MATRIX_CLASS_EXTRA
+#endif
+
+        VizMatrix Inverted() const {
+
+            const float d00 = m11;
+            const float d01 = m01;
+
+            const float d10 = m10;
+            const float d11 = m00;
+
+            const float d20 = m10 * m21 - m11 * m20;
+            const float d21 = m00 * m21 - m01 * m20;
+
+            const float d = m00 * d00 - m10 * d01;
+
+            const float invD = d ? 1.0f / d : 0.0f;
+
+            return VizMatrix(
+                 d00 * invD, -d01 * invD,
+                -d10 * invD,  d11 * invD,
+                 d20 * invD, -d21 * invD);
+        }
+
+        static inline VizMatrix Translation(const ImVec2& p) { return Translation(p.x, p.y); }
+        static inline VizMatrix Translation(double x, double y) { return VizMatrix(1.0, 0.0, 0.0, 1.0, x, y); }
+        static inline VizMatrix Scaling(const ImVec2& p) { return Scaling(p.x, p.y); }
+        static inline VizMatrix Scaling(double x, double y) { return VizMatrix(x, 0.0, 0.0, y, 0.0, 0.0); }
+        static inline VizMatrix Shear(const ImVec2& p) { return Shear(p.x, p.y); }
+        static inline VizMatrix Shear(double x, double y) { return VizMatrix(1.0, y, x, 1.0, 0.0, 0.0); }
+        IMGUI_API static VizMatrix Rotation(double angle) {
+            const double s = sin(angle);
+            const double c = cos(angle);
+            return VizMatrix(c, s, -s, c, 0.0, 0.0);
+        }
+
+        static inline VizMatrix Combine(const VizMatrix& lhs, const VizMatrix& rhs) // lhs * rhs = out
+        {
+            return VizMatrix(
+                rhs.m00 * lhs.m00 + rhs.m10 * lhs.m01,
+                rhs.m01 * lhs.m00 + rhs.m11 * lhs.m01,
+                rhs.m00 * lhs.m10 + rhs.m10 * lhs.m11,
+                rhs.m01 * lhs.m10 + rhs.m11 * lhs.m11,
+                rhs.m00 * lhs.m20 + rhs.m10 * lhs.m21 + rhs.m20,
+                rhs.m01 * lhs.m20 + rhs.m11 * lhs.m21 + rhs.m21);
+        }
+        inline void Transform(ImVec2* v, size_t count = 1) const
+        {
+            for (size_t i = 0; i < count; ++i, ++v)
+            {
+                *v = ImVec2(
+                    m00 * v->x + m10 * v->y + m20,
+                    m01 * v->x + m11 * v->y + m21);
+            }
+        }
+        inline ImVec2 Transformed(const ImVec2& v) const
+        {
+            ImVec2 p = v;
+            Transform(&p);
+            return p;
+        }
+    };
+
+    /**
+     * Wrapper class around VizDrawList for extra functionality.
+     */
+    struct VizDrawList {
+
+        ImDrawList& dl;
+
+        std::vector<VizMatrix> trafoStack;
+
+        VizDrawList(ImDrawList& dl) : dl{dl} { }
+
+        std::vector<ImDrawCmd> getCmds () {
+            std::vector<ImDrawCmd> cmds;
+            for (ImDrawCmd& c : dl.CmdBuffer) { 
+                cmds.push_back(c);
+            }
+            return cmds;
+        }
+
+        std::vector<ImDrawVert> getVerts () {
+            std::vector<ImDrawVert> verts;
+            for (ImDrawVert& v : dl.VtxBuffer) { 
+                verts.push_back(v);
+            }
+            return verts;
+        }
+
+        std::vector<ImDrawIdx> getIndices () {
+            std::vector<ImDrawIdx> idxs;
+            for (ImDrawIdx& i : dl.IdxBuffer) { 
+                idxs.push_back(i);
+            }
+            return idxs;
+        }
+
+        void pushTransform(VizMatrix& mat) {
+
+            if (trafoStack.size() > 0) {
+                VizMatrix& lastTf = trafoStack.back();
+                mat = VizMatrix::Combine(mat, lastTf);
+            }
+
+            trafoStack.push_back(mat);
+        }
+
+        void pushTransform(array_like<double> trans,
+                           double rot,
+                           array_like<double> scale) {
+
+            assert_shape(trans, {{2}});
+            assert_shape(scale, {{2}});
+
+            VizMatrix mat = VizMatrix::Combine(VizMatrix::Rotation(rot),
+                                               VizMatrix::Scaling(scale.at(0), scale.at(1)));
+            mat.m20 = trans.at(0);
+            mat.m21 = trans.at(1);
+
+            pushTransform(mat);
+        }
+
+        void pushPlotTransform() {
+
+            ImPlotPoint a = ImPlot::PrecisePlotToPixels(0.0, 0.0);
+            ImPlotPoint b = ImPlot::PrecisePlotToPixels(10.0e7, 10.0e7);
+
+            double scaleX = std::abs((b.x - a.x) / 10.0e7);
+            double scaleY = std::abs((b.y - a.y) / 10.0e7);
+
+            VizMatrix mat = VizMatrix::Scaling(scaleX, -scaleY);
+            mat.m20 = a.x;
+            mat.m21 = a.y;
+
+            pushTransform(mat);
+        }
+
+        void pushWindowTransform() {
+
+            ImVec2 pos = ImGui::GetWindowPos();
+
+            VizMatrix mat;
+            mat.m20 = pos.x;
+            mat.m21 = pos.y;
+
+            pushTransform(mat);
+        }
+
+        void popTransform(int count = 1) { 
+
+            for (int i = 0; i < count; ++i) {
+                IM_ASSERT(trafoStack.size() > 0);
+                trafoStack.pop_back();
+            }
+        }
+
+        void applyTransform(size_t startIndex) {
+
+            if (trafoStack.size() == 0) {
+                return;
+            }
+
+            const VizMatrix& m = trafoStack.back();
+
+            if (startIndex < dl._VtxCurrentIdx)
+            {
+                ImDrawVert* const vertexBegin = dl.VtxBuffer.Data + startIndex;
+                ImDrawVert* const vertexEnd   = dl.VtxBuffer.Data + dl._VtxCurrentIdx;
+
+                for (ImDrawVert* vertex = vertexBegin; vertex != vertexEnd; ++vertex)
+                {
+                    const float x = vertex->pos.x;
+                    const float y = vertex->pos.y;
+
+                    vertex->pos.x = m.m00 * x + m.m10 * y + m.m20;
+                    vertex->pos.y = m.m01 * x + m.m11 * y + m.m21;
+                }
+            }
+        }
+
+        void addVertices(array_like<double>& vertices, py::handle& color) {
+
+            assert_shape(vertices, {{-1, 2}});
+            size_t count = vertices.shape(0);
+
+            ImU32 col = ImGui::GetColorU32(interpretColor(color));
+
+            ImVec2 uv(dl._Data->TexUvWhitePixel);
+            ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+
+            dl.PrimReserve(count, count);
+
+            for (size_t i = 0; i < count; ++i) {
+                dl._IdxWritePtr[i] = (ImDrawIdx)(idx+i);
+                dl._VtxWritePtr[i].pos.x = vertices.at(i, 0);
+                dl._VtxWritePtr[i].pos.y = vertices.at(i, 1);
+                dl._VtxWritePtr[i].uv = uv;
+                dl._VtxWritePtr[i].col = col;
+            }
+
+            dl._VtxWritePtr += count;
+            dl._VtxCurrentIdx += count;
+            dl._IdxWritePtr += count;
+
+            applyTransform(idx);
+        }
+
+        void addLine(const ImVec2& p0, const ImVec2& p1, py::handle& color, float width) {
+
+            ImU32 col = ImGui::GetColorU32(interpretColor(color));
+            ImVec2 dir = p1 - p0;
+            dir /= std::sqrt(dir.x*dir.x + dir.y*dir.y);
+            ImVec2 ortho(-dir.y, dir.x);
+
+            float half_width = width * 0.5;
+            
+            const ImVec2& a = p0 - dir*half_width - ortho*half_width;
+            const ImVec2& b = p0 - dir*half_width + ortho*half_width;
+            const ImVec2& c = p1 + dir*half_width + ortho*half_width;
+            const ImVec2& d = p1 + dir*half_width - ortho*half_width;
+
+            ImVec2 uv(dl._Data->TexUvWhitePixel);
+            ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+
+            dl.PrimReserve(6, 4);
+
+            dl._IdxWritePtr[0] = idx;
+            dl._IdxWritePtr[1] = (ImDrawIdx)(idx+1);
+            dl._IdxWritePtr[2] = (ImDrawIdx)(idx+2);
+            dl._IdxWritePtr[3] = idx;
+            dl._IdxWritePtr[4] = (ImDrawIdx)(idx+2);
+            dl._IdxWritePtr[5] = (ImDrawIdx)(idx+3);
+
+            dl._VtxWritePtr[0].pos = a;
+            dl._VtxWritePtr[0].uv = uv;
+            dl._VtxWritePtr[0].col = col;
+            dl._VtxWritePtr[1].pos = b;
+            dl._VtxWritePtr[1].uv = uv;
+            dl._VtxWritePtr[1].col = col;
+            dl._VtxWritePtr[2].pos = c;
+            dl._VtxWritePtr[2].uv = uv;
+            dl._VtxWritePtr[2].col = col;
+
+            dl._VtxWritePtr[3].pos = d;
+            dl._VtxWritePtr[3].uv = uv;
+            dl._VtxWritePtr[3].col = col;
+
+            dl._VtxWritePtr += 4;
+            dl._VtxCurrentIdx += 4;
+            dl._IdxWritePtr += 6;
+
+            applyTransform(idx);
+        }
+
+        void addRect(const ImVec2& p_min,
+                     const ImVec2& p_max,
+                     py::handle& fillColor,
+                     py::handle& lineColor,
+                     float lineWidth) {
+
+            ImVec4 fillCol = interpretColor(fillColor);
+
+            if (fillCol.w != -1 and lineWidth > 0.0) {
+
+                ImU32 col = ImGui::GetColorU32(fillCol);
+                
+                const ImVec2& a = p_min;
+                const ImVec2& c = p_max;
+
+                ImVec2 b(c.x, a.y), d(a.x, c.y), uv(dl._Data->TexUvWhitePixel);
+                ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+
+                dl.PrimReserve(6, 4);
+
+                dl._IdxWritePtr[0] = idx;
+                dl._IdxWritePtr[1] = (ImDrawIdx)(idx+1);
+                dl._IdxWritePtr[2] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[3] = idx;
+                dl._IdxWritePtr[4] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[5] = (ImDrawIdx)(idx+3);
+
+                dl._VtxWritePtr[0].pos = a;
+                dl._VtxWritePtr[0].uv = uv;
+                dl._VtxWritePtr[0].col = col;
+                dl._VtxWritePtr[1].pos = b;
+                dl._VtxWritePtr[1].uv = uv;
+                dl._VtxWritePtr[1].col = col;
+                dl._VtxWritePtr[2].pos = c;
+                dl._VtxWritePtr[2].uv = uv;
+                dl._VtxWritePtr[2].col = col;
+
+                dl._VtxWritePtr[3].pos = d;
+                dl._VtxWritePtr[3].uv = uv;
+                dl._VtxWritePtr[3].col = col;
+
+                dl._VtxWritePtr += 4;
+                dl._VtxCurrentIdx += 4;
+                dl._IdxWritePtr += 6;
+
+                applyTransform(idx);
+            }
+
+            ImVec4 lineCol = interpretColor(lineColor);
+
+            if (lineCol.w != -1) {
+
+                ImU32 col = ImGui::GetColorU32(lineCol);
+
+                ImVec2 offset(lineWidth*0.5, lineWidth*0.5);
+                
+                const ImVec2 oa = p_min - offset;
+                const ImVec2 oc = p_max + offset;
+                const ImVec2 ob(oc.x, oa.y);
+                const ImVec2 od(oa.x, oc.y);
+
+                const ImVec2 ia = p_min + offset;
+                const ImVec2 ic = p_max - offset;
+                const ImVec2 ib(ic.x, ia.y);
+                const ImVec2 id(ia.x, ic.y);
+
+                ImVec2 uv(dl._Data->TexUvWhitePixel);
+                ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+
+                dl.PrimReserve(24, 8);
+
+                dl._IdxWritePtr[0] = idx;
+                dl._IdxWritePtr[1] = (ImDrawIdx)(idx+4);
+                dl._IdxWritePtr[2] = (ImDrawIdx)(idx+1);
+                dl._IdxWritePtr[3] = (ImDrawIdx)(idx+1);
+                dl._IdxWritePtr[4] = (ImDrawIdx)(idx+4);
+                dl._IdxWritePtr[5] = (ImDrawIdx)(idx+5);
+                dl._IdxWritePtr[6] = (ImDrawIdx)(idx+1);
+                dl._IdxWritePtr[7] = (ImDrawIdx)(idx+5);
+                dl._IdxWritePtr[8] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[9] = (ImDrawIdx)(idx+5);
+                dl._IdxWritePtr[10] = (ImDrawIdx)(idx+6);
+                dl._IdxWritePtr[11] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[12] = (ImDrawIdx)(idx+6);
+                dl._IdxWritePtr[13] = (ImDrawIdx)(idx+7);
+                dl._IdxWritePtr[14] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[15] = (ImDrawIdx)(idx+7);
+                dl._IdxWritePtr[16] = (ImDrawIdx)(idx+3);
+                dl._IdxWritePtr[17] = (ImDrawIdx)(idx+2);
+                dl._IdxWritePtr[18] = (ImDrawIdx)(idx+4);
+                dl._IdxWritePtr[19] = (ImDrawIdx)(idx+3);
+                dl._IdxWritePtr[20] = (ImDrawIdx)(idx+7);
+                dl._IdxWritePtr[21] = idx;
+                dl._IdxWritePtr[22] = (ImDrawIdx)(idx+3);
+                dl._IdxWritePtr[23] = (ImDrawIdx)(idx+4);
+
+                dl._VtxWritePtr[0].pos = oa;
+                dl._VtxWritePtr[0].uv = uv;
+                dl._VtxWritePtr[0].col = col;
+                dl._VtxWritePtr[1].pos = ob;
+                dl._VtxWritePtr[1].uv = uv;
+                dl._VtxWritePtr[1].col = col;
+                dl._VtxWritePtr[2].pos = oc;
+                dl._VtxWritePtr[2].uv = uv;
+                dl._VtxWritePtr[2].col = col;
+                dl._VtxWritePtr[3].pos = od;
+                dl._VtxWritePtr[3].uv = uv;
+                dl._VtxWritePtr[3].col = col;
+                dl._VtxWritePtr[4].pos = ia;
+                dl._VtxWritePtr[4].uv = uv;
+                dl._VtxWritePtr[4].col = col;
+                dl._VtxWritePtr[5].pos = ib;
+                dl._VtxWritePtr[5].uv = uv;
+                dl._VtxWritePtr[5].col = col;
+                dl._VtxWritePtr[6].pos = ic;
+                dl._VtxWritePtr[6].uv = uv;
+                dl._VtxWritePtr[6].col = col;
+                dl._VtxWritePtr[7].pos = id;
+                dl._VtxWritePtr[7].uv = uv;
+                dl._VtxWritePtr[7].col = col;
+
+                dl._VtxWritePtr += 8;
+                dl._VtxCurrentIdx += 8;
+                dl._IdxWritePtr += 24;
+
+                applyTransform(idx);
+            }
+        }
+
+        void addImage(std::string label,
+                      py::array& image,
+                      ImVec2 pMin,
+                      ImVec2 pMax,
+                      ImVec2 uvMin,
+                      ImVec2 uvMax,
+                      array_like<double> color) {
+
+            ImU32 c = IM_COL32_WHITE;
+            if (color.shape(0) != 0) {
+                c = ImGui::GetColorU32(interpretColor(color));
+            }
+
+            ImageInfo info = interpretImage(image);
+            GLuint textureId = uploadImage(label, info, image);
+
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddImage((void*)(intptr_t)textureId,
+                        pMin,
+                        pMax,
+                        uvMin,
+                        uvMax,
+                        c);
+            applyTransform(startIndex);
+        }
+
+        void addEllipse(const ImVec2& c,
+                        float a,
+                        float b,
+                        py::handle& fillColor,
+                        py::handle& lineColor,
+                        float lineWidth,
+                        int numSegments) {
+
+            std::vector<ImVec2> dirs(numSegments);
+
+            for (int i = 0; i < numSegments; ++i) {
+                double angle = M_PI * 2.0 * (double)i / (double)numSegments;
+                dirs[i].x = std::cos(angle);
+                dirs[i].y = std::sin(angle);
+            }
+
+            ImVec2 uv(dl._Data->TexUvWhitePixel);
+
+            ImVec4 fillCol = interpretColor(fillColor);
+
+            if (fillCol.w != -1) {
+
+                ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+                ImU32 col = ImGui::GetColorU32(fillCol);
+
+                dl.PrimReserve(3*numSegments, 1+numSegments);
+
+                // center vertex
+                dl._VtxWritePtr[0].pos = c;
+                dl._VtxWritePtr[0].uv = uv;
+                dl._VtxWritePtr[0].col = col;
+
+                // first outer vertex
+                dl._VtxWritePtr[1].pos.x = c.x + a * dirs[0].x;
+                dl._VtxWritePtr[1].pos.y = c.y + b * dirs[0].y;
+                dl._VtxWritePtr[1].uv = uv;
+                dl._VtxWritePtr[1].col = col;
+
+                for (int i = 0; i < numSegments-1; ++i) {
+                    dl._IdxWritePtr[i*3] = idx;
+                    dl._IdxWritePtr[i*3+1] = (ImDrawIdx)(idx + i + 1);
+                    dl._IdxWritePtr[i*3+2] = (ImDrawIdx)(idx + i + 2);
+
+                    dl._VtxWritePtr[i+2].pos.x = c.x + a * dirs[i+1].x;
+                    dl._VtxWritePtr[i+2].pos.y = c.y + b * dirs[i+1].y;
+                    dl._VtxWritePtr[i+2].uv = uv;
+                    dl._VtxWritePtr[i+2].col = col;
+                }
+
+                // final triangle
+                dl._IdxWritePtr[(numSegments-1)*3] = idx;
+                dl._IdxWritePtr[(numSegments-1)*3+1] = (ImDrawIdx)(idx + numSegments);
+                dl._IdxWritePtr[(numSegments-1)*3+2] = (ImDrawIdx)(idx + 1);
+
+                dl._VtxWritePtr += numSegments+1;
+                dl._VtxCurrentIdx += numSegments+1;
+                dl._IdxWritePtr += 3*numSegments;
+
+                applyTransform(idx);
+            }
+
+            ImVec4 lineCol = interpretColor(lineColor);
+
+            if (lineCol.w != -1 and lineWidth > 0) {
+
+                ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
+                ImU32 col = ImGui::GetColorU32(lineCol);
+
+                dl.PrimReserve(3*2*numSegments, 2*numSegments);
+
+                double ai = a - lineWidth*0.5;
+                double ao = a + lineWidth*0.5;
+                double bi = b - lineWidth*0.5;
+                double bo = b + lineWidth*0.5;
+
+                // first inner vertex
+                dl._VtxWritePtr[0].pos.x = c.x + ai * dirs[0].x;
+                dl._VtxWritePtr[0].pos.y = c.y + bi * dirs[0].y;
+                dl._VtxWritePtr[0].uv = uv;
+                dl._VtxWritePtr[0].col = col;
+
+                // first outer vertex
+                dl._VtxWritePtr[1].pos.x = c.x + ao * dirs[0].x;
+                dl._VtxWritePtr[1].pos.y = c.y + bo * dirs[0].y;
+                dl._VtxWritePtr[1].uv = uv;
+                dl._VtxWritePtr[1].col = col;
+
+                for (int i = 0; i < numSegments-1; ++i) {
+                    dl._IdxWritePtr[i*6] = (ImDrawIdx)(idx + i*2);
+                    dl._IdxWritePtr[i*6+1] = (ImDrawIdx)(idx + i*2 + 1);
+                    dl._IdxWritePtr[i*6+2] = (ImDrawIdx)(idx + i*2 + 3);
+                    dl._IdxWritePtr[i*6+3] = (ImDrawIdx)(idx + i*2);
+                    dl._IdxWritePtr[i*6+4] = (ImDrawIdx)(idx + i*2 + 3);
+                    dl._IdxWritePtr[i*6+5] = (ImDrawIdx)(idx + i*2 + 2);
+
+                    dl._VtxWritePtr[(i+1)*2].pos.x = c.x + ai * dirs[i+1].x;
+                    dl._VtxWritePtr[(i+1)*2].pos.y = c.y + bi * dirs[i+1].y;
+                    dl._VtxWritePtr[(i+1)*2].uv = uv;
+                    dl._VtxWritePtr[(i+1)*2].col = col;
+
+                    dl._VtxWritePtr[(i+1)*2+1].pos.x = c.x + ao * dirs[i+1].x;
+                    dl._VtxWritePtr[(i+1)*2+1].pos.y = c.y + bo * dirs[i+1].y;
+                    dl._VtxWritePtr[(i+1)*2+1].uv = uv;
+                    dl._VtxWritePtr[(i+1)*2+1].col = col;
+                }
+
+                // final segment
+                dl._IdxWritePtr[(numSegments-1)*6] = (ImDrawIdx)(idx + (numSegments-1)*2);
+                dl._IdxWritePtr[(numSegments-1)*6+1] = (ImDrawIdx)(idx + (numSegments-1)*2 + 1);
+                dl._IdxWritePtr[(numSegments-1)*6+2] = (ImDrawIdx)(idx + 1);
+                dl._IdxWritePtr[(numSegments-1)*6+3] = (ImDrawIdx)(idx + (numSegments-1)*2);
+                dl._IdxWritePtr[(numSegments-1)*6+4] = (ImDrawIdx)(idx + 1);
+                dl._IdxWritePtr[(numSegments-1)*6+5] = (ImDrawIdx)(idx);
+
+                dl._VtxWritePtr += 2*numSegments;
+                dl._VtxCurrentIdx += 2*numSegments;
+                dl._IdxWritePtr += 3*2*numSegments;
+
+                applyTransform(idx);
+            }
+        }
+    };
+
     m.def("disable_aa", [&]() {
         ImGui::GetCurrentWindow()->DrawList->Flags = ImDrawListFlags_None;
     });
 
-    m.def("get_window_drawlist",
-            [&]() { return ImGui::GetCurrentWindow()->DrawList; },
-            py::return_value_policy::reference);
+    m.def("get_window_drawlist", [&]() {
+        return VizDrawList(*ImGui::GetCurrentWindow()->DrawList);
+    });
 
-    m.def("get_plot_drawlist",
-            &ImPlot::GetPlotDrawList,
-            py::return_value_policy::reference);
+    m.def("get_plot_drawlist", [&]() {
+        return VizDrawList(*ImPlot::GetPlotDrawList());
+    });
 
     m.def("push_clip_rect", [](ImVec2 pMin, ImVec2 pMax, bool intersect) {
         ImGui::PushClipRect(pMin, pMax, intersect);
@@ -1063,28 +1607,54 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .def_readwrite("uv", &ImDrawVert::uv)
         .def_readwrite("col", &ImDrawVert::col);
 
+    py::class_<VizDrawList>(m, "VizDrawList")
+        .def("get_cmds", &VizDrawList::getCmds)
+        .def("get_verts", &VizDrawList::getVerts)
+        .def("get_indices", &VizDrawList::getIndices)
+        .def("push_plot_transform", &VizDrawList::pushPlotTransform)
+        .def("push_window_transform", &VizDrawList::pushWindowTransform)
+        .def("push_transform", [&](VizDrawList& vdl,
+                                   array_like<double> trans,
+                                   double rot,
+                                   array_like<double> scale) {
+            vdl.pushTransform(trans, rot, scale); 
+        },
+        py::arg("trans") = ImVec2(0.0, 0.0),
+        py::arg("rot") = 0.0,
+        py::arg("scale") = ImVec2(1.0, 1.0))
+        .def("pop_transform", &VizDrawList::popTransform, py::arg("count") = 1)
+        .def("add_vertices", &VizDrawList::addVertices,
+            py::arg("vertices"),
+            py::arg("color") = py::array())
+        .def("add_line", &VizDrawList::addLine,
+            py::arg("p0"),
+            py::arg("p1"),
+            py::arg("color") = py::array(),
+            py::arg("width") = 1.0)
+        .def("add_rect", &VizDrawList::addRect,
+            py::arg("p_min"),
+            py::arg("p_max"),
+            py::arg("fill_color") = py::array(),
+            py::arg("line_color") = py::array(),
+            py::arg("line_width") = 1.0)
+        .def("add_image", &VizDrawList::addImage,
+            py::arg("label"),
+            py::arg("image"),
+            py::arg("p_min"),
+            py::arg("p_max"),
+            py::arg("uv_min") = ImVec2(0, 0),
+            py::arg("uv_max") = ImVec2(1, 1),
+            py::arg("color") = py::array())
+        .def("add_ellipse", &VizDrawList::addEllipse,
+            py::arg("center"),
+            py::arg("a"),
+            py::arg("b"),
+            py::arg("fill_color") = py::array(),
+            py::arg("line_color") = py::array(),
+            py::arg("line_width") = 1.0,
+            py::arg("num_segments") = 36);
+
     py::class_<ImDrawList>(m, "DrawList")
-        .def("get_cmds", [&](ImDrawList& dl) { 
-            std::vector<ImDrawCmd> cmds;
-            for (ImDrawCmd& c : dl.CmdBuffer) { 
-                cmds.push_back(c);
-            }
-            return cmds;
-        })
-        .def("get_verts", [&](ImDrawList& dl) { 
-            std::vector<ImDrawVert> verts;
-            for (ImDrawVert& v : dl.VtxBuffer) { 
-                verts.push_back(v);
-            }
-            return verts;
-        })
-        .def("get_indices", [&](ImDrawList& dl) { 
-            std::vector<ImDrawIdx> idxs;
-            for (ImDrawIdx& i : dl.IdxBuffer) { 
-                idxs.push_back(i);
-            }
-            return idxs;
-        })
         .def("push_plot_transform", [&](ImDrawList& dl) {
 
             ImPlotPoint a = ImPlot::PrecisePlotToPixels(0.0, 0.0);
@@ -1113,6 +1683,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             mat.m21 = trans.at(1);
 
             dl.PushTransformation(mat);
+
         },
         py::arg("trans") = ImVec2(0.0, 0.0),
         py::arg("rot") = 0.0,
