@@ -1165,6 +1165,31 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             }
         }
 
+        void pushTransformedClipRect() {
+
+            ImVec2 clMin = dl.GetClipRectMin();
+            ImVec2 clMax = dl.GetClipRectMax();
+
+            if (trafoStack.size() == 0) {
+                dl.PushClipRect(clMin, clMax);
+                return;
+            }
+
+            const VizMatrix& m = trafoStack.back();
+
+            const float xMax = clMax.x;
+            const float yMax = clMax.y;
+            const float xMin = clMin.x;
+            const float yMin = clMin.y;
+
+            clMax.x = m.m00 * xMax + m.m10 * yMax + m.m20;
+            clMax.y = m.m01 * xMax + m.m11 * yMax + m.m21;
+            clMin.x = m.m00 * xMin + m.m10 * yMin + m.m20;
+            clMin.y = m.m01 * xMin + m.m11 * yMin + m.m21;
+
+            dl.PushClipRect(clMin, clMax);
+        }
+
         void addVertices(array_like<double>& vertices, py::handle& color) {
 
             assert_shape(vertices, {{-1, 2}});
@@ -1394,13 +1419,13 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             applyTransform(startIndex);
         }
 
-        void addEllipse(const ImVec2& c,
-                        float a,
-                        float b,
-                        py::handle& fillColor,
-                        py::handle& lineColor,
-                        float lineWidth,
-                        int numSegments) {
+        void addBaseNgon(const ImVec2& c,
+                         float a,
+                         float b,
+                         py::handle& fillColor,
+                         py::handle& lineColor,
+                         float lineWidth,
+                         int numSegments) {
 
             std::vector<ImVec2> dirs(numSegments);
 
@@ -1514,6 +1539,19 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
                 applyTransform(idx);
             }
+        }
+
+        void addText(ImVec2 position,
+                     std::string text,
+                     array_like<double> color) {
+
+            pushTransformedClipRect();
+            unsigned int startIndex = dl._VtxCurrentIdx;
+            dl.AddText(position,
+                       ImGui::GetColorU32(interpretColor(color)),
+                       text.c_str());
+            applyTransform(startIndex);
+            dl.PopClipRect();
         }
     };
 
@@ -1645,14 +1683,33 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             py::arg("uv_min") = ImVec2(0, 0),
             py::arg("uv_max") = ImVec2(1, 1),
             py::arg("color") = py::array())
-        .def("add_ellipse", &VizDrawList::addEllipse,
+        .def("add_ellipse", &VizDrawList::addBaseNgon,
             py::arg("center"),
             py::arg("a"),
             py::arg("b"),
             py::arg("fill_color") = py::array(),
             py::arg("line_color") = py::array(),
             py::arg("line_width") = 1.0,
-            py::arg("num_segments") = 36);
+            py::arg("num_segments") = 64)
+        .def("add_circle", [](VizDrawList& vdl,
+                              const ImVec2& c,
+                              float r,
+                              py::handle& fillColor,
+                              py::handle& lineColor,
+                              float lineWidth,
+                              int numSegments) {
+                vdl.addBaseNgon(c, r, r, fillColor, lineColor, lineWidth, numSegments);
+            },
+            py::arg("center"),
+            py::arg("r"),
+            py::arg("fill_color") = py::array(),
+            py::arg("line_color") = py::array(),
+            py::arg("line_width") = 1.0,
+            py::arg("num_segments") = 64)
+        .def("add_text", &VizDrawList::addText,
+            py::arg("position"),
+            py::arg("text"),
+            py::arg("color"));
 
     py::class_<ImDrawList>(m, "DrawList")
         .def("push_plot_transform", [&](ImDrawList& dl) {
