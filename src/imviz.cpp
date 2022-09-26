@@ -12,12 +12,22 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
-ImViz::ImViz () {
+void error_callback(int error, const char* description) {
+    fprintf(stderr, "GLFW error %d - %s\n", error, description);
+}
+
+// Doing this in the constructor directly breaks on Windows
+void ImViz::init() {
+    if (this->initialized) {
+        return;
+    }
 
     if (!glfwInit()) {
         std::cout << "Could not initialize GLFW!" << std::endl;
         std::exit(-1);
     }
+
+    glfwSetErrorCallback(error_callback);
 
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
@@ -37,6 +47,11 @@ ImViz::ImViz () {
             nullptr,
             nullptr);
 
+    if (!window) {
+        printf("Window creation failed!\n");
+        exit(1);
+    }
+
     glfwMakeContextCurrent(window);
 
     glewExperimental = true;
@@ -50,6 +65,8 @@ ImViz::ImViz () {
     setupImLibs();
 
     prepareUpdate();
+
+    this->initialized = true;
 }
 
 void ImViz::setupImLibs() {

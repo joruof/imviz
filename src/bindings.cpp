@@ -39,6 +39,7 @@ PYBIND11_MODULE(cppimviz, m) {
      * Input module bindings
      */
 
+    viz.init();
     input::loadPythonBindings(m);
 
     loadImguiPythonBindings(m, viz);
