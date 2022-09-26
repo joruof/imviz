@@ -127,29 +127,59 @@ set(HEADER_FILES
 
 pybind11_add_module(${PY_TARGET_NAME} MODULE ${SOURCE_FILES})
 
-target_link_libraries(${PY_TARGET_NAME} PUBLIC
-                      ${OPENGL_LIBRARIES}
-                      ${GLEW_LIBRARIES}
-                      stdc++fs
-                      pybind11::module
-                      pybind11::embed
-                      glfw)
-
 target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
                            extern/imgui/
                            ${implot_SOURCE_DIR})
 
 target_include_directories(${PY_TARGET_NAME} PUBLIC src/)
 
-target_compile_options(${PY_TARGET_NAME} PUBLIC
-                        -DIMGUI_USER_CONFIG="im_user_config.h"
-                        -g
-                        -O3
-                        -Wall
-                        -Wextra
-                        -Wpedantic
-                        -Wunreachable-code
-                        -std=c++17)
+IF (WIN32)
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -Zi   # -g
+                            -O2   # msvc has no -O3
+                            # -Wall
+                            -std:c++17)  # note colon!
+    
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            # stdc++fs  # not needed with msvc
+                            pybind11::module
+                            pybind11::embed
+                            glfw)
+ELSEIF(APPLE)
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -g
+                            -O3
+                            -std=c++17)
+
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            pybind11::module
+                            #pybind11::embed  # issues with conda + ARM (Apple M1), see https://github.com/pybind/pybind11/issues/3081
+                            glfw)
+ELSE()
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -g
+                            -O3
+                            -Wall
+                            -Wextra
+                            -Wpedantic
+                            -Wunreachable-code
+                            -std=c++17)
+    
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            stdc++fs
+                            pybind11::module
+                            pybind11::embed
+                            glfw)
+ENDIF()
 
 # Exports compile commands to .json file for vim YouCompleteMe support.
 

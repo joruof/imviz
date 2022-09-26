@@ -24,8 +24,7 @@
  * This allows us to handle imgui assertions via exceptions on the python side.
  */
 void checkAssertion(bool expr, const char* exprStr) {
-
-    if (not expr) { 
+    if (!expr) { 
         throw std::runtime_error(exprStr);
     }
 }
