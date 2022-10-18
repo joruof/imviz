@@ -262,7 +262,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
             ImGui::TableHeadersRow();
 
-            for (ssize_t r = 0; r < index.size(); ++r) {
+            for (size_t r = 0; r < index.size(); ++r) {
                 ImGui::TableNextRow();
 
                 py::object rowIndex = indexGetFunc(r);
