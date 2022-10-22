@@ -1,4 +1,4 @@
-#include "SourceSansPro.h"
+#include "source_sans_pro.hpp"
 
 /*
 -----------------------------------------------------------

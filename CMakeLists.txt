@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(imviz)
+project(cppimviz)
 
 set(PY_TARGET_NAME "${PROJECT_NAME}")
 
@@ -34,7 +34,24 @@ else(glfw3_FOUND)
     message(FATAL_ERROR "${ColourBoldRed}GLFW3 missing.${ColourReset}")
 endif()
 
-# --- [ External libs ]---
+# ---[ Update submodules ]---
+# From: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
+
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    option(GIT_SUBMODULE "Check submodules during build" ON)
+    if(GIT_SUBMODULE)
+        message(STATUS "Submodule update ...")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+        endif()
+    endif()
+endif()
+
+# ---[ External libs ]---
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
@@ -48,15 +65,9 @@ set(GLFW_BUILD_DOCS OFF)
 include(FetchContent)
 
 FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY "https://github.com/ocornut/imgui"
-    GIT_TAG "34d4bc620d8316f8a69ce25a75fce493fdddef5d"
-)
-
-FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "dea3387cdcc1d6a7ee3607f8a37a9dce8a85224f"
+    GIT_TAG "6ee1559715fae9480fcaeb81f24d80a4d1e8c407"
 )
 
 FetchContent_Declare(
@@ -64,9 +75,6 @@ FetchContent_Declare(
     GIT_REPOSITORY "https://github.com/pybind/pybind11"
     GIT_TAG "59a2ac2745d8a57ac94c6accced73620d59fb844"
 )
-
-message(STATUS "Loading imgui ...")
-FetchContent_MakeAvailable(imgui)
 
 message(STATUS "Loading implot ...")
 FetchContent_MakeAvailable(implot)
@@ -81,25 +89,38 @@ message(STATUS "")
 # Collect files.
 
 set(SOURCE_FILES
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_demo.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
+    extern/imgui/imgui.cpp
+    extern/imgui/imgui_draw.cpp
+    extern/imgui/imgui_demo.cpp
+    extern/imgui/imgui_widgets.cpp
+    extern/imgui/imgui_tables.cpp
+    extern/imgui/backends/imgui_impl_glfw.cpp
+    extern/imgui/backends/imgui_impl_opengl3.cpp
+    extern/imgui/misc/cpp/imgui_stdlib.cpp
     ${implot_SOURCE_DIR}/implot.cpp
     ${implot_SOURCE_DIR}/implot_demo.cpp
     ${implot_SOURCE_DIR}/implot_items.cpp
-    ./src/SourceSansPro.cpp
     ./src/bindings.cpp
+    ./src/imviz.cpp
     ./src/input.cpp
+    ./src/file_dialog.cpp
+    ./src/binding_helpers.cpp
+    ./src/bindings_implot.cpp
+    ./src/bindings_imgui.cpp
+    ./src/source_sans_pro.cpp
+    ./src/load_image.cpp
    )
 
 set(HEADER_FILES 
-    ./src/SourceSansPro.h
-    ./src/input.h
+    ./src/imviz.hpp
+    ./src/input.hpp
+    ./src/file_dialog.hpp
+    ./src/binding_helpers.hpp
+    ./src/bindings_implot.hpp
+    ./src/bindings_imgui.hpp
+    ./src/source_sans_pro.hpp
+    ./src/load_image.hpp
+    ./src/stb_image.h
     )
 
 # Builds the python bindings module.
@@ -115,12 +136,14 @@ target_link_libraries(${PY_TARGET_NAME} PUBLIC
                       glfw)
 
 target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
-                           ${imgui_SOURCE_DIR}
+                           extern/imgui/
                            ${implot_SOURCE_DIR})
 
 target_include_directories(${PY_TARGET_NAME} PUBLIC src/)
 
 target_compile_options(${PY_TARGET_NAME} PUBLIC
+                        -DIMGUI_USER_CONFIG="im_user_config.h"
+                        -g
                         -O3
                         -Wall
                         -Wextra

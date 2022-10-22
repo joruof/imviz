@@ -96,7 +96,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setup(name="imviz",
-      version="0.1.13",
+      version="0.1.22",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
@@ -107,7 +107,10 @@ setup(name="imviz",
       long_description_content_type="text/markdown",
       python_requires=">=3.6",
       packages=find_packages(),
-      ext_modules=[CMakeExtension("imviz")],
+      ext_modules=[CMakeExtension("cppimviz")],
       cmdclass=dict(build_ext=CMakeBuild),
       include_package_data=True,
+      install_requires=[
+            "numpy", "zarr>=2.11.3", "Pillow>=9.0.1"
+          ]
       )

@@ -1,35 +1,36 @@
+"""
+Inspired by the imgui/implot demo files this file demonstrates the usage of
+imviz by example.
+"""
+
+import sys
+import time
 import numpy as np
 import pandas as pd
 
-import os
-import sys
-
-from dataclasses import dataclass
+import imviz as viz
 
 
-try:
+class SlotClass:
 
-    import imviz as viz
-    print("Using system imviz")
+    __slots__ = ('a', 'b')
 
-except ModuleNotFoundError:
+    def __init__(self):
 
-    sys.path.append(os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "build"))
-
-    import imviz as viz
-    print("Using development imviz")
+        self.a = 0
+        self.b = "1"
 
 
-"""
+def test_func():
 
-Inspired by the imgui/implot demo files this file demonstrates the usage of
-imviz by example.
+    for i in range(10):
+        time.sleep(1)
+        print(i)
 
-"""
+    return 42
 
 
-class State:
+class Demo:
 
     def __init__(self):
 
@@ -52,12 +53,19 @@ class State:
         self.color_rgba = [1.0, 1.0, 0.0, 0.0]
 
         self.file_path = "/"
+        self.file_path2 = "/"
+
+        self.test_dict = dict(a="alkjadf", b=1.0, c=[1.0, 2.0, 3.0])
+
+        self.test_list = [1.0, 2.0, 3.0]
 
         # selection
 
         self.items = ["mars", "venus", "apollo", "zeus", "hera"]
-        self.selection = ""
+        self.selection = 0
         self.multi_selection = []
+
+        self.sel_idx = 0
 
         # dataframes
 
@@ -79,6 +87,8 @@ class State:
         self.drag_vline = 2.0
         self.drag_hline = 2.0
 
+        self.drag_rect = [0.0, 0.0, 1.0, 1.0]
+
         self.drag_dots = []
 
         self.popup_open = False
@@ -87,17 +97,57 @@ class State:
         self.perf_xs = np.random.rand(64, 3600).reshape((-1,))
         self.perf_ys = np.random.rand(64, 3600).reshape((-1,))
 
+        self.blab = 5
 
-def main():
+        self.slotted_obj = SlotClass()
 
-    s = State()
+        # for plot modifier test
 
-    while viz.wait(vsync=True):
+        self.mod_position = (10, 10)
+        self.mod_rotation = np.pi/4
+        self.mod_scale = (1, 1)
+
+        # selection test
+
+        self.selection_test = viz.Selection(["A", "B", "C"])
+
+    def __autogui__(s, **kwargs):
+
+        if not viz.wait():
+            sys.exit()
+
+        icon = np.zeros((17, 17, 4)) * 255
+        icon[::2, ::2, 0] = 255
+        icon[::2, ::2, 1] = 255
+        icon[::2, ::2, 3] = 255
+        viz.set_main_window_icon(icon)
+
+        viz.set_main_window_title("Demo")
+        viz.show_imgui_demo(True)
+        viz.show_implot_demo(True)
 
         for e in viz.get_key_events():
             if e.key == viz.KEY_K:
                 if e.action == viz.PRESS and e.mod == viz.MOD_CONTROL:
                     print("Pressed Ctrl+K")
+
+        if viz.button("Enter Fullscreen"):
+            viz.enter_fullscreen()
+
+        viz.same_line()
+
+        if viz.button("Leave Fullscreen"):
+            viz.leave_fullscreen()
+
+        if viz.button("Start Task"):
+            viz.task.update("test_task", test_func)
+
+        if res := viz.task.result("test_task"):
+            print(res)
+
+        viz.text(viz.task.active("test_task"))
+
+        viz.latex(r"$\sum_i^T \alpha, \textrm{in} [m/s] \beta, \gamma$")
 
         # menus
 
@@ -106,7 +156,7 @@ def main():
             if viz.begin_menu("File"):
 
                 if viz.menu_item("Reset"):
-                    s = State()
+                    s = Demo()
 
                 viz.end_menu()
 
@@ -145,6 +195,23 @@ def main():
 
         if viz.begin_window("Demo"):
 
+            viz.button("source")
+
+            if viz.begin_drag_drop_source():
+                array = np.zeros((10, ))
+                viz.set_drag_drop_payload("state", array)
+                viz.text(array)
+                viz.end_drag_drop_source()
+
+            viz.button("Target 2")
+
+            if viz.begin_drag_drop_target():
+                if (res := viz.accept_drag_drop_payload("state")) is not None:
+                    print("Got drag and drop:", res)
+                viz.end_drag_drop_target()
+
+            viz.autogui(s.__dict__, "State Autogui")
+
             if viz.tree_node("Input"):
 
                 s.input_string = viz.input("input string", s.input_string)
@@ -175,10 +242,15 @@ def main():
 
                 s.range = viz.range("range", s.range)
 
-                if viz.button(f"{s.file_path}"):
+                if viz.button(f"B: {s.file_path}"):
                     viz.open_popup("File Selection")
 
                 s.file_path = viz.file_dialog_popup("File Selection", s.file_path)
+
+                if viz.button(f"A: {s.file_path2}"):
+                    viz.open_popup("File Selection 2")
+
+                s.file_path2 = viz.file_dialog_popup("File Selection 2", s.file_path2)
 
                 viz.tree_pop()
 
@@ -200,9 +272,21 @@ def main():
 
             if viz.tree_node("Plotting"):
 
-                viz.next_plot_limits(0, 10, 0, 10, viz.ONCE)
+                sc = viz.get_pixels(0, 0, 300, 300)
+                viz.image("test_image", sc)
 
                 if viz.begin_plot("Plot"):
+
+                    viz.setup_axis(viz.Axis.X1, "x")
+                    viz.setup_axis(viz.Axis.Y1, "y")
+
+                    if viz.plot_selection_ended():
+                        viz.hard_cancel_plot_selection()
+
+                    viz.plot_circle(10, 10, 5,
+                            label="circle",
+                            color=(1.0, 0.0, 0.0),
+                            line_weight=2)
 
                     viz.plot_image("image",
                                    s.img,
@@ -227,26 +311,31 @@ def main():
                              fmt="-s",
                              label="small_squares")
 
+                    viz.plot([], line_weight=3, fmt="-s", label="zero len array")
+
                     s.drag_point = viz.drag_point("draggable",
                                                   s.drag_point,
-                                                  show_label=True,
                                                   color=(1.0, 0.0, 0.0),
                                                   radius=10)
 
                     s.drag_vline = viz.drag_vline("vline",
                                                   s.drag_vline,
-                                                  show_label=True,
                                                   color=(0.0, 1.0, 0.0),
                                                   width=2)
 
                     s.drag_hline = viz.drag_hline("hline",
                                                   s.drag_hline,
-                                                  show_label=True,
                                                   color=(0.0, 1.0, 0.0),
                                                   width=2)
 
-                    viz.annotate(5, 5, "foo")
-                    viz.annotate(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
+                    s.drag_rect = viz.drag_rect("rect",
+                                                s.drag_rect,
+                                                color=(0.0, 1.0, 1.0))
+
+                    viz.plot_annotation(5, 5, "foo")
+                    viz.plot_annotation(8, 5, "foo blue", color=(0.0, 0.2, 1.0))
+
+                    viz.push_override_id(viz.get_plot_id())
 
                     if viz.begin_popup("##PlotContext"):
                         if not s.popup_open:
@@ -264,12 +353,13 @@ def main():
                     else:
                         s.popup_open = False
 
+                    viz.pop_id()
+
                     for i in range(len(s.drag_dots)):
-                        s.drag_dots[i]= viz.drag_point(f"dot_#{i}",
-                                                       s.drag_dots[i],
-                                                       show_label=True,
-                                                       color=(1.0, 0.0, 0.0),
-                                                       radius=4)
+                        s.drag_dots[i] = viz.drag_point(f"dot_#{i}",
+                                                        s.drag_dots[i],
+                                                        color=(1.0, 0.0, 0.0),
+                                                        radius=4)
 
                         if not viz.plot_contains(s.drag_dots[i]):
                             continue
@@ -300,9 +390,17 @@ def main():
 
                 for i in range(100):
 
-                    viz.image("color image float", s.img)
-                    viz.image("color image double", s.img_double)
-                    viz.image("image bool", s.img_bool)
+                    if i == s.sel_idx:
+                        tint = [0.6, 0.6, 0.6, 1.0]
+                    else:
+                        tint = [1, 1, 1, 1]
+
+                    viz.text(f"image {i}")
+
+                    viz.image("color image float", s.img, tint=tint)
+
+                    if viz.is_item_clicked():
+                        s.sel_idx = i
 
                 viz.tree_pop()
 
@@ -327,8 +425,16 @@ def main():
                 viz.tree_pop()
 
             if viz.tree_node("Plot Performance Test"):
-                
+
                 if viz.begin_plot("Test Plot"):
+
+                    viz.setup_finish()
+
+                    dl = viz.get_plot_drawlist()
+
+                    viz.push_plot_clip_rect(0.0)
+                    dl.add_line((0.0, 0.0), (1000.0, 1000.0), (1.0, 0.0, 0.0, 1.0), 2.0)
+                    viz.pop_plot_clip_rect()
 
                     viz.plot(s.perf_xs, s.perf_ys, fmt="o", label="dots", marker_size=1)
 
@@ -336,7 +442,68 @@ def main():
 
                 viz.tree_pop()
 
+            if viz.tree_node("Column Test"):
+
+                viz.text("(?)")
+
+                if viz.is_item_hovered():
+                    viz.begin_tooltip()
+                    viz.text("What did you expect?")
+                    viz.end_tooltip()
+
+                if viz.button("test svg"):
+                    viz.begin_svg()
+
+                viz.style_colors_light()
+
+                if viz.begin_plot("Deschd Plot", size=(400, 300)):
+                    viz.setup_axes(r"$\theta$ $v[\frac{m}{s}]$", "")
+                    viz.plot([1, 2, 3], [4, 5, 6], fmt="-o", label="line", line_weight=3, marker_size=5)
+                    viz.plot([1, 2, 3], [8, 2, 5], fmt="-o", label="g.t.", line_weight=3, marker_size=5)
+                    viz.end_plot()
+
+                viz.style_colors_dark()
+
+                if svg := viz.end_svg():
+                    with open("test.svg", "w+") as fd:
+                        fd.write(svg)
+
+                w, h = viz.get_content_region_avail()
+
+                for i in range(10):
+                    for j in range(10):
+                        viz.set_next_item_width((w / 10) - 8)
+                        viz.drag(f"###{i},{j}", 0.0)
+                        if j < 9:
+                            viz.same_line()
+
+                viz.tree_pop()
+
+
+            if viz.tree_node("Plot Modifer Test"):
+
+                img = np.random.rand(10, 10)
+
+                if viz.begin_plot("test_plot", size=(500, 500)):
+
+                    viz.setup_finish()
+
+                    viz.begin_rotation(s.mod_rotation)
+                    viz.plot_image("img", img, x=s.mod_position[0]-s.mod_scale[0]/2, y=s.mod_position[1]-s.mod_scale[1]/2, width=s.mod_scale[0], height=s.mod_scale[1])
+                    viz.end_rotation()
+
+                    s.mod_position = viz.drag_point("pos_drag", s.mod_position)
+
+                    viz.end_plot()
+
+                viz.tree_pop()
+
         viz.end_window()
+
+
+def main():
+
+    viz.dev.launch(Demo, "__autogui__")
 
 
 if __name__ == "__main__":
