@@ -3,6 +3,8 @@
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include "implot_internal.h"
 #include <imgui.h>
 #include <implot.h>
@@ -794,7 +796,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlotContext& gp = *GImPlot;
         ImGuiIO& IO = ImGui::GetIO();
         return (ImPlot::GetCurrentPlot()->Selecting
-                and IO.MouseReleased[gp.InputMap.Select]);
+                && IO.MouseReleased[gp.InputMap.Select]);
     });
 
     m.def("cancel_plot_selection", ImPlot::CancelPlotSelection);

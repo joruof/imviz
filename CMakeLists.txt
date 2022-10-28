@@ -15,25 +15,6 @@ else(OPENGL_FOUND)
     message(FATAL_ERROR "${ColourBoldRed}OpenGL missing.${ColourReset}")
 endif()
 
-# ---[ Check for GLEW (mandatory) ]---
-
-find_package(GLEW QUIET)
-if(GLEW_FOUND)
-    message(STATUS "Found GLEW: " ${GLEW_LIBRARIES})
-    message(STATUS "            " ${GLEW_INCLUDE_DIR})
-else(GLEW_FOUND)
-    message(FATAL_ERROR "${ColourBoldRed}GLEW missing.${ColourReset}")
-endif()
-
-# ---[ Check for GLFW3 (mandatory) ]---
-
-find_package(glfw3 QUIET)
-if(glfw3_FOUND)
-    message(STATUS "Found GLFW3")
-else(glfw3_FOUND)
-    message(FATAL_ERROR "${ColourBoldRed}GLFW3 missing.${ColourReset}")
-endif()
-
 # ---[ Update submodules ]---
 # From: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
 
@@ -73,7 +54,19 @@ FetchContent_Declare(
 FetchContent_Declare(
     pybind
     GIT_REPOSITORY "https://github.com/pybind/pybind11"
-    GIT_TAG "59a2ac2745d8a57ac94c6accced73620d59fb844"
+    GIT_TAG "v2.10.0"
+)
+
+FetchContent_Declare(
+    glew
+    GIT_REPOSITORY "https://github.com/Perlmint/glew-cmake"
+    GIT_TAG "glew-cmake-2.2.0"
+)
+
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY "https://github.com/glfw/glfw"
+    GIT_TAG "3.3-stable"
 )
 
 message(STATUS "Loading implot ...")
@@ -81,6 +74,13 @@ FetchContent_MakeAvailable(implot)
 
 message(STATUS "Loading pybind ...")
 FetchContent_MakeAvailable(pybind)
+
+message(STATUS "Loading glew ...")
+set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(glew)
+
+message(STATUS "Loading glfw ...")
+FetchContent_MakeAvailable(glfw)
 
 message(STATUS "")
 message(STATUS "All dependencies loaded.")
@@ -127,29 +127,58 @@ set(HEADER_FILES
 
 pybind11_add_module(${PY_TARGET_NAME} MODULE ${SOURCE_FILES})
 
-target_link_libraries(${PY_TARGET_NAME} PUBLIC
-                      ${OPENGL_LIBRARIES}
-                      ${GLEW_LIBRARIES}
-                      stdc++fs
-                      pybind11::module
-                      pybind11::embed
-                      glfw)
-
 target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
                            extern/imgui/
                            ${implot_SOURCE_DIR})
 
 target_include_directories(${PY_TARGET_NAME} PUBLIC src/)
 
-target_compile_options(${PY_TARGET_NAME} PUBLIC
-                        -DIMGUI_USER_CONFIG="im_user_config.h"
-                        -g
-                        -O3
-                        -Wall
-                        -Wextra
-                        -Wpedantic
-                        -Wunreachable-code
-                        -std=c++17)
+IF (WIN32)
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -Zi   # -g
+                            -O2   # msvc has no -O3
+                            # -Wall
+                            -std:c++17)  # note colon!
+    
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            # stdc++fs  # not needed with msvc
+                            pybind11::module
+                            pybind11::embed
+                            glfw)
+ELSEIF(APPLE)
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -g
+                            -O3
+                            -std=c++17)
+
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            pybind11::module
+                            #pybind11::embed  # issues with conda + ARM (Apple M1), see https://github.com/pybind/pybind11/issues/3081
+                            glfw)
+ELSE()
+    target_compile_options(${PY_TARGET_NAME} PUBLIC
+                            -DIMGUI_USER_CONFIG="im_user_config.h"
+                            -g
+                            -O3
+                            -Wall
+                            -Wextra
+                            -Wpedantic
+                            -Wunreachable-code
+                            -std=c++17)
+    target_link_libraries(${PY_TARGET_NAME} PUBLIC
+                            ${OPENGL_LIBRARIES}
+                            libglew_static
+                            stdc++fs
+                            pybind11::module
+                            pybind11::embed
+                            glfw)
+ENDIF()
 
 # Exports compile commands to .json file for vim YouCompleteMe support.
 

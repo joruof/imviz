@@ -25,10 +25,11 @@ namespace ImGui {
                     || fs::path(selectedPath).filename().empty()) {
                 selectedPath = fs::path(selectedPath)
                     .parent_path()
-                    .parent_path();
+                    .parent_path()
+                    .string();
             } else {
                 selectedPath = fs::path(selectedPath)
-                    .parent_path();
+                    .parent_path().string();
             }
         }
 
@@ -43,7 +44,7 @@ namespace ImGui {
 
         if (fs::exists(listPath)) {
             for (fs::directory_entry e : fs::directory_iterator(listPath)) {
-                if (std::string(e.path().filename()).at(0) != '.') {
+                if (e.path().filename().string().at(0) != '.') {
                     entries.push_back(e);
                 }
             }
@@ -69,8 +70,8 @@ namespace ImGui {
 
         for (fs::directory_entry e : entries) {
 
-            std::string displayName = e.path().stem();
-            displayName += e.path().extension();
+            std::string displayName = e.path().stem().string();
+            displayName += e.path().extension().string();
 
             if (fs::is_directory(e)) {
                 displayName += "/";
@@ -78,9 +79,9 @@ namespace ImGui {
 
             if (ImGui::Selectable(
                         displayName.c_str(),
-                        selectedPath == e.path())) {
+                        selectedPath == e.path().string())) {
 
-                selectedPath = e.path();
+                selectedPath = e.path().string();
             }
         }
 

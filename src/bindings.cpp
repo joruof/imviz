@@ -24,8 +24,7 @@
  * This allows us to handle imgui assertions via exceptions on the python side.
  */
 void checkAssertion(bool expr, const char* exprStr) {
-
-    if (not expr) { 
+    if (!expr) { 
         throw std::runtime_error(exprStr);
     }
 }
@@ -40,6 +39,7 @@ PYBIND11_MODULE(cppimviz, m) {
      * Input module bindings
      */
 
+    viz.init();
     input::loadPythonBindings(m);
 
     loadImguiPythonBindings(m, viz);
@@ -262,7 +262,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
             ImGui::TableHeadersRow();
 
-            for (ssize_t r = 0; r < index.size(); ++r) {
+            for (size_t r = 0; r < index.size(); ++r) {
                 ImGui::TableNextRow();
 
                 py::object rowIndex = indexGetFunc(r);

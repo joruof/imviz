@@ -12,17 +12,33 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
-ImViz::ImViz () {
+void error_callback(int error, const char* description) {
+    fprintf(stderr, "GLFW error %d - %s\n", error, description);
+}
+
+// Doing this in the constructor directly breaks on Windows
+void ImViz::init() {
+    if (this->initialized) {
+        return;
+    }
 
     if (!glfwInit()) {
         std::cout << "Could not initialize GLFW!" << std::endl;
         std::exit(-1);
     }
 
+    glfwSetErrorCallback(error_callback);
+
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+
+    // Required on MacOS
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
     window = glfwCreateWindow(
             800,
@@ -30,6 +46,11 @@ ImViz::ImViz () {
             "imviz",
             nullptr,
             nullptr);
+
+    if (!window) {
+        printf("Window creation failed!\n");
+        exit(1);
+    }
 
     glfwMakeContextCurrent(window);
 
@@ -44,6 +65,8 @@ ImViz::ImViz () {
     setupImLibs();
 
     prepareUpdate();
+
+    this->initialized = true;
 }
 
 void ImViz::setupImLibs() {

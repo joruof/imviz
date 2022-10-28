@@ -21,6 +21,7 @@ struct ImViz {
 
     bool currentWindowOpen = false;
     bool figurePlotOpen = false;
+    bool initialized = false;
 
     bool mod = false;
     std::vector<bool> mod_any = {false};
@@ -33,8 +34,9 @@ struct ImViz {
     // initially update for two whole seconds (assuming vsync)
     int powerSaveFrameCounter = 120;
 
-    ImViz();
+    ImViz() = default;
 
+    void init();
     void prepareUpdate();
     void setupImLibs();
     void doUpdate(bool useVsync);
