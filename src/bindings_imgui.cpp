@@ -2,6 +2,8 @@
 
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
+
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <imgui.h>
 #include <pybind11/pytypes.h>
@@ -1247,7 +1249,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
             ImVec4 fillCol = interpretColor(fillColor);
 
-            if (fillCol.w != -1 and lineWidth > 0.0) {
+            if (fillCol.w != -1 && lineWidth > 0.0) {
 
                 ImU32 col = ImGui::GetColorU32(fillCol);
                 
@@ -1457,7 +1459,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
             ImVec4 lineCol = interpretColor(lineColor);
 
-            if (lineCol.w != -1 and lineWidth > 0) {
+            if (lineCol.w != -1 && lineWidth > 0) {
 
                 ImDrawIdx idx = (ImDrawIdx)dl._VtxCurrentIdx;
                 ImU32 col = ImGui::GetColorU32(lineCol);

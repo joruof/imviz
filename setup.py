@@ -5,9 +5,11 @@ import subprocess
 import multiprocessing
 
 from pathlib import Path
+from typing import List
 
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
 
 # Setuptools calls cmake, which takes care of further
 # C++ dependency resolution and the extension build.
@@ -17,6 +19,21 @@ from setuptools.command.build_ext import build_ext
 # https://www.benjack.io/2018/02/02/python-cpp-revisited.html
 # Thanks a lot, very helpful :)
 
+binary_files: List[Path] = []
+
+class Install(install):
+    def run(self):
+        if self.root:
+            # setup.py bdist_wheel
+            os.makedirs(self.root, exist_ok=True)
+            for f in binary_files:
+                self.copy_file(f, Path(self.root) / f.name)
+        else:
+            # setup.py install
+            pass
+        
+        # Continue as normal
+        super().run()
 
 class CMakeExtension(Extension):
     def __init__(self, name):
@@ -26,6 +43,9 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
 
     def run(self):
+        global binary_files
+
+        is_win = platform.system() == 'Windows'
 
         try:
             _ = subprocess.check_output(['cmake', '--version'])
@@ -39,7 +59,8 @@ class CMakeBuild(build_ext):
         cmake_args = [
             ('-DCMAKE_LIBRARY_OUTPUT_DIRECTORY='
                 + os.path.abspath(self.build_temp)),
-            '-DPYTHON_EXECUTABLE=' + sys.executable
+            '-DPYTHON_EXECUTABLE=' + sys.executable,
+            '-DCMAKE_CXX_STANDARD=17',
         ]
 
         # determining build type
@@ -51,7 +72,7 @@ class CMakeBuild(build_ext):
 
         # parallelize compilation, if using make files
 
-        if not platform.system() == "Windows":
+        if not is_win:
             cpu_count = multiprocessing.cpu_count()
             self.build_args += ['--', '-j{}'.format(cpu_count)]
 
@@ -77,22 +98,24 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(cmake_cmd, cwd=self.build_temp)
 
-        # move from temp. build dir to final position
+        # Are we installing or building wheel?
+        is_wheel = 'bdist_wheel' in sys.argv
 
+        # Detect binary files to include in wheel
         for ext in self.extensions:
-
             build_temp = Path(self.build_temp).resolve()
-            dest_path = Path(self.get_ext_fullpath(ext.name)).resolve()
-            source_path = build_temp / self.get_ext_filename(ext.name)
+            if platform.system() == 'Windows':
+                build_temp = build_temp / 'Release'
 
-            dest_directory = dest_path.parents[0]
-            dest_directory.mkdir(parents=True, exist_ok=True)
+            suff = Path(self.get_ext_filename(ext.name)).suffix
+            fmts = set([suff, '.dll', '.pyd', '.so'])
+            matches = [p for p in build_temp.glob('*') if p.suffix in fmts]
+            dest_dir = Path(self.get_ext_fullpath(ext.name)).resolve().parent
 
-            self.copy_file(source_path, dest_path)
-
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    readme = fh.read()
+            for m in matches:
+                binary_files.append(m)
+                if not is_wheel:
+                    self.copy_file(m, dest_dir / m.name) # tmp => lib
 
 
 setup(name="imviz",
@@ -103,12 +126,12 @@ setup(name="imviz",
       author_email="jona.ruof@uni-ulm.de",
       license="MIT",
       zip_safe=False,
-      long_description=readme,
+      long_description=Path('README.md').read_text('utf-8'),
       long_description_content_type="text/markdown",
       python_requires=">=3.6",
       packages=find_packages(),
       ext_modules=[CMakeExtension("cppimviz")],
-      cmdclass=dict(build_ext=CMakeBuild),
+      cmdclass=dict(build_ext=CMakeBuild, install=Install),
       include_package_data=True,
       install_requires=[
             "numpy", "zarr>=2.11.3", "Pillow>=9.0.1"
