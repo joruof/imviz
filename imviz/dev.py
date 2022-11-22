@@ -133,7 +133,7 @@ def loop(cls, func_name):
                     for i, f in enumerate(exc_frames):
                         if viz.selectable(
                                 f"{os.path.basename(f.filename)}"
-                                + " at line {f.lineno} in {f.function}",
+                                + f" at line {f.lineno} in {f.function}",
                                 i == exc_frame_idx):
                             exc_frame_idx = i
                             exc_code = try_load_source(f.filename)

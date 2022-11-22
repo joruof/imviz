@@ -292,7 +292,7 @@ def try_render(obj,
 
             new_v = render(
                         v,
-                        name=k,
+                        name=str(k),
                         path=[*path, k],
                         parents=[*parents, obj],
                         annotation=annot,
