@@ -5,3 +5,5 @@ __pycache__
 .cache
 *.egg-info
 *.so
+*.dll
+*.pyd

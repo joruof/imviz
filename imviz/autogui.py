@@ -290,18 +290,21 @@ def try_render(obj,
             else:
                 annot = None
 
+            viz.push_mod_any()
+
             new_v = render(
                         v,
-                        name=k,
+                        name=str(k),
                         path=[*path, k],
                         parents=[*parents, obj],
                         annotation=annot,
                         ignore_custom=ignore_custom)
 
-            try:
-                ext_setattr(obj, k, new_v)
-            except AttributeError:
-                pass
+            if viz.pop_mod_any():
+                try:
+                    ext_setattr(obj, k, new_v)
+                except AttributeError:
+                    pass
 
     if len(name) > 0 and tree_open:
         viz.tree_pop()
