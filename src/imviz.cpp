@@ -225,21 +225,11 @@ void ImViz::doUpdate (bool useVsync) {
 
 void ImViz::recover()
 {
-    //basically ImGui::ErrorCheckEndFrameRecover
-    //extended for implot
+    // ImGui::ErrorCheckEndFrameRecover extended for implot
 
-    ImGuiContext& g = *GImGui;
     ImPlotContext& gp = *GImPlot;
 
-    while (g.CurrentWindowStack.Size > 0)
-    {
-        #ifdef IMGUI_HAS_TABLE
-        while (g.CurrentTable
-                && (g.CurrentTable->OuterWindow == g.CurrentWindow
-                    || g.CurrentTable->InnerWindow == g.CurrentWindow)) {
-            ImGui::EndTable();
-        }
-        #endif
+    while (gp.CurrentPlot != NULL) {
 
         while (gp.CurrentItem != NULL) {
             ImPlot::EndItem();
@@ -250,46 +240,9 @@ void ImViz::recover()
         while (gp.CurrentPlot != NULL) {
             ImPlot::EndPlot();
         }
-
-        ImGuiWindow* window = g.CurrentWindow;
-        IM_ASSERT(window != NULL);
-        ImGuiStackSizes* stack_sizes = &g.CurrentWindowStack.back().StackSizesOnBegin;
-
-        while (g.CurrentTabBar != NULL) { //-V1044
-            ImGui::EndTabBar();
-        }
-        while (window->DC.TreeDepth > 0) {
-            ImGui::TreePop();
-        }
-        while (g.GroupStack.Size > stack_sizes->SizeOfGroupStack) {
-            ImGui::EndGroup();
-        }
-        while (window->IDStack.Size > 1) {
-            ImGui::PopID();
-        }
-        while (g.ColorStack.Size > stack_sizes->SizeOfColorStack) {
-            ImGui::PopStyleColor();
-        }
-        while (g.StyleVarStack.Size > stack_sizes->SizeOfStyleVarStack) {
-            ImGui::PopStyleVar();
-        }
-        while (g.FocusScopeStack.Size > stack_sizes->SizeOfFocusScopeStack) {
-            ImGui::PopFocusScope();
-        }
-        if (g.CurrentWindowStack.Size == 1) {
-            IM_ASSERT(g.CurrentWindow->IsFallbackWindow);
-            break;
-        }
-
-        IM_ASSERT(window == g.CurrentWindow);
-
-        if (window->Flags & ImGuiWindowFlags_ChildWindow) {
-            ImGui::EndChild();
-        }
-        else {
-            ImGui::End();
-        }
     }
+
+    ImGui::ErrorCheckEndFrameRecover(NULL);
 }
 
 void ImViz::trigger () {

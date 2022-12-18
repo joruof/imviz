@@ -93,7 +93,7 @@ namespace ImGui {
                 selectedPath.c_str(), 
                 sizeof(filenameInputBuf) - 1);
 
-        ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth() * 0.8f);
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.8f);
         ImGui::InputText("selected",
                 filenameInputBuf, IM_ARRAYSIZE(filenameInputBuf));
         ImGui::PopItemWidth();

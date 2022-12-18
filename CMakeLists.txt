@@ -18,19 +18,19 @@ endif()
 # ---[ Update submodules ]---
 # From: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
 
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-        message(STATUS "Submodule update ...")
-        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-        endif()
-    endif()
-endif()
+#find_package(Git QUIET)
+#if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+#    option(GIT_SUBMODULE "Check submodules during build" ON)
+#    if(GIT_SUBMODULE)
+#        message(STATUS "Submodule update ...")
+#        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+#                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+#        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+#            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+#        endif()
+#    endif()
+#endif()
 
 # ---[ External libs ]---
 
@@ -42,9 +42,18 @@ set(BUILD_STATIC_LIBS OFF CACHE BOOL "" FORCE)
 include(FetchContent)
 
 FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY "https://github.com/ocornut/imgui"
+    GIT_TAG "c191faf0ba478e9c58a69c63306986a21ebfb6e4"
+)
+
+message(STATUS "Loading imgui ...")
+FetchContent_MakeAvailable(imgui)
+
+FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "6ee1559715fae9480fcaeb81f24d80a4d1e8c407"
+    GIT_TAG "d87512353495e7760e7fda7566a05beef7627d8f"
 )
 
 message(STATUS "Loading implot ...")
@@ -112,14 +121,14 @@ endif()
 # Collect files.
 
 set(SOURCE_FILES
-    extern/imgui/imgui.cpp
-    extern/imgui/imgui_draw.cpp
-    extern/imgui/imgui_demo.cpp
-    extern/imgui/imgui_widgets.cpp
-    extern/imgui/imgui_tables.cpp
-    extern/imgui/backends/imgui_impl_glfw.cpp
-    extern/imgui/backends/imgui_impl_opengl3.cpp
-    extern/imgui/misc/cpp/imgui_stdlib.cpp
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
     ${implot_SOURCE_DIR}/implot.cpp
     ${implot_SOURCE_DIR}/implot_demo.cpp
     ${implot_SOURCE_DIR}/implot_items.cpp
@@ -151,7 +160,7 @@ set(HEADER_FILES
 pybind11_add_module(${PY_TARGET_NAME} MODULE ${SOURCE_FILES})
 
 target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
-                           extern/imgui/
+                           ${imgui_SOURCE_DIR}
                            ${implot_SOURCE_DIR})
 
 target_include_directories(${PY_TARGET_NAME} PUBLIC src/)

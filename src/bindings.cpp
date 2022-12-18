@@ -140,7 +140,14 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("set_clipboard", [&](std::string str) { 
 
         glfwSetClipboardString(NULL, str.c_str());
-    });
+    },
+    R"raw(
+    Copies a string to the system clipboard.
+
+    Currently not other types values can be copied to the clipboard.
+    This a limitation of glfw and can be mitigated by third-party libs.
+    )raw"
+    );
 
     /**
      * Custom widgets
@@ -384,8 +391,8 @@ PYBIND11_MODULE(cppimviz, m) {
         try {
             viz.doUpdate(vsync);
         } catch (std::runtime_error& e) { 
-            // last resort: if we catch an error here soft recovery failed
-            // recreate the context from scratch and hope for the best
+            // last resort: if we catch an error here, soft recovery failed!
+            // ... recreate the context from scratch and hope for the best
 
             std::cerr << e.what() << std::endl;
 
@@ -474,62 +481,6 @@ PYBIND11_MODULE(cppimviz, m) {
     py::arg("channels") = 0);
 
     /**
-     * SVG export
-     */
-
-    m.def("begin_svg", [&]() {
-
-        ImDrawList::svg = new std::stringstream();
-        ImDrawList::svgMaxX = -2147483648;
-        ImDrawList::svgMaxY = -2147483648;
-        ImDrawList::svgMinX = 2147483647;
-        ImDrawList::svgMinY = 2147483647;
-    });
-
-    m.def("end_svg", [&]() {
-
-        std::stringstream* svg = ImDrawList::svg;
-
-        if (svg == nullptr) {
-            return std::string("");
-        }
-
-        std::string result = svg->str();
-
-        int svgWidth = ImDrawList::svgMaxX - ImDrawList::svgMinX;
-        int svgHeight = ImDrawList::svgMaxY - ImDrawList::svgMinY;
-
-        std::stringstream txt;
-
-        txt << "<svg viewBox=\"" 
-            << ImDrawList::svgMinX << " " 
-            << ImDrawList::svgMinY << " " 
-            << svgWidth << " "
-            << svgHeight << " " 
-            << "\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-
-        txt << "<rect x=\"" << ImDrawList::svgMinX
-            << "\" y=\"" << ImDrawList::svgMinY
-            << "\" width=\"" << svgWidth
-            << "\" height=\"" << svgHeight 
-            << "\" fill=\"";
-
-        ImU32 col = ImGui::GetColorU32(ImGuiCol_WindowBg);
-
-        svgColor(col, txt);
-        txt << "\" ";
-        svgOpacity(col, txt);
-        txt << "/>\n";
-
-        txt << result << "</svg>";
-
-        delete svg;
-        ImDrawList::svg = nullptr;
-
-        return txt.str();
-    });
-
-    /**
      * Image export
      */
 
@@ -602,14 +553,13 @@ PYBIND11_MODULE(cppimviz, m) {
         return pixels;
     },
     R"raw(
-    Cuts and returns the specified region from the main framebuffer of 
-    the application window.
+    Returns the OpenGL texture with the specified texture id.
 
-    The region is specified in window coordinates, starting at the top
-    left corner of the window.
+    The texture will be returned as uint8-numpy array
+    with shape (height, width, channels)
 
-    The region will be returned as uint8-RGBA numpy array
-    with shape (height, width, 4).
+    The number of channels depends on the internal format of the texture.
+    GL_RED: 1, GL_RGB: 3, GL_RGBA: 4, else: runtime_error
     )raw",
     py::arg("texture_id") = 0);
 }

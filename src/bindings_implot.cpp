@@ -36,7 +36,6 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_CHILD", ImPlotFlags_NoChild)
         .value("EQUAL", ImPlotFlags_Equal)
         .value("CROSSHAIRS", ImPlotFlags_Crosshairs)
-        .value("ANTI_ALIASED", ImPlotFlags_AntiAliased)
         .value("CANVAS_ONLY", ImPlotFlags_CanvasOnly);
 
     py::enum_<ImPlotAxisFlags_>(m, "PlotAxisFlags", py::arithmetic())
@@ -49,8 +48,6 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_MENUS", ImPlotAxisFlags_NoMenus)
         .value("OPPOSITE", ImPlotAxisFlags_Opposite)
         .value("FOREGROUND", ImPlotAxisFlags_Foreground)
-        .value("LOG_SCALE", ImPlotAxisFlags_LogScale)
-        .value("TIME", ImPlotAxisFlags_Time)
         .value("INVERT", ImPlotAxisFlags_Invert)
         .value("AUTO_FIT", ImPlotAxisFlags_AutoFit)
         .value("RANGE_FIT", ImPlotAxisFlags_RangeFit)
@@ -464,35 +461,25 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_bars", [&](array_like<double> x,
                            array_like<double> y,
                            std::string label,
-                           double width,
-                           double shift,
+                           double bar_size,
+                           double offset,
                            bool horizontal) {
 
         PlotArrayInfo pai = interpretPlotArrays(x, y);
 
-        if (horizontal) {
-            ImPlot::PlotBarsH(
-                    label.c_str(),
-                    pai.xDataPtr,
-                    pai.yDataPtr,
-                    pai.count,
-                    width,
-                    shift);
-        } else {
-            ImPlot::PlotBars(
-                    label.c_str(),
-                    pai.xDataPtr,
-                    pai.yDataPtr,
-                    pai.count,
-                    width,
-                    shift);
-        }
+        ImPlot::PlotBars(label.c_str(),
+                         pai.xDataPtr,
+                         pai.yDataPtr,
+                         pai.count,
+                         bar_size,
+                         horizontal ? ImPlotBarsFlags_Horizontal : ImPlotBarsFlags_None,
+                         offset);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("label") = "",
-    py::arg("width") = 0.5,
-    py::arg("shift") = 0.0,
+    py::arg("bar_size") = 0.5,
+    py::arg("offset") = 0.0,
     py::arg("horizontal") = false);
 
     m.def("plot_image", [&](
@@ -588,7 +575,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotVLines(label.c_str(), xs.data(), xs.shape(0));
+        ImPlot::PlotInfLines(label.c_str(), xs.data(), xs.shape(0));
     },
     py::arg("label"),
     py::arg("xs"),
@@ -606,7 +593,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotHLines(label.c_str(), ys.data(), ys.shape(0));
+        ImPlot::PlotInfLines(label.c_str(), ys.data(), ys.shape(0),
+                             ImPlotInfLinesFlags_Horizontal);
     },
     py::arg("label"),
     py::arg("ys"),
