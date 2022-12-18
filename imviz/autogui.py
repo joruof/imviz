@@ -290,8 +290,6 @@ def try_render(obj,
             else:
                 annot = None
 
-            viz.push_mod_any()
-
             new_v = render(
                         v,
                         name=str(k),
@@ -300,7 +298,7 @@ def try_render(obj,
                         annotation=annot,
                         ignore_custom=ignore_custom)
 
-            if viz.pop_mod_any():
+            if viz.mod_any():
                 try:
                     ext_setattr(obj, k, new_v)
                 except AttributeError:
