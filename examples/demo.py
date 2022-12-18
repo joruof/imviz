@@ -193,22 +193,7 @@ class Demo:
 
         # widgets
 
-        if viz.begin_window("Demo"):
-
-            viz.button("source")
-
-            if viz.begin_drag_drop_source():
-                array = np.zeros((10, ))
-                viz.set_drag_drop_payload("state", array)
-                viz.text(array)
-                viz.end_drag_drop_source()
-
-            viz.button("Target 2")
-
-            if viz.begin_drag_drop_target():
-                if (res := viz.accept_drag_drop_payload("state")) is not None:
-                    print("Got drag and drop:", res)
-                viz.end_drag_drop_target()
+        if viz.begin_window("imviz Demo"):
 
             viz.autogui(s.__dict__, "State Autogui")
 
@@ -254,6 +239,28 @@ class Demo:
 
                 viz.tree_pop()
 
+            if viz.tree_node("Drag and drop"):
+
+                viz.button("drag source")
+
+                if viz.begin_drag_drop_source():
+                    array = np.zeros((10, ))
+                    # you can put any python object in here, e.g. a numpy array
+                    viz.set_drag_drop_payload("state", array)
+                    viz.text(array)
+                    viz.end_drag_drop_source()
+
+                viz.same_line()
+
+                viz.button("drag target")
+
+                if viz.begin_drag_drop_target():
+                    if (res := viz.accept_drag_drop_payload("state")) is not None:
+                        print("Got drag and drop:", res)
+                    viz.end_drag_drop_target()
+
+                viz.tree_pop()
+
             if viz.tree_node("Selection"):
 
                 s.selection = viz.combo("combo", s.items, s.selection)
@@ -283,7 +290,7 @@ class Demo:
                     if viz.plot_selection_ended():
                         viz.hard_cancel_plot_selection()
 
-                    viz.plot_circle(10, 10, 5,
+                    viz.plot_circle((10, 10), 5,
                             label="circle",
                             color=(1.0, 0.0, 0.0),
                             line_weight=2)
@@ -372,7 +379,7 @@ class Demo:
                     viz.plot_vlines("hlines", [1, 4, 6, 8], width=2)
                     viz.plot_hlines("vlines", [1, 4, 6, 8], width=1)
 
-                    viz.plot_bars([[1, 2, 3, 4], [2, 2, 3, 3]], width=0.8)
+                    viz.plot_bars([1, 2, 3, 4], [2, 2, 3, 3], bar_size=0.8)
 
                     viz.end_plot()
 
@@ -451,23 +458,6 @@ class Demo:
                     viz.text("What did you expect?")
                     viz.end_tooltip()
 
-                if viz.button("test svg"):
-                    viz.begin_svg()
-
-                viz.style_colors_light()
-
-                if viz.begin_plot("Deschd Plot", size=(400, 300)):
-                    viz.setup_axes(r"$\theta$ $v[\frac{m}{s}]$", "")
-                    viz.plot([1, 2, 3], [4, 5, 6], fmt="-o", label="line", line_weight=3, marker_size=5)
-                    viz.plot([1, 2, 3], [8, 2, 5], fmt="-o", label="g.t.", line_weight=3, marker_size=5)
-                    viz.end_plot()
-
-                viz.style_colors_dark()
-
-                if svg := viz.end_svg():
-                    with open("test.svg", "w+") as fd:
-                        fd.write(svg)
-
                 w, h = viz.get_content_region_avail()
 
                 for i in range(10):
@@ -476,25 +466,6 @@ class Demo:
                         viz.drag(f"###{i},{j}", 0.0)
                         if j < 9:
                             viz.same_line()
-
-                viz.tree_pop()
-
-
-            if viz.tree_node("Plot Modifer Test"):
-
-                img = np.random.rand(10, 10)
-
-                if viz.begin_plot("test_plot", size=(500, 500)):
-
-                    viz.setup_finish()
-
-                    viz.begin_rotation(s.mod_rotation)
-                    viz.plot_image("img", img, x=s.mod_position[0]-s.mod_scale[0]/2, y=s.mod_position[1]-s.mod_scale[1]/2, width=s.mod_scale[0], height=s.mod_scale[1])
-                    viz.end_rotation()
-
-                    s.mod_position = viz.drag_point("pos_drag", s.mod_position)
-
-                    viz.end_plot()
 
                 viz.tree_pop()
 
