@@ -469,6 +469,17 @@ class Demo:
 
                 viz.tree_pop()
 
+            if viz.tree_node("Storage"):
+
+                if viz.button("save"):
+                    viz.storage.save(s, "./config")
+                viz.same_line()
+                if viz.button("load"):
+                    viz.storage.load(s, "./config")
+
+                viz.tree_pop()
+
+
         viz.end_window()
 
 
