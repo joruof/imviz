@@ -479,6 +479,13 @@ class Demo:
 
                 viz.tree_pop()
 
+            if viz.tree_node("Font scale"):
+
+                if viz.button("rescale fonts"):
+                    viz.set_global_font_size(30.0)
+
+                viz.tree_pop()
+
 
         viz.end_window()
 

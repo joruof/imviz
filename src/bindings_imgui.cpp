@@ -853,6 +853,14 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         ImGui::PopFont();
     });
 
+    m.def("get_global_font_size", [&]() {
+        return viz.smallFont->FontSize;
+    });
+
+    m.def("set_global_font_size", [&](double baseSize) {
+        return viz.fontBaseSize = baseSize;
+    });
+
     /**
      * Imgui item helper functions
      */

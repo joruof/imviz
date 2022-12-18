@@ -69,6 +69,30 @@ void ImViz::init() {
     this->initialized = true;
 }
 
+void ImViz::reloadFonts () {
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (smallFont == nullptr
+        || largeFont == nullptr
+        || smallFont->FontSize != fontBaseSize) {
+
+        io.Fonts->Clear();
+
+        smallFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+                getSourceSansProData(),
+                getSourceSansProSize(),
+                fontBaseSize);
+
+        largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+                getSourceSansProData(),
+                getSourceSansProSize(),
+                100.0);
+
+        ImGui_ImplOpenGL3_CreateFontsTexture();
+    }
+}
+
 void ImViz::setupImLibs() {
 
     if (imGuiCtx != nullptr) {
@@ -104,19 +128,7 @@ void ImViz::setupImLibs() {
 
     io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
 
-    // loading font
-
-    smallFont = io.Fonts->AddFontFromMemoryCompressedTTF(
-            getSourceSansProData(),
-            getSourceSansProSize(),
-            20.0);
-
-    largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(
-            getSourceSansProData(),
-            getSourceSansProSize(),
-            100.0);
-
-    ImGui_ImplOpenGL3_CreateFontsTexture();
+    reloadFonts();
 }
 
 void ImViz::prepareUpdate() {
@@ -131,6 +143,8 @@ void ImViz::prepareUpdate() {
     if (io.WantCaptureKeyboard) {
         input::clearKeyboardInput();
     }
+
+    reloadFonts();
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();

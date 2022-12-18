@@ -14,8 +14,9 @@ struct ImViz {
     ImGuiContext* imGuiCtx = nullptr;
     ImPlotContext* imPlotCtx = nullptr;
 
-    ImFont* smallFont;
-    ImFont* largeFont;
+    ImFont* smallFont = nullptr;
+    ImFont* largeFont = nullptr;
+    double fontBaseSize = 20.0;
 
     ImGuiID mainDockSpaceId;
 
@@ -26,9 +27,6 @@ struct ImViz {
     bool mod = false;
     std::vector<bool> mod_any = {false};
 
-    float rotation = 0.0f;
-    int rotationStartIndex = 0;
-
     std::string iniFilePath = "";
 
     // initially update for two whole seconds (assuming vsync)
@@ -38,6 +36,7 @@ struct ImViz {
 
     void init();
     void prepareUpdate();
+    void reloadFonts();
     void setupImLibs();
     void doUpdate(bool useVsync);
     void recover();
