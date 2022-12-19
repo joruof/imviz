@@ -167,7 +167,7 @@ class Serializer:
             if self.array_store.store.path != obj.store.path:
                 Serializer.last_id += 1 
                 path = str(Serializer.last_id)
-                obj = self.array_store.array(path. obj)
+                obj = self.array_store.array(path, obj)
 
             self.saved_arrays.add(obj.path)
             return {
