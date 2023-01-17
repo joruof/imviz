@@ -139,7 +139,8 @@ class Serializer:
         if type(obj) == np.ndarray:
             if obj.size > 25:
 
-                Serializer.last_id += 1
+                while str(Serializer.last_id) in self.array_store:
+                    Serializer.last_id += 1
 
                 path = str(Serializer.last_id)
                 obj = self.array_store.array(path, obj)
@@ -165,9 +166,12 @@ class Serializer:
         if type(obj) == zarr.core.Array:
 
             if self.array_store.store.path != obj.store.path:
-                Serializer.last_id += 1 
+
+                while str(Serializer.last_id) in self.array_store:
+                    Serializer.last_id += 1
+
                 path = str(Serializer.last_id)
-                obj = self.array_store.array(path. obj)
+                obj = self.array_store.array(path, obj)
 
             self.saved_arrays.add(obj.path)
             return {
@@ -356,8 +360,6 @@ def save(obj, directory):
     ser = Serializer(directory)
     rep = ser.serialize(obj)
 
-    rep["__imviz_last_id"] = Serializer.last_id
-
     unfinished_path = os.path.join(directory, "unfinished.json")
 
     with open(unfinished_path, "w+") as fd:
@@ -393,8 +395,6 @@ def load(obj, path):
 
     with open(state_path, "r") as fd:
         json_state = json.load(fd)
-
-    Serializer.last_id = json_state["__imviz_last_id"]
 
     lod = Loader(path)
     lod.load(obj, json_state)

@@ -488,7 +488,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 double x,
                 double y,
                 double displayWidth,
-                double displayHeight) {
+                double displayHeight,
+                ImVec2 uv0,
+                ImVec2 uv1) {
 
         ImageInfo info = interpretImage(image);
         
@@ -508,14 +510,18 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 label.c_str(),
                 (void*)(intptr_t)textureId,
                 boundsMin,
-                boundsMax);
+                boundsMax,
+                uv0,
+                uv1);
     },
     py::arg("label"),
     py::arg("image"),
     py::arg("x") = 0,
     py::arg("y") = 0,
     py::arg("width") = -1,
-    py::arg("height") = -1);
+    py::arg("height") = -1,
+    py::arg("uv0") = ImVec2(0.0f, 0.0f),
+    py::arg("uv1") = ImVec2(1.0f, 1.0f));
 
     m.def("plot_image_texture", [&](
                 std::string label,
