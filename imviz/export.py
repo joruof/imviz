@@ -235,10 +235,26 @@ def merge_polygons_to_lines(state):
             pp_mid_points = get_mid_points(prev_p)
 
             if prev_p.color != p.color:
+                if len(line_points) > 0:
+                    line_points.append(counter_point)
+                    pl = Polyline()
+                    pl.color = remove_list[-1].color
+                    pl.alpha = remove_list[-1].alpha
+                    pl.points = line_points
+                    line_group.append(pl)
+                    line_points = []
                 prev_p = None
                 continue
 
             if prev_p.alpha != p.alpha:
+                if len(line_points) > 0:
+                    line_points.append(counter_point)
+                    pl = Polyline()
+                    pl.color = remove_list[-1].color
+                    pl.alpha = remove_list[-1].alpha
+                    pl.points = line_points
+                    line_group.append(pl)
+                    line_points = []
                 prev_p = None
                 continue
 
