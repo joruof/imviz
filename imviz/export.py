@@ -592,7 +592,7 @@ def drawlist_state_to_svg(state):
 
     svg_txt += "</defs>\n"
 
-    # write out polygon groups
+    # write out polygon and line groups
 
     for i, pg in enumerate(state.polygon_groups):
         svg_txt += f'<g clip-path="url(#clip_rect_{i})">\n'
@@ -600,11 +600,8 @@ def drawlist_state_to_svg(state):
             svg_txt += polygon_to_svg(p) + "\n"
         svg_txt += '</g>\n'
 
-    # write out line groups
-
-    for i, lg in enumerate(state.line_groups):
         svg_txt += f'<g clip-path="url(#clip_rect_{i})">\n'
-        for ln in lg:
+        for ln in state.line_groups[i]:
             svg_txt += line_to_svg(ln) + "\n"
         svg_txt += '</g>\n'
 
