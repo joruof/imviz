@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import base64
+import pickle
 import subprocess
 import numpy as np
 
@@ -76,12 +77,22 @@ class Polygon:
         self.image = None
 
 
+class Polyline:
+
+    def __init__(self):
+
+        self.points = []
+        self.color = ""
+        self.alpha = 0.0
+
+
 class DrawListState:
 
     def __init__(self):
 
         self.draw_cmds = []
         self.polygon_groups = []
+        self.line_groups = []
 
         self.canvas_pos = np.array([0.0, 0.0])
         self.canvas_size = np.array([0.0, 0.0])
@@ -183,6 +194,85 @@ def export_polygons(state, dl):
             merged_polys.append(p)
 
         state.polygon_groups.append(merged_polys)
+
+
+def merge_polygons_to_lines(state):
+
+    def get_mid_points(p):
+
+        axis_0 = (p.vertices[3].pos - p.vertices[0].pos) / 2.0
+        axis_1 = (p.vertices[1].pos - p.vertices[0].pos) / 2.0
+        center = p.vertices[0].pos + axis_0 + axis_1
+
+        mp0 = center + axis_0 
+        mp1 = center + axis_1
+        mp2 = center - axis_0 
+        mp3 = center - axis_1
+
+        return [mp0, mp1, mp2, mp3]
+
+    for pg in state.polygon_groups:
+
+        prev_p = None
+
+        line_group = []
+
+        line_points = []
+        remove_list = []
+        counter_point = None
+
+        for p in pg:
+
+            if len(p.vertices) != 4:
+                continue
+
+            if prev_p is None:
+                prev_p = p
+                continue
+
+            p_mid_points = get_mid_points(p)
+            pp_mid_points = get_mid_points(prev_p)
+
+            matched = False
+
+            for i, mp in enumerate(p_mid_points):
+                for j, mpp in enumerate(pp_mid_points):
+                    if np.linalg.norm(mp - mpp) < 1.0:
+                        matched = True
+                        break
+
+            if matched:
+                if len(line_points) == 0:
+                    line_points.append(pp_mid_points[(j + 2) % 4])
+                    remove_list.append(prev_p)
+                line_points.append(mp)
+                remove_list.append(p)
+                counter_point = p_mid_points[(i + 2) % 4]
+            elif len(line_points) > 0:
+                line_points.append(counter_point)
+                pl = Polyline()
+                pl.color = remove_list[-1].color
+                pl.alpha = remove_list[-1].alpha
+                pl.points = line_points
+                line_group.append(pl)
+                line_points = []
+
+            prev_p = p
+
+        for p in remove_list:
+            pg.remove(p)
+
+        if len(line_points) > 0:
+
+            line_points.append(p_mid_points[(i + 2) % 4])
+            pl = Polyline()
+            pl.color = remove_list[-1].color
+            pl.alpha = remove_list[-1].alpha
+            pl.points = line_points
+            line_group.append(pl)
+            line_points = []
+
+        state.line_groups.append(line_group)
 
 
 def export_text_polygons(state):
@@ -371,6 +461,7 @@ def export_drawlist_state(dl):
 
     export_polygons(state, dl)
     export_text_polygons(state)
+    merge_polygons_to_lines(state)
     export_images(state)
     export_canvas(state)
 
@@ -437,6 +528,16 @@ def polygon_to_svg(p):
     return svg_txt
 
 
+def line_to_svg(ln):
+
+    svg_txt = '<polyline points="'
+    for p in ln.points:
+        svg_txt += f'{p[0]:.3f}, {p[1]:.3f} '
+    svg_txt += f'" fill="none" stroke="{ln.color}" stroke-opacity="{ln.alpha}" />'
+
+    return svg_txt
+
+
 def drawlist_state_to_svg(state):
 
     # output svg text
@@ -472,6 +573,14 @@ def drawlist_state_to_svg(state):
         svg_txt += f'<g clip-path="url(#clip_rect_{i})">\n'
         for p in pg:
             svg_txt += polygon_to_svg(p) + "\n"
+        svg_txt += '</g>\n'
+
+    # write out line groups
+
+    for i, lg in enumerate(state.line_groups):
+        svg_txt += f'<g clip-path="url(#clip_rect_{i})">\n'
+        for ln in lg:
+            svg_txt += line_to_svg(ln) + "\n"
         svg_txt += '</g>\n'
 
     # close and return

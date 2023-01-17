@@ -1060,6 +1060,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     /**
      * Wrapper class around VizDrawList for extra functionality.
      */
+
     struct VizDrawList {
 
         ImDrawList& dl;
@@ -1090,6 +1091,11 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                 idxs.push_back(i);
             }
             return idxs;
+        }
+
+        std::vector<double> getClipRect() {
+            ImVec4& v = dl._ClipRectStack.back();
+            return std::vector<double>({v.x, v.y, v.z, v.w});
         }
 
         void pushTransform(VizMatrix& mat) {
@@ -1192,10 +1198,11 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             const float xMin = clMin.x;
             const float yMin = clMin.y;
 
-            clMax.x = m.m00 * xMax + m.m10 * yMax + m.m20;
-            clMax.y = m.m01 * xMax + m.m11 * yMax + m.m21;
-            clMin.x = m.m00 * xMin + m.m10 * yMin + m.m20;
-            clMin.y = m.m01 * xMin + m.m11 * yMin + m.m21;
+            clMax.x = m.m00 * xMax + m.m10 * yMax - m.m20;
+            clMax.y = m.m01 * xMax + m.m11 * yMax - m.m21;
+
+            clMin.x = m.m00 * xMin + m.m10 * yMin - m.m20;
+            clMin.y = m.m01 * xMin + m.m11 * yMin - m.m21;
 
             dl.PushClipRect(clMin, clMax);
         }
@@ -1555,13 +1562,18 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                      std::string text,
                      array_like<double> color) {
 
-            pushTransformedClipRect();
             unsigned int startIndex = dl._VtxCurrentIdx;
+
+            double x = trafoStack.back().m20;
+            double y = trafoStack.back().m21;
+
             dl.AddText(position,
                        ImGui::GetColorU32(interpretColor(color)),
                        text.c_str());
+
+            //dl.AddText(NULL, 0.0f, position, col, text_begin, text_end);
+
             applyTransform(startIndex);
-            dl.PopClipRect();
         }
     };
 
@@ -1659,7 +1671,9 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .def("get_cmds", &VizDrawList::getCmds)
         .def("get_verts", &VizDrawList::getVerts)
         .def("get_indices", &VizDrawList::getIndices)
+        .def("get_clip_rect", &VizDrawList::getClipRect)
         .def("push_plot_transform", &VizDrawList::pushPlotTransform)
+        .def("push_transformed_clip_rect", &VizDrawList::pushTransformedClipRect)
         .def("push_window_transform", &VizDrawList::pushWindowTransform)
         .def("push_transform", [&](VizDrawList& vdl,
                                    array_like<double> trans,
