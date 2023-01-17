@@ -213,6 +213,8 @@ def export_text_polygons(state):
 
     txt_tex_id = viz.get_font_atlas().get_texture_id()
 
+    pp = None
+
     for i, (cmd, polys) in enumerate(
             zip(state.draw_cmds, state.polygon_groups)):
 
@@ -220,6 +222,7 @@ def export_text_polygons(state):
             continue
 
         new_polys = []
+        half_space = False
 
         for p in polys:
 
@@ -281,12 +284,12 @@ def export_text_polygons(state):
 
             if len(new_polys) == 0:
                 new_polys.append(p)
+                pp = new_polys[-1]
                 continue
 
-            pp = new_polys[-1]
-
-            if len(pp.text) == 0:
+            if pp is None:
                 new_polys.append(p)
+                pp = new_polys[-1]
                 continue
 
             if p.vertical_text:
@@ -296,7 +299,14 @@ def export_text_polygons(state):
                 adv_dist = (p.last_char_x - p.x0) - (pp.last_char_x - pp.x0)
                 base_dist = (p.last_char_y - p.y0) - (pp.last_char_y - pp.y0)
 
-            can_be_joined = (abs(adv_dist - pp.advance) < 1e-4
+            space_size = 3.1821829676628113
+            space_step = abs(adv_dist - pp.advance) / space_size
+            round_space_steps = round(space_step)
+
+            if abs(space_step - round_space_steps) < 1e-3:
+                pp.text += " " * round_space_steps
+
+            can_be_joined = (abs(adv_dist - pp.advance) < p.font_size
                              and abs(base_dist) < 1e-4
                              and (pp.font_size == p.font_size)
                              and (pp.color == p.color)
@@ -305,6 +315,7 @@ def export_text_polygons(state):
 
             if not can_be_joined:
                 new_polys.append(p)
+                pp = new_polys[-1]
                 continue
 
             # join and continue
@@ -402,19 +413,25 @@ def polygon_to_svg(p):
         # no idea why this is necessary, but it works
         char_size = p.font_size * 0.8
 
+        np_vtx = np.array([v.pos for v in p.vertices])
+        box_min = np_vtx.min(axis=0)
+        box_max = np_vtx.max(axis=0)
+        box_mean = box_min + (box_max - box_min) * 0.5
+
+        t_x, t_y = box_mean[0], box_mean[1]
+
         if p.vertical_text:
             svg_txt = ('<text '
                        + 'transform="translate('
-                       + f'{p.start_x:.3f}, {p.start_y:.3f}) '
+                       + f'{(t_x + 5):.3f}, {t_y:.3f}) '
                        + 'rotate(-90)" ')
         else:
-            svg_txt = f'<text x="{p.start_x:.3f}" y="{p.start_y:.3f}" '
-
-        svg_txt += 'dominant-baseline="mathematical" '
+            svg_txt = f'<text x="{t_x:.3f}" y="{(t_y + 5):.3f}" '
 
         svg_txt += (f'fill="{p.color}" fill-opacity="{p.alpha}" '
                     + 'style="font-family: Source Sans Pro; '
-                    + f'font-size: {char_size}px" '
+                    + f'font-size: {char_size}px; '
+                    + f'text-anchor: middle;" '
                     + f'>{p.text}</text>')
 
     return svg_txt
@@ -508,6 +525,9 @@ def wrap_end(end_func):
                 if viz.menu_item("As pdf", enabled=pdf_avail):
                     PlotExport.filetype = "pdf"
                     file_dialog_requested = True
+                if viz.menu_item("As pdf + latex", enabled=pdf_avail):
+                    PlotExport.filetype = "pdf_tex"
+                    file_dialog_requested = True
                 if viz.menu_item("As png"):
                     PlotExport.filetype = "png"
                     file_dialog_requested = True
@@ -590,6 +610,34 @@ def wrap_end(end_func):
                     exp_cmd = (f'inkscape --file="{tmp_path}" '
                                + '--export-area-drawing '
                                + '--without-gui '
+                               + f'--export-pdf="{PlotExport.path}"')
+
+                    subprocess.call(exp_cmd,
+                                    shell=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+
+                elif PlotExport.filetype == "pdf_tex":
+
+                    # first export as svg
+
+                    tmp_path = f"/tmp/imviz_exp_{int(time.time() * 10**9)}.svg"
+
+                    dl_state = export_drawlist_state(dl)
+                    svg_txt = drawlist_state_to_svg(dl_state)
+
+                    with open(tmp_path, "w+") as fd:
+                        fd.write(svg_txt)
+
+                    # then convert to pdf
+
+                    if not PlotExport.path.endswith(".pdf"):
+                        PlotExport.path += ".pdf"
+
+                    exp_cmd = (f'inkscape --file="{tmp_path}" '
+                               + '--export-area-drawing '
+                               + '--without-gui '
+                               + '--export-latex '
                                + f'--export-pdf="{PlotExport.path}"')
 
                     subprocess.call(exp_cmd,
