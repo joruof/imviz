@@ -224,6 +224,7 @@ def merge_polygons_to_lines(state):
         for p in pg:
 
             if len(p.vertices) != 4:
+                prev_p = None 
                 continue
 
             if prev_p is None:
@@ -232,6 +233,14 @@ def merge_polygons_to_lines(state):
 
             p_mid_points = get_mid_points(p)
             pp_mid_points = get_mid_points(prev_p)
+
+            if prev_p.color != p.color:
+                prev_p = None
+                continue
+
+            if prev_p.alpha != p.alpha:
+                prev_p = None
+                continue
 
             matched = False
 
