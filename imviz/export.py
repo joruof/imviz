@@ -486,7 +486,7 @@ def export_drawlist_state(dl):
 
     export_polygons(state, dl)
     export_text_polygons(state)
-    merge_polygons_to_lines(state)
+    # merge_polygons_to_lines(state)
     export_images(state)
     export_canvas(state)
 
