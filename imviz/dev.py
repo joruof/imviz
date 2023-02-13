@@ -124,6 +124,12 @@ def loop(cls, func_name):
 
                     time_string = exc_time.strftime("%H:%M:%S")
 
+                    if viz.button("Reload"):
+                        exc_str = None
+                        continue
+
+                    viz.separator()
+
                     viz.text(f"Exception time {time_string}\n", color=col)
                     viz.text(exc_str, color=col)
                     viz.text("\n")
