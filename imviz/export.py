@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image
 
 
-pdf_avail = subprocess.call("inkscape --version",
+pdf_avail = subprocess.call("which inkscape",
                             shell=True,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE) == 0
