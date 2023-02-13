@@ -108,15 +108,14 @@ class Serializer:
     Large numpy arrays are automatically referenced and stored externally.
     """
 
-    last_id = 0
-    """
-    Used to name external arrays. Will only be incremented.
-    """
 
     def __init__(self, path, hide_private=True):
 
         self.path = path
         self.hide_private = hide_private
+
+        #Used to name external arrays. Will only be incremented.
+        self.last_id = 0
 
         self.ext_path = os.path.join(path, "extern")
         self.array_store = zarr.open(get_chunk_store(self.ext_path))
@@ -139,10 +138,10 @@ class Serializer:
         if type(obj) == np.ndarray:
             if obj.size > 25:
 
-                while str(Serializer.last_id) in self.array_store:
-                    Serializer.last_id += 1
+                while str(self.last_id) in self.array_store:
+                    self.last_id += 1
 
-                path = str(Serializer.last_id)
+                path = str(self.last_id)
                 obj = self.array_store.array(path, obj)
 
                 if type(key) == str:
@@ -167,10 +166,10 @@ class Serializer:
 
             if self.array_store.store.path != obj.store.path:
 
-                while str(Serializer.last_id) in self.array_store:
-                    Serializer.last_id += 1
+                while str(self.last_id) in self.array_store:
+                    self.last_id += 1
 
-                path = str(Serializer.last_id)
+                path = str(self.last_id)
                 obj = self.array_store.array(path, obj)
 
             self.saved_arrays.add(obj.path)
