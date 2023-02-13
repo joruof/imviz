@@ -109,10 +109,11 @@ class Serializer:
     """
 
 
-    def __init__(self, path, hide_private=True):
+    def __init__(self, path, hide_private=True, compressor=None):
 
         self.path = path
         self.hide_private = hide_private
+        self.compressor = compressor
 
         #Used to name external arrays. Will only be incremented.
         self.last_id = 0
@@ -142,7 +143,7 @@ class Serializer:
                     self.last_id += 1
 
                 path = str(self.last_id)
-                obj = self.array_store.array(path, obj)
+                obj = self.array_store.array(path, obj, compressor=self.compressor)
 
                 if type(key) == str:
                     ext_setattr(parent, key, obj)
@@ -170,7 +171,7 @@ class Serializer:
                     self.last_id += 1
 
                 path = str(self.last_id)
-                obj = self.array_store.array(path, obj)
+                obj = self.array_store.array(path, obj, compressor=self.compressor)
 
             self.saved_arrays.add(obj.path)
             return {
@@ -346,7 +347,7 @@ class Loader:
             return obj
 
 
-def save(obj, directory):
+def save(obj, directory, compressor=zarr.storage.default_compressor):
     """
     Stores obj under a given directory.
     The directory will be created if it not already exists.
@@ -356,7 +357,7 @@ def save(obj, directory):
 
     os.makedirs(directory, exist_ok=True)
 
-    ser = Serializer(directory)
+    ser = Serializer(directory, compressor=compressor)
     rep = ser.serialize(obj)
 
     unfinished_path = os.path.join(directory, "unfinished.json")
