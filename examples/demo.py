@@ -6,7 +6,6 @@ imviz by example.
 import sys
 import time
 import numpy as np
-import pandas as pd
 
 import imviz as viz
 
@@ -66,14 +65,6 @@ class Demo:
         self.multi_selection = []
 
         self.sel_idx = 0
-
-        # dataframes
-
-        self.xs = np.arange(0.0, 100.0, 0.1)
-        self.ys = np.random.rand(1000)
-
-        self.frame_selection = []
-        self.frame = pd.DataFrame({"xs": self.xs, "ys": self.ys})
 
         # plotting
 
