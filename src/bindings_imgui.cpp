@@ -2,6 +2,7 @@
 
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
+#include <pybind11/pybind11.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -205,6 +206,90 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_SPLIT", ImGuiDockNodeFlags_NoSplit)
         .value("NO_RESIZE", ImGuiDockNodeFlags_NoResize)
         .value("AUTO_HIDE_TAB_BAR", ImGuiDockNodeFlags_AutoHideTabBar);
+
+    py::enum_<ImGuiCol_>(m, "GuiCol")
+        .value("TEXT", ImGuiCol_Text)
+        .value("TEXT_DISABLED", ImGuiCol_TextDisabled)
+        .value("WINDOW_BG", ImGuiCol_WindowBg)
+        .value("CHILD_BG", ImGuiCol_ChildBg)
+        .value("POPUP_BG", ImGuiCol_PopupBg)
+        .value("BORDER", ImGuiCol_Border)
+        .value("BORDER_SHADOW", ImGuiCol_BorderShadow)
+        .value("FRAME_BG", ImGuiCol_FrameBg)
+        .value("FRAME_BG_HOVERED", ImGuiCol_FrameBgHovered)
+        .value("FRAME_BG_ACTIVE", ImGuiCol_FrameBgActive)
+        .value("TITLE_BG", ImGuiCol_TitleBg)
+        .value("TITLE_BG_ACTIVE", ImGuiCol_TitleBgActive)
+        .value("TITLE_BG_COLLAPSED", ImGuiCol_TitleBgCollapsed)
+        .value("MENU_BAR_BG", ImGuiCol_MenuBarBg)
+        .value("SCROLL_BAR_BG", ImGuiCol_ScrollbarBg)
+        .value("SCROLL_BAR_GRAB", ImGuiCol_ScrollbarGrab)
+        .value("SCROLL_BAR_GRAB_HOVERED", ImGuiCol_ScrollbarGrabHovered)
+        .value("SCROLL_BAR_GRAB_ACTIVE", ImGuiCol_ScrollbarGrabActive)
+        .value("CHECK_MARK", ImGuiCol_CheckMark)
+        .value("SLIDER_GRAB", ImGuiCol_SliderGrab)
+        .value("SLIDER_GRAB_ACTIVE", ImGuiCol_SliderGrabActive)
+        .value("BUTTON", ImGuiCol_Button)
+        .value("BUTTON_HOVERED", ImGuiCol_ButtonHovered)
+        .value("BUTTON_ACTIVE", ImGuiCol_ButtonActive)
+        .value("HEADER", ImGuiCol_Header)
+        .value("HEADER_HOVERED", ImGuiCol_HeaderHovered)
+        .value("HEADER_ACTIVE", ImGuiCol_HeaderActive)
+        .value("SEPARATOR", ImGuiCol_Separator)
+        .value("SEPARATOR_HOVERED", ImGuiCol_SeparatorHovered)
+        .value("SEPARATOR_ACTIVE", ImGuiCol_SeparatorActive)
+        .value("RESIZE_GRIP", ImGuiCol_ResizeGrip)
+        .value("RESIZE_GRIP_HOVERED", ImGuiCol_ResizeGripHovered)
+        .value("RESIZE_GRIP_ACTIVE", ImGuiCol_ResizeGripActive)
+        .value("TAB", ImGuiCol_Tab)
+        .value("TAB_HOVERED", ImGuiCol_TabHovered)
+        .value("TAB_ACTIVE", ImGuiCol_TabActive)
+        .value("TAB_UNFOCUSED", ImGuiCol_TabUnfocused)
+        .value("TAB_UNFOCUSED_ACTIVE", ImGuiCol_TabUnfocusedActive)
+        .value("DOCKING_PREVIEW", ImGuiCol_DockingPreview)
+        .value("DOCKING_EMPTY_BG", ImGuiCol_DockingEmptyBg)
+        .value("PLOT_LINES", ImGuiCol_PlotLines)
+        .value("PLOT_LINES_HOVERED", ImGuiCol_PlotLinesHovered)
+        .value("PLOT_HISTOGRAM", ImGuiCol_PlotHistogram)
+        .value("PLOT_HISTOGRAM_HOVERED", ImGuiCol_PlotHistogramHovered)
+        .value("TABLE_HEADER_BG", ImGuiCol_TableHeaderBg)
+        .value("TABLE_BORDER_STRONG", ImGuiCol_TableBorderStrong)
+        .value("TABLE_BORDER_LIGHT", ImGuiCol_TableBorderLight)
+        .value("TABLE_ROW_BG", ImGuiCol_TableRowBg)
+        .value("TABLE_ROW_BG_ALT", ImGuiCol_TableRowBgAlt)
+        .value("TEXT_SELECTED_BG", ImGuiCol_TextSelectedBg)
+        .value("DRAG_DROP_TARGET", ImGuiCol_DragDropTarget)
+        .value("NAV_HIGHLIGHT", ImGuiCol_NavHighlight)
+        .value("NAV_WINDOWING_HIGHLIGHT", ImGuiCol_NavWindowingHighlight)
+        .value("NAV_WINDOWING_DIM_BG", ImGuiCol_NavWindowingDimBg)
+        .value("MODAL_WINDOW_DIM_BG", ImGuiCol_ModalWindowDimBg);
+
+    py::enum_<ImGuiStyleVar_>(m, "StyleVar")
+        .value("ALPHA", ImGuiStyleVar_Alpha)
+        .value("DISABLED_ALPHA", ImGuiStyleVar_DisabledAlpha)
+        .value("WINDOW_PADDING", ImGuiStyleVar_WindowPadding)
+        .value("WINDOW_ROUNDING", ImGuiStyleVar_WindowRounding)
+        .value("WINDOW_BORDER_SIZE", ImGuiStyleVar_WindowBorderSize)
+        .value("WINDOW_MIN_SIZE", ImGuiStyleVar_WindowMinSize)
+        .value("WINDOW_TITLE_ALIGN", ImGuiStyleVar_WindowTitleAlign)
+        .value("CHILD_ROUNDING", ImGuiStyleVar_ChildRounding)
+        .value("CHILD_BORDER_SIZE", ImGuiStyleVar_ChildBorderSize)
+        .value("POPUP_ROUNDING", ImGuiStyleVar_PopupRounding)
+        .value("POPUP_BORDER_SIZE", ImGuiStyleVar_PopupBorderSize)
+        .value("FRAME_PADDING", ImGuiStyleVar_FramePadding)
+        .value("FRAME_ROUNDING", ImGuiStyleVar_FrameRounding)
+        .value("FRAME_BORDER_SIZE", ImGuiStyleVar_FrameBorderSize)
+        .value("ITEM_SPACING", ImGuiStyleVar_ItemSpacing)
+        .value("ITEM_INNER_SPACING", ImGuiStyleVar_ItemInnerSpacing)
+        .value("INDENT_SPACING", ImGuiStyleVar_IndentSpacing)
+        .value("CELL_PADDING", ImGuiStyleVar_CellPadding)
+        .value("SCROLL_BAR_SIZE", ImGuiStyleVar_ScrollbarSize)
+        .value("SCROLL_BAR_ROUNDING", ImGuiStyleVar_ScrollbarRounding)
+        .value("GRAB_MIN_SIZE", ImGuiStyleVar_GrabMinSize)
+        .value("GRAB_ROUNDING", ImGuiStyleVar_GrabRounding)
+        .value("TAB_ROUNDING", ImGuiStyleVar_TabRounding)
+        .value("BUTTON_TEXT_ALIGN", ImGuiStyleVar_ButtonTextAlign)
+        .value("SELECTABLE_TEXT_ALIGN", ImGuiStyleVar_SelectableTextAlign);
 
     /*
      * Imgui widgets
@@ -938,6 +1023,33 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("id"));
 
     m.def("get_item_id", ImGui::GetItemID);
+
+    /**
+     * Styling
+     */
+
+    m.def("push_style_color", [](ImGuiCol idx, py::handle& col){
+        ImVec4 color = interpretColor(col); 
+        ImGui::PushStyleColor(idx, color);
+    },
+    py::arg("idx"),
+    py::arg("col"));
+
+    m.def("pop_style_color", [](int count) {
+        ImGui::PopStyleColor(count);
+    }, 
+    py::arg("count") = 1);
+
+    m.def("push_style_var", [](ImGuiStyleVar idx, ImVec2 val){
+        ImGui::PushStyleVar(idx, val);
+    },
+    py::arg("idx"),
+    py::arg("val"));
+
+    m.def("pop_style_var", [](int count) {
+        ImGui::PopStyleVar(count);
+    }, 
+    py::arg("count") = 1);
 
     /**
      * Drag'n'drop
