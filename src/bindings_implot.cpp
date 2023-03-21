@@ -490,7 +490,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 double displayWidth,
                 double displayHeight,
                 ImVec2 uv0,
-                ImVec2 uv1) {
+                ImVec2 uv1,
+                py::handle& tint,
+                bool skip_upload) {
 
         ImageInfo info = interpretImage(image);
         
@@ -501,10 +503,12 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             displayHeight = info.imageHeight;
         }
 
-        GLuint textureId = uploadImage(label, info, image);
+        GLuint textureId = uploadImage(label, info, image, skip_upload);
 
         ImPlotPoint boundsMin(x, y);
         ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImVec4 tintCol = interpretColor(tint);
 
         ImPlot::PlotImage(
                 label.c_str(),
@@ -512,7 +516,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 boundsMin,
                 boundsMax,
                 uv0,
-                uv1);
+                uv1,
+                tintCol);
     },
     py::arg("label"),
     py::arg("image"),
@@ -521,7 +526,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("width") = -1,
     py::arg("height") = -1,
     py::arg("uv0") = ImVec2(0.0f, 0.0f),
-    py::arg("uv1") = ImVec2(1.0f, 1.0f));
+    py::arg("uv1") = ImVec2(1.0f, 1.0f),
+    py::arg("tint") = ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+    py::arg("skip_upload") = false);
 
     m.def("plot_image_texture", [&](
                 std::string label,

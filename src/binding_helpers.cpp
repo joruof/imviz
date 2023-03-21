@@ -217,7 +217,7 @@ ImageInfo interpretImage(py::array& image) {
     return i;
 }
 
-GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
+GLuint uploadImage(std::string id, ImageInfo& i, py::array& image, bool skip) {
 
     static std::unordered_map<ImGuiID, GLuint> textureCache;
 
@@ -235,11 +235,17 @@ GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
         glBindTexture(GL_TEXTURE_2D, 0);
 
         textureCache[uniqueId] = textureId;
+
+        skip = false;
     }
 
     // upload texture
 
     GLuint textureId = textureCache[uniqueId];
+
+    if (skip) {
+        return textureId;
+    }
 
     glBindTexture(GL_TEXTURE_2D, textureId);
 
