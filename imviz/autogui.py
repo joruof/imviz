@@ -33,6 +33,13 @@ def list_item_context(obj, name, ctx):
 
 class AutoguiContext:
 
+    class Default:
+        """
+        This can be returned by a custom __autogui__ function to signal that
+        default autogui behavior should be applied to the given obj.
+        """
+        pass
+
     def __init__(self,
                  path=[],
                  parents=[],
@@ -81,7 +88,9 @@ class AutoguiContext:
         obj_type = type(obj)
 
         if hasattr(obj, "__autogui__") and not self.ignore_custom:
-            return obj.__autogui__(name, ctx=self)
+            res = obj.__autogui__(name, ctx=self)
+            if res is not AutoguiContext.Default:
+                return res
 
         if obj is None:
             viz.text(f"{name}: None")

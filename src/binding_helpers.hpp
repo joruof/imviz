@@ -26,7 +26,7 @@ void assertArrayShape(std::string name,
 
 #define assert_shape(array, ...) assertArrayShape(#array, array, __VA_ARGS__)
 
-ImVec4 interpretColor(py::handle& color);
+ImVec4 interpretColor(py::handle& color, bool* isArray = nullptr);
 
 struct ImageInfo {
 

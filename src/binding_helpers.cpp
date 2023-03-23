@@ -64,7 +64,7 @@ void assertArrayShape(std::string name,
     }
 }
 
-ImVec4 interpretColor(py::handle& color) {
+ImVec4 interpretColor(py::handle& color, bool* isArray) {
 
     std::string typeName = py::str(color.attr("__class__").attr("__name__"));
 
@@ -152,9 +152,14 @@ ImVec4 interpretColor(py::handle& color) {
         return ImVec4(f, f, f, 1.0f);
     }
 
-    array_like<double> colorArray = array_like<double>::ensure(color);
+    array_like<float> colorArray = array_like<float>::ensure(color);
 
-    assert_shape(colorArray, {{-1}});
+    assert_shape(colorArray, {{-1}, {-1, 4}});
+
+    if (colorArray.ndim() == 2 && isArray != nullptr) {
+        *isArray = true;
+        return ImVec4(1, 1, 1, 1);
+    }
 
     ImVec4 c(0, 0, 0, 1);
     size_t colorLength = colorArray.shape()[0];

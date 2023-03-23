@@ -6,10 +6,12 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include "implot_internal.h"
+#include "implot_ext.hpp"
 #include <imgui.h>
 #include <implot.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
@@ -415,33 +417,40 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
+ 
+        bool isArray = false;
+        ImVec4 ic = interpretColor(color, &isArray);
 
-        ImPlot::SetNextLineStyle(interpretColor(color), lineWeight);
+        ImPlot::SetNextLineStyle(ic, lineWeight);
 
-        // plot lines and markers
-
-        if (groups[1] == "-") {
-            ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+        if (isArray) {
+            ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-");
         } else {
-            ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
-        }
+            // plot lines and markers
 
-        // plot shade if needed
+            if (groups[1] == "-") {
+                ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+            } else {
+                ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+            }
 
-        size_t shadeCount = std::min(pai.count, (size_t)shade.shape()[0]);
+            // plot shade if needed
 
-        if (shadeCount != 0) {
-            if (1 == shade.ndim()) {
-                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
-                auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
-                py::array_t<double> upper = mean + shade;
-                py::array_t<double> lower = mean - shade;
-                ImPlot::PlotShaded(label.c_str(),
-                                   pai.xDataPtr,
-                                   lower.data(),
-                                   upper.data(),
-                                   shadeCount);
-                ImPlot::PopStyleVar();
+            size_t shadeCount = std::min(pai.count, (size_t)shade.shape()[0]);
+
+            if (shadeCount != 0) {
+                if (1 == shade.ndim()) {
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
+                    auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
+                    py::array_t<double> upper = mean + shade;
+                    py::array_t<double> lower = mean - shade;
+                    ImPlot::PlotShaded(label.c_str(),
+                                       pai.xDataPtr,
+                                       lower.data(),
+                                       upper.data(),
+                                       shadeCount);
+                    ImPlot::PopStyleVar();
+                }
             }
         }
 

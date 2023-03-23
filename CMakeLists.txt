@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 project(cppimviz)
 
+# Exports compile commands to .json file for vim YouCompleteMe support.
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(PY_TARGET_NAME "${PROJECT_NAME}")
 
 # ---[ Check for OpenGL (mandatory) ]---
@@ -114,7 +118,6 @@ set(SOURCE_FILES
     ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
     ${implot_SOURCE_DIR}/implot.cpp
     ${implot_SOURCE_DIR}/implot_demo.cpp
-    ${implot_SOURCE_DIR}/implot_items.cpp
     ./src/bindings.cpp
     ./src/imviz.cpp
     ./src/input.cpp
@@ -123,6 +126,7 @@ set(SOURCE_FILES
     ./src/bindings_implot.cpp
     ./src/bindings_imgui.cpp
     ./src/source_sans_pro.cpp
+    ./src/implot_ext.cpp
    )
 
 set(HEADER_FILES 
@@ -179,6 +183,7 @@ else()
                             -DIMGUI_USER_CONFIG="im_user_config.h"
                             -g
                             -O3
+                            -ffast-math
                             -Wall
                             -Wextra
                             -Wpedantic
@@ -193,7 +198,3 @@ else()
                             glfw)
 
 endif()
-
-# Exports compile commands to .json file for vim YouCompleteMe support.
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
