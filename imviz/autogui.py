@@ -192,17 +192,23 @@ class AutoguiContext:
                     self.path.append(i)
                     self.parents.append(obj)
 
-                    obj[i] = self.render(obj[i], node_name)
+                    viz.push_mod_any()
+                    res = self.render(obj[i], node_name)
 
                     self.parents.pop()
                     self.path.pop()
 
+                    if viz.pop_mod_any() and res is not obj[i]:
+                        obj[i] = res
+
                 if self.duplicate[0] is not None:
                     obj.insert(self.duplicate[0], self.duplicate[1])
                     self.duplicate = (None, None)
+                    viz.set_mod(True)
 
                 for idx in self.remove_list:
                     obj.pop(idx)
+                    viz.set_mod(True)
 
             if len(name) > 0 and tree_open:
                 viz.tree_pop()
@@ -350,10 +356,14 @@ class AutoguiContext:
                     self.path.append(i)
                     self.parents.append(obj)
 
-                    obj[i] = self.render(obj[i], node_name)
+                    viz.push_mod_any()
+                    res = self.render(obj[i], node_name)
 
                     self.parents.pop()
                     self.path.pop()
+
+                    if viz.pop_mod_any() and res is not obj[i]:
+                        obj[i] = res
 
                 if self.duplicate[0] is not None:
                     obj.insert(self.duplicate[0], self.duplicate[1])
@@ -387,13 +397,14 @@ class AutoguiContext:
                 self.path.append(k)
                 self.parents.append(obj)
 
+                viz.push_mod_any()
                 new_v = self.render(v, name=str(k))
 
                 self.annotation = None
                 self.parents.pop()
                 self.path.pop()
 
-                if viz.mod_any():
+                if viz.pop_mod_any() and new_v is not v:
                     try:
                         ext_setattr(obj, k, new_v)
                     except AttributeError:
