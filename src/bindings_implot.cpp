@@ -40,6 +40,14 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("CROSSHAIRS", ImPlotFlags_Crosshairs)
         .value("CANVAS_ONLY", ImPlotFlags_CanvasOnly);
 
+    py::enum_<ImPlotLineFlags_>(m, "PlotLineFlags", py::arithmetic())
+        .value("NONE", ImPlotLineFlags_None)
+        .value("SEGMENTS", ImPlotLineFlags_Segments)
+        .value("LOOP", ImPlotLineFlags_Loop)
+        .value("SKIP_NAN", ImPlotLineFlags_SkipNaN)
+        .value("NO_CLIP", ImPlotLineFlags_NoClip)
+        .value("SHADED", ImPlotLineFlags_Shaded);
+
     py::enum_<ImPlotAxisFlags_>(m, "PlotAxisFlags", py::arithmetic())
         .value("NONE", ImPlotAxisFlags_None)
         .value("NO_LABEL", ImPlotAxisFlags_NoLabel)
@@ -376,7 +384,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                       float shadeAlpha,
                       float lineWeight,
                       float markerSize,
-                      float markerWeight) {
+                      float markerWeight,
+                      ImPlotLineFlags flags) {
 
         // interpret data
 
@@ -429,7 +438,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             // plot lines and markers
 
             if (groups[1] == "-") {
-                ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+                ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count, flags);
             } else {
                 ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
             }
@@ -465,7 +474,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("shade_alpha") = 0.3f,
     py::arg("line_weight") = 1.0f, 
     py::arg("marker_size") = 4.0f, 
-    py::arg("marker_weight") = 1.0f);
+    py::arg("marker_weight") = 1.0f,
+    py::arg("flags") = ImPlotLineFlags_None);
 
     m.def("plot_bars", [&](array_like<double> x,
                            array_like<double> y,
