@@ -39,7 +39,7 @@ struct ImageInfo {
 
 ImageInfo interpretImage(py::array& image);
 
-GLuint uploadImage(std::string id, ImageInfo& i, py::array& image, bool skip = false);
+GLuint uploadImage(std::string id, ImageInfo& i, py::array& image, bool skip = false, bool lerp = false);
 
 struct PlotArrayInfo {
 
