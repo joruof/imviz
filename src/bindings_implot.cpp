@@ -692,6 +692,27 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("rect"),
     py::arg("color") = py::array_t<double>());
 
+    m.def("plot_text", [&](
+                std::string text,
+                double x,
+                double y,
+                ImVec2 pix_offset) {
+
+        ImPlot::PlotText(text.c_str(), x, y, pix_offset);
+    },
+    py::arg("text"),
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("pix_offset") = ImVec2(0.0, 0.0));
+
+    m.def("plot_dummy", [&](std::string label, py::handle legendColor) {
+        ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(legendColor));
+        ImPlot::PlotDummy(label.c_str());
+        ImPlot::PopStyleColor();
+    },
+    py::arg("label"),
+    py::arg("legend_color") = py::array());
+
     m.def("plot_annotation", [&](
                 double x,
                 double y,
@@ -807,6 +828,18 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
 
+    m.def("is_plot_item_hidden", [&](std::string& label_id) {
+        ImPlotContext& gp = *GImPlot;
+        ImPlotItem* item = NULL;
+        if (label_id == "") {
+           item = gp.CurrentItem;
+        } else {
+            item = gp.CurrentItems->GetItem(label_id.c_str());
+        }
+        return item != NULL && !item->Show;
+    },
+    py::arg("label_id") = "");
+
     m.def("get_plot_selection", [&]() {
         ImPlotRect sel = ImPlot::GetPlotSelection();
         return std::vector<double>({sel.X.Min, sel.Y.Min, sel.X.Max, sel.Y.Max});
@@ -888,4 +921,11 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             return py::cast(plot->ID);
         }
     });
+
+    m.def("begin_legend_popup", [&](std::string label_id) {
+        return ImPlot::BeginLegendPopup(label_id.c_str());
+    },
+    py::arg("label_id"));
+
+    m.def("end_legend_popup", &ImPlot::EndLegendPopup);
 }
