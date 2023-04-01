@@ -21,11 +21,13 @@ def list_item_context(obj, name, ctx):
     i = ctx.path[-1]
 
     if viz.begin_popup_context_item():
-        if viz.menu_item("Duplicate"):
-            ctx.duplicate = (i, copy.deepcopy(obj))
-        if viz.menu_item("Remove"):
-            ctx.remove_list.append(i)
-            viz.set_mod(True)
+        if hasattr(ctx.parents[-1], "insert"):
+            if viz.menu_item("Duplicate"):
+                ctx.duplicate_item = i
+        if hasattr(ctx.parents[-1], "__delitem__"):
+            if viz.menu_item("Remove"):
+                ctx.remove_item = i
+                viz.set_mod(True)
         viz.end_popup()
 
     ctx.post_header_hooks.remove(list_item_context)
@@ -52,8 +54,8 @@ class AutoguiContext:
         self.ignore_custom = ignore_custom
 
         self.post_header_hooks = []
-        self.remove_list = []
-        self.duplicate = (None, None)
+        self.remove_item = None
+        self.duplicate_item = None
 
     def try_render(self, obj, name=""):
 
@@ -125,96 +127,6 @@ class AutoguiContext:
             self.call_post_header_hooks(obj, name)
             return res
 
-        if obj_type == tuple:
-
-            if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} [{len(obj)}]-tuple###{name}")
-                self.call_post_header_hooks(obj, name)
-            else:
-                tree_open = True
-
-            if tree_open:
-                for i in range(len(obj)):
-
-                    node_name = str(i)
-
-                    if hasattr(obj[i], "name"):
-                        node_name += f" {obj[i].name}"
-
-                    self.path.append(i)
-                    self.parents.append(obj)
-
-                    self.render(obj[i], node_name)
-
-                    self.parents.pop()
-                    self.path.pop()
-
-            if len(name) > 0 and tree_open:
-                viz.tree_pop()
-
-            return obj
-
-        if obj_type == list:
-
-            if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} [{len(obj)}]###{name}")
-                self.call_post_header_hooks(obj, name)
-                if viz.begin_popup_context_item():
-                    if self.annotation is not None:
-                        item_type = typing.get_args(self.annotation)[0]
-                        if viz.menu_item("New"):
-                            obj.append(item_type())
-                            viz.set_mod(True)
-                    if viz.menu_item("Clear"):
-                        obj.clear()
-                        viz.set_mod(True)
-                    viz.end_popup()
-            else:
-                tree_open = True
-
-            mod = False
-
-            remove_list = []
-            duplicate = (None, None)
-
-            if tree_open:
-                for i in range(len(obj)):
-
-                    node_name = str(i)
-
-                    if hasattr(obj[i], "shape"):
-                        node_name += f" {list(obj[i].shape)}"
-                    if hasattr(obj[i], "name"):
-                        node_name += f" {obj[i].name}"
-
-                    self.post_header_hooks.append(list_item_context)
-
-                    self.path.append(i)
-                    self.parents.append(obj)
-
-                    viz.push_mod_any()
-                    res = self.render(obj[i], node_name)
-
-                    self.parents.pop()
-                    self.path.pop()
-
-                    if viz.pop_mod_any() and res is not obj[i]:
-                        obj[i] = res
-
-                if self.duplicate[0] is not None:
-                    obj.insert(self.duplicate[0], self.duplicate[1])
-                    self.duplicate = (None, None)
-                    viz.set_mod(True)
-
-                for idx in self.remove_list:
-                    obj.pop(idx)
-                    viz.set_mod(True)
-
-            if len(name) > 0 and tree_open:
-                viz.tree_pop()
-
-            return obj
-
         if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
 
             # to avoid many array lookups in the loop
@@ -227,7 +139,7 @@ class AutoguiContext:
             li = len(indices)
 
             if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} {list(obj.shape)[li:]}")
+                tree_open = viz.tree_node(f"{name} {list(obj.shape)[li:]}###{name}")
                 self.call_post_header_hooks(obj, name)
             else:
                 tree_open = True
@@ -331,8 +243,6 @@ class AutoguiContext:
             attr_dict = obj
         elif hasattr(obj, "__len__") and hasattr(obj, "__getitem__"):
 
-            # weird object, at least we we can iterate it
-
             if len(name) > 0:
                 tree_open = viz.tree_node(f"{name} [{len(obj)}]###{name}")
                 self.call_post_header_hooks(obj, name)
@@ -363,14 +273,18 @@ class AutoguiContext:
                     self.path.pop()
 
                     if viz.pop_mod_any() and res is not obj[i]:
-                        obj[i] = res
+                        try:
+                            obj.__setitem__(i, res)
+                        except AttributeError:
+                            pass
 
-                if self.duplicate[0] is not None:
-                    obj.insert(self.duplicate[0], self.duplicate[1])
-                    self.duplicate = (None, None)
+                if self.duplicate_item is not None:
+                    obj.insert(self.duplicate_item, copy.deepcopy(obj[self.duplicate_item]))
+                    self.duplicate_item = None
 
-                for idx in self.remove_list:
-                    obj.pop(idx)
+                if self.remove_item is not None:
+                    del obj[self.remove_item]
+                    self.remove_item = None
 
             if len(name) > 0 and tree_open:
                 viz.tree_pop()
