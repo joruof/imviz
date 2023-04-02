@@ -137,10 +137,8 @@ class AutoguiContext:
 
         if len(name) > 0:
             tree_node_label = f"{name} "
-            if hasattr(obj, "shape"):
-                s = getattr(obj, "shape")
-                if type(s) == tuple:
-                    tree_node_label += f"{list(obj.shape)[li:]}"
+            if hasattr(obj, "shape") and type(obj.shape) == tuple:
+                tree_node_label += f"{list(obj.shape)[li:]}"
             elif hasattr(obj, "__len__"):
                 tree_node_label += f"[{len(obj)}]"
             tree_node_label += f"###{name}"
