@@ -127,37 +127,46 @@ class AutoguiContext:
             self.call_post_header_hooks(obj, name)
             return res
 
+        # to reduce array lookups we collect the requested indices in "path"
+        # the lookup then happens just before rendering the actual values
+        indices = tuple(itertools.takewhile(
+                lambda x: isinstance(x[0], int) and type(x[1]) == type(obj),
+                    zip(self.path[::-1], self.parents[::-1])))[::-1]
+        indices = tuple(i[0] for i in indices)
+        li = len(indices)
+
+        if len(name) > 0:
+            tree_node_label = f"{name} "
+            if hasattr(obj, "shape"):
+                s = getattr(obj, "shape")
+                if type(s) == tuple:
+                    tree_node_label += f"{list(obj.shape)[li:]}"
+            elif hasattr(obj, "__len__"):
+                tree_node_label += f"[{len(obj)}]"
+            tree_node_label += f"###{name}"
+
+            tree_open = viz.tree_node(tree_node_label)
+            self.call_post_header_hooks(obj, name)
+        else:
+            tree_open = True
+
         if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
 
-            # to avoid many array lookups in the loop
-            # we collect the requested indices in "path"
-            indices = tuple(itertools.takewhile(
-                    lambda x: isinstance(x[0], int) and type(x[1]) == type(obj),
-                        zip(self.path[::-1], self.parents[::-1])))[::-1]
-            indices = tuple(i[0] for i in indices)
-
-            li = len(indices)
-
-            if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} {list(obj.shape)[li:]}###{name}")
-                self.call_post_header_hooks(obj, name)
-            else:
-                tree_open = True
-
-            mod = False
-
             if tree_open:
-                if len(obj.shape) == 2:
-
-                    width_avail, _ = viz.get_content_region_avail()
-                    item_width = max(32, width_avail / obj.shape[1] - 8)
-
+                if len(obj.shape) - li == 2:
                     # this tremendously speeds up zarr array access
                     # because we are now operating on a numpy array
-                    arr_view = obj[:, :]
+                    arr_view = obj[indices]
 
-                    for i in range(obj.shape[0]):
-                        for j in range(obj.shape[1]):
+                    width_avail, _ = viz.get_content_region_avail()
+                    item_width = max(64, width_avail / arr_view.shape[-1] - 12)
+
+                    viz.begin_child("array_view",
+                                    size=(-1, 300),
+                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR)
+
+                    for i in range(arr_view.shape[-2]):
+                        for j in range(arr_view.shape[-1]):
 
                             viz.set_next_item_width(item_width)
 
@@ -177,63 +186,49 @@ class AutoguiContext:
                             self.path.pop()
 
                             if viz.mod():
-                                mod = True
-                                obj[i, j] = res
+                                obj[indices + (i, j)] = res
 
-                            if j < obj.shape[1]-1:
+                            if j < arr_view.shape[-1] - 1:
                                 viz.same_line()
-                else:
-                    # to avoid many array lookups in the loop
-                    # we collect the requested indices in "path"
 
-                    if len(obj.shape) < 2:
-                        arr_view = obj[:]
-                        for i in range(len(arr_view)):
-                            # lookup happens here
+                    viz.end_child()
+                elif len(obj.shape) - li == 1:
+                    # lookup happens here
+                    arr_view = obj[indices]
 
-                            self.path.append(i)
-                            self.parents.append(obj)
+                    viz.begin_child("array_view",
+                                    size=(-1, 300),
+                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR)
 
-                            res = self.render(arr_view[i], str(i))
+                    for i in range(len(arr_view)):
 
-                            self.parents.pop()
-                            self.path.pop()
-
-                            if viz.mod():
-                                obj[i] = res
-                    elif len(obj.shape) - li == 2:
-                        # lookup happens here
-
+                        self.path.append(i)
                         self.parents.append(obj)
 
-                        res = self.render(obj[indices])
+                        res = self.render(arr_view[i], str(i))
 
                         self.parents.pop()
+                        self.path.pop()
 
                         if viz.mod():
-                            obj[indices] = res
-                    else:
-                        for i in range(obj.shape[li]):
+                            obj[indices + (i,)] = res
 
-                            self.path.append(i)
-                            self.parents.append(obj)
+                    viz.end_child()
+                else:
+                    for i in range(obj.shape[li]):
 
-                            res = self.render(obj, str(i))
+                        self.path.append(i)
+                        self.parents.append(obj)
 
-                            self.parents.pop()
-                            self.path.pop()
+                        res = self.render(obj, str(i))
 
-                    if viz.mod():
-                        mod = True
+                        self.parents.pop()
+                        self.path.pop()
 
             if len(name) > 0 and tree_open:
                 viz.tree_pop()
 
-            viz.set_mod(mod)
-
             return obj
-
-        # default case, generic object
 
         if hasattr(obj, "__dict__"):
             attr_dict = obj.__dict__
@@ -242,24 +237,8 @@ class AutoguiContext:
         elif isinstance(obj, dict):
             attr_dict = obj
         elif hasattr(obj, "__len__") and hasattr(obj, "__getitem__"):
-
-            if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} [{len(obj)}]###{name}")
-                self.call_post_header_hooks(obj, name)
-            else:
-                tree_open = True
-
-            mod = False
-
             if tree_open:
                 for i in range(len(obj)):
-
-                    node_name = str(i)
-
-                    if hasattr(obj[i], "shape"):
-                        node_name += f" {list(obj[i].shape)}"
-                    if hasattr(obj[i], "name"):
-                        node_name += f" {obj[i].name}"
 
                     self.post_header_hooks.append(list_item_context)
 
@@ -267,7 +246,7 @@ class AutoguiContext:
                     self.parents.append(obj)
 
                     viz.push_mod_any()
-                    res = self.render(obj[i], node_name)
+                    res = self.render(obj[i], str(i))
 
                     self.parents.pop()
                     self.path.pop()
@@ -280,10 +259,12 @@ class AutoguiContext:
 
                 if self.duplicate_item is not None:
                     obj.insert(self.duplicate_item, copy.deepcopy(obj[self.duplicate_item]))
+                    viz.set_mod(True)
                     self.duplicate_item = None
 
                 if self.remove_item is not None:
                     del obj[self.remove_item]
+                    viz.set_mod(True)
                     self.remove_item = None
 
             if len(name) > 0 and tree_open:
@@ -291,16 +272,13 @@ class AutoguiContext:
 
             return obj
         else:
-            viz.text(f"{name}: " + "???")
+            if len(name) == 0:
+                viz.text(f"{name}: " + "???")
             return obj
 
-        if len(name) > 0:
-            tree_open = viz.tree_node(f"{name}")
-            self.call_post_header_hooks(obj, name)
-        else:
-            tree_open = True
-
         obj_annots = getattr(obj, "__annotations__", {})
+    
+        # default case: generic object
 
         if tree_open:
             for k, v in attr_dict.items():
@@ -312,7 +290,7 @@ class AutoguiContext:
                 self.parents.append(obj)
 
                 viz.push_mod_any()
-                new_v = self.render(v, name=str(k))
+                new_v = self.render(v, str(k))
 
                 self.annotation = None
                 self.parents.pop()

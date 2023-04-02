@@ -74,6 +74,40 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("UP", ImGuiDir_Up)
         .value("DOWN", ImGuiDir_Down);
 
+    py::enum_<ImGuiWindowFlags_>(m, "WindowFlags")
+        .value("NONE", ImGuiWindowFlags_None)
+        .value("NO_TITLE_BAR", ImGuiWindowFlags_NoTitleBar)
+        .value("NO_RESIZE", ImGuiWindowFlags_NoResize)
+        .value("NO_MOVE", ImGuiWindowFlags_NoMove)
+        .value("NO_SCROLL_BAR", ImGuiWindowFlags_NoScrollbar)
+        .value("NO_SCROLL_WITH_MOUSE", ImGuiWindowFlags_NoScrollWithMouse)
+        .value("NO_COLLAPSE", ImGuiWindowFlags_NoCollapse)
+        .value("ALWAYS_AUTO_RESIZE", ImGuiWindowFlags_AlwaysAutoResize)
+        .value("NO_BACKGROUND", ImGuiWindowFlags_NoBackground)
+        .value("NO_SAVED_SETTINGS", ImGuiWindowFlags_NoSavedSettings)
+        .value("NO_MOUSE_INPUTS", ImGuiWindowFlags_NoMouseInputs)
+        .value("MENUBAR", ImGuiWindowFlags_MenuBar)
+        .value("HORIZONTAL_SCROLLBAR", ImGuiWindowFlags_HorizontalScrollbar)
+        .value("NO_FOCUS_ON_APPEARING", ImGuiWindowFlags_NoFocusOnAppearing)
+        .value("NO_BRING_TO_FRONT_ON_FOCUS", ImGuiWindowFlags_NoBringToFrontOnFocus)
+        .value("ALWAYS_VERTICAL_SCROLLBAR", ImGuiWindowFlags_AlwaysVerticalScrollbar)
+        .value("ALWAYS_HORIZONTAL_SCROLLBAR", ImGuiWindowFlags_AlwaysHorizontalScrollbar)
+        .value("ALWAYS_USE_WINDOW_PADDING", ImGuiWindowFlags_AlwaysUseWindowPadding)
+        .value("NO_NAV_INPUTS", ImGuiWindowFlags_NoNavInputs)
+        .value("NO_NAV_FOCUS", ImGuiWindowFlags_NoNavFocus)
+        .value("UNSAVED_DOCUMENT", ImGuiWindowFlags_UnsavedDocument)
+        .value("NO_DOCKING", ImGuiWindowFlags_NoDocking)
+        .value("NO_NAV", ImGuiWindowFlags_NoNav)
+        .value("NO_DECORATION", ImGuiWindowFlags_NoDecoration)
+        .value("NO_INPUTS", ImGuiWindowFlags_NoInputs)
+        .value("NAV_FLATTENED", ImGuiWindowFlags_NavFlattened)
+        .value("CHILD_WINDOW", ImGuiWindowFlags_ChildWindow)
+        .value("TOOLTIP", ImGuiWindowFlags_Tooltip)
+        .value("POPUP", ImGuiWindowFlags_Popup)
+        .value("MODAL", ImGuiWindowFlags_Modal)
+        .value("CHILD_MENU", ImGuiWindowFlags_ChildMenu)
+        .value("DOCK_NODE_HOST", ImGuiWindowFlags_DockNodeHost);
+
     py::enum_<ImGuiTreeNodeFlags_>(m, "TreeNodeFlags", py::arithmetic())
         .value("NONE", ImGuiTreeNodeFlags_None)
         .value("SELECTED", ImGuiTreeNodeFlags_Selected)
@@ -353,13 +387,14 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("end_window", ImGui::End);
 
-    m.def("begin_child", [](std::string label, ImVec2 size, bool border){
+    m.def("begin_child", [](std::string label, ImVec2 size, bool border, ImGuiWindowFlags flags){
 
-        return ImGui::BeginChild(label.c_str(), size, border);
+        return ImGui::BeginChild(label.c_str(), size, border, flags);
     },
     py::arg("label"),
     py::arg("size") = ImVec2(0.0f, 0.0f),
-    py::arg("border") = false);
+    py::arg("border") = false,
+    py::arg("flags") = ImGuiWindowFlags_None);
 
     m.def("end_child", ImGui::EndChild);
 
