@@ -152,64 +152,65 @@ class AutoguiContext:
 
             if tree_open:
                 if len(obj.shape) - li == 2:
-                    # this tremendously speeds up zarr array access
-                    # because we are now operating on a numpy array
-                    arr_view = obj[indices]
 
-                    width_avail, _ = viz.get_content_region_avail()
-                    item_width = max(64, width_avail / arr_view.shape[-1] - 12)
+                    if viz.begin_child("array_view",
+                                       size=(-1, 300),
+                                       flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR):
 
-                    viz.begin_child("array_view",
-                                    size=(-1, 300),
-                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR)
+                        # this tremendously speeds up zarr array access
+                        # because we are now operating on a numpy array
+                        arr_view = obj[indices]
 
-                    for i in range(arr_view.shape[-2]):
-                        for j in range(arr_view.shape[-1]):
+                        width_avail, _ = viz.get_content_region_avail()
+                        item_width = max(64, width_avail / arr_view.shape[-1] - 8)
 
-                            viz.set_next_item_width(item_width)
+                        for i in range(arr_view.shape[-2]):
+                            for j in range(arr_view.shape[-1]):
 
-                            self.path.append(i)
-                            self.path.append(j)
-                            self.parents.append(obj)
+                                viz.set_next_item_width(item_width)
 
-                            res = self.render(arr_view[i, j], f"###{i},{j}")
+                                self.path.append(i)
+                                self.path.append(j)
+                                self.parents.append(obj)
 
-                            if viz.is_item_hovered():
-                                viz.begin_tooltip()
-                                viz.text(f"({i}, {j})")
-                                viz.end_tooltip()
+                                res = self.render(arr_view[i, j], f"###{i},{j}")
 
-                            self.parents.pop()
-                            self.path.pop()
-                            self.path.pop()
+                                if viz.is_item_hovered():
+                                    viz.begin_tooltip()
+                                    viz.text(f"({i}, {j})")
+                                    viz.end_tooltip()
 
-                            if viz.mod():
-                                obj[indices + (i, j)] = res
+                                self.parents.pop()
+                                self.path.pop()
+                                self.path.pop()
 
-                            if j < arr_view.shape[-1] - 1:
-                                viz.same_line()
+                                if viz.mod():
+                                    obj[indices + (i, j)] = res
+
+                                if j < arr_view.shape[-1] - 1:
+                                    viz.same_line()
 
                     viz.end_child()
                 elif len(obj.shape) - li == 1:
-                    # lookup happens here
-                    arr_view = obj[indices]
-
-                    viz.begin_child("array_view",
+                    if viz.begin_child("array_view",
                                     size=(-1, 300),
-                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR)
+                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR):
 
-                    for i in range(len(arr_view)):
+                        # lookup happens here
+                        arr_view = obj[indices]
 
-                        self.path.append(i)
-                        self.parents.append(obj)
+                        for i in range(len(arr_view)):
 
-                        res = self.render(arr_view[i], str(i))
+                            self.path.append(i)
+                            self.parents.append(obj)
 
-                        self.parents.pop()
-                        self.path.pop()
+                            res = self.render(arr_view[i], str(i))
 
-                        if viz.mod():
-                            obj[indices + (i,)] = res
+                            self.parents.pop()
+                            self.path.pop()
+
+                            if viz.mod():
+                                obj[indices + (i,)] = res
 
                     viz.end_child()
                 else:
