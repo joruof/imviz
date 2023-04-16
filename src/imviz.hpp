@@ -22,6 +22,11 @@ struct ImViz {
 
     bool currentWindowOpen = false;
     bool figurePlotOpen = false;
+
+    bool plotPopupOpen = false;
+    size_t plotPopupId = 0;
+    ImPlotPoint plotPopupPoint{0.0, 0.0};
+
     bool initialized = false;
 
     bool mod = false;
