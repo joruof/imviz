@@ -924,6 +924,54 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         }
     });
 
+    m.def("get_plot_flags", [&]() {
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return ImPlotFlags_None;
+        } else {
+            return (ImPlotFlags_)plot->Flags;
+        }
+    });
+
+    m.def("begin_plot_popup", [&]() {
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return false;
+        }
+
+        // this needs to happend outside of the popup context
+        ImPlotPoint mousePos = ImPlot::GetPlotMousePos();
+
+        ImGui::PushOverrideID(plot->ID);
+
+        viz.plotPopupOpen = ImGui::BeginPopup("##PlotContext");
+
+        if (viz.plotPopupOpen && viz.plotPopupId != plot->ID) {
+            viz.plotPopupPoint = mousePos;
+            viz.plotPopupId = plot->ID;
+        }
+        if (!viz.plotPopupOpen && viz.plotPopupId == plot->ID) {
+            viz.plotPopupPoint = {0.0, 0.0};
+            viz.plotPopupId = 0;
+        }
+
+        return viz.plotPopupOpen;
+    });
+
+    m.def("end_plot_popup", [&]() {
+        if (viz.plotPopupOpen) {
+            ImGui::EndPopup();
+        }
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot != nullptr) {
+            ImGui::PopID();
+        }
+    });
+
+    m.def("get_plot_popup_point", [&]() {
+        return viz.plotPopupPoint;
+    });
+
     m.def("begin_legend_popup", [&](std::string label_id) {
         return ImPlot::BeginLegendPopup(label_id.c_str());
     },
