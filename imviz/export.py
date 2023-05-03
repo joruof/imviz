@@ -726,14 +726,14 @@ def wrap_end(end_func):
         if PlotExport.plot_id == current_plot_id:
             if PlotExport.countdown < 1:
 
+                os.makedirs(PlotExport.path, exist_ok=True)
+
                 if os.path.isdir(PlotExport.path):
                     PlotExport.path += "/"
-                if PlotExport.path.endswith("/"):
+                if PlotExport.filetype != "csv" and PlotExport.path.endswith("/"):
                     PlotExport.path += f"plot_{int(time.time() * 10**9)}"
 
                 if PlotExport.filetype == "csv":
-
-                    os.makedirs(PlotExport.path, exist_ok=True)
 
                     for k, v in PlotExport.csv_data.items():
                         np.savetxt(os.path.join(PlotExport.path, f"{k}.csv"),
