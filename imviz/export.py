@@ -660,7 +660,8 @@ def wrap_plot(plot_func):
                 y_data = np.array(args[1])
                 x_data = np.array(args[0])
 
-            PlotExport.csv_data[data_key] = np.vstack((x_data, y_data)).T
+            l = min(x_data.shape[0], y_data.shape[0])
+            PlotExport.csv_data[data_key] = np.vstack((x_data[:l], y_data[:l])).T
 
     return inner
 
