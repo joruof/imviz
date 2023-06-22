@@ -164,7 +164,7 @@ def loop(cls, func_name):
                 else:
                     if viz.begin_window("Local variables"):
                         f_locals = exc_frames[exc_frame_idx].frame.f_locals
-                        viz.autogui(f_locals, ignore_custom=True)
+                        viz.AutoguiContext(ignore_custom=True).render(f_locals)
                     viz.end_window()
 
                     new_stack_frame_sel = render_source(
