@@ -546,6 +546,24 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("obj"));
 
+    m.def("get_input_cursor_index", [&](std::string label) {
+
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (nullptr == window) {
+            return -1;
+        }
+
+        const ImGuiID id = window->GetID(label.c_str());
+
+        ImGuiInputTextState* state = ImGui::GetInputTextState(id);
+        if (nullptr == state) {
+            return -1;
+        }
+
+        return state->Stb.cursor;
+    },
+    py::arg("label"));
+
     m.def("checkbox", [&](std::string label, bool& obj) {
         
         bool mod = ImGui::Checkbox(label.c_str(), &obj);
