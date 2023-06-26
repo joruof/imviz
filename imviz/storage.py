@@ -15,6 +15,7 @@ import json
 import types
 import shutil
 import numbers
+import traceback
 
 # i still like this
 from pydoc import locate
@@ -108,20 +109,17 @@ class Serializer:
     Large numpy arrays are automatically referenced and stored externally.
     """
 
-
     def __init__(self, path, hide_private=True, compressor=None):
 
-        self.path = path
         self.hide_private = hide_private
         self.compressor = compressor
-
-        #Used to name external arrays. Will only be incremented.
-        self.last_id = 0
 
         self.ext_path = os.path.join(path, "extern")
         self.array_store = zarr.open(get_chunk_store(self.ext_path))
 
         self.saved_arrays = set()
+
+        self.obj_path = []
 
     def serialize(self, obj, key="", parent=None):
 
@@ -139,11 +137,13 @@ class Serializer:
         if type(obj) == np.ndarray:
             if obj.size > 25:
 
-                while str(self.last_id) in self.array_store:
-                    self.last_id += 1
-
-                path = str(self.last_id)
-                obj = self.array_store.array(path, obj, compressor=self.compressor)
+                path = ".".join([str(p) for p in self.obj_path])
+                obj = self.array_store.array(
+                        path,
+                        obj,
+                        chunks=False,
+                        compressor=self.compressor,
+                        overwrite=True)
 
                 if type(key) == str:
                     ext_setattr(parent, key, obj)
@@ -165,13 +165,22 @@ class Serializer:
         # already saved arrays
         if type(obj) == zarr.core.Array:
 
-            if self.array_store.store.path != obj.store.path:
+            path = ".".join([str(p) for p in self.obj_path])
 
-                while str(self.last_id) in self.array_store:
-                    self.last_id += 1
+            if (self.array_store.store.path != obj.store.path
+                    or obj.path != path):
 
-                path = str(self.last_id)
-                obj = self.array_store.array(path, obj, compressor=self.compressor)
+                obj = self.array_store.array(
+                        path,
+                        obj,
+                        chunks=False,
+                        compressor=self.compressor,
+                        overwrite=True)
+
+                if type(key) == str:
+                    ext_setattr(parent, key, obj)
+                elif type(key) == int:
+                    parent[key] = obj
 
             self.saved_arrays.add(obj.path)
             return {
@@ -182,7 +191,9 @@ class Serializer:
         if type(obj) == list or type(obj) == tuple:
             jvs = []
             for i, v in enumerate(obj):
+                self.obj_path.append(i)
                 jv = self.serialize(v, i, parent=obj)
+                self.obj_path.pop()
                 if jv is not Skip:
                     jvs.append(jv)
             return jvs
@@ -212,7 +223,9 @@ class Serializer:
         ser_attrs = {}
 
         for k, v in attrs.items():
+            self.obj_path.append(k)
             val = self.serialize(v, k, parent=obj)
+            self.obj_path.pop()
             if val is not Skip:
                 ser_attrs[k] = val
 
@@ -231,10 +244,11 @@ class Loader:
     External numpy arrays are automatically dereferenced and mem-mapped.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, map_arrays=True):
 
-        self.path = path
         self.ext_path = os.path.join(path, "extern")
+
+        self.map_arrays = map_arrays
 
         self.array_store = zarr.open(get_chunk_store(self.ext_path))
 
@@ -254,7 +268,13 @@ class Loader:
 
             if cls == "__extern__":
                 path = json_obj["path"]
-                json_obj = self.array_store[path]
+                try:
+                    json_obj = self.array_store[path]
+                except KeyError:
+                    return obj
+                if not self.map_arrays:
+                    json_obj = np.array(json_obj)
+
                 self.loaded_arrays.add(path)
                 # we are lying about this one (actually zarr.core.Array)
                 # in practice it should behave (mostly) like ndarray
@@ -323,7 +343,8 @@ class Loader:
                     cls = locate(cls_name)
                     # assumes default initializeable type
                     return self.load(cls(), json_obj)
-                except Exception:
+                except Exception as e:
+                    traceback.print_exc()
                     print(f"Warning: skipping init of unknown type {cls_name}")
                     return Skip
             elif jt == list:
@@ -347,7 +368,7 @@ class Loader:
             return obj
 
 
-def save(obj, directory, compressor=zarr.storage.default_compressor):
+def save(obj, directory, compressor=None):
     """
     Stores obj under a given directory.
     The directory will be created if it not already exists.
@@ -383,7 +404,7 @@ def save(obj, directory, compressor=zarr.storage.default_compressor):
             shutil.rmtree(arr_path)
 
 
-def load(obj, path):
+def load(obj, path, map_arrays=True):
     """
     Updates obj with data stored at the given path.
     """
@@ -396,7 +417,7 @@ def load(obj, path):
     with open(state_path, "r") as fd:
         json_state = json.load(fd)
 
-    lod = Loader(path)
+    lod = Loader(path, map_arrays)
     lod.load(obj, json_state)
 
     # remove unused external numpy arrays
