@@ -3,7 +3,7 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace input {
 
@@ -76,6 +76,6 @@ std::vector<CursorEnterEvent>& getCursorEnterEvents();
 std::vector<ScrollEvent>& getScrollEvents();
 std::vector<DropEvent>& getDropEvents();
 
-void loadPythonBindings(pybind11::module& m);
+void loadPythonBindings(nanobind::module_& m);
 
 }

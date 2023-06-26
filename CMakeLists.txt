@@ -47,13 +47,13 @@ message(STATUS "Loading implot ...")
 FetchContent_MakeAvailable(implot)
 
 FetchContent_Declare(
-    pybind
-    GIT_REPOSITORY "https://github.com/pybind/pybind11"
-    GIT_TAG "v2.10.0"
+    nanobind
+    GIT_REPOSITORY "https://github.com/wjakob/nanobind/"
+    GIT_TAG "v1.4.0"
 )
 
-message(STATUS "Loading pybind ...")
-FetchContent_MakeAvailable(pybind)
+message(STATUS "Loading nanobind ...")
+FetchContent_MakeAvailable(nanobind)
 
 if(WIN32 OR APPLE)
 
@@ -141,7 +141,14 @@ set(HEADER_FILES
 
 # Builds the python bindings module.
 
-pybind11_add_module(${PY_TARGET_NAME} MODULE ${SOURCE_FILES})
+find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
+
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+nanobind_add_module(${PY_TARGET_NAME} MODULE ${SOURCE_FILES})
 
 target_include_directories(${PY_TARGET_NAME} SYSTEM PUBLIC
                            ${imgui_SOURCE_DIR}
@@ -160,7 +167,6 @@ if(WIN32)
     target_link_libraries(${PY_TARGET_NAME} PUBLIC
                             ${OPENGL_LIBRARIES}
                             libglew_static
-                            pybind11::module
                             glfw)
 
 elseif(APPLE)
@@ -174,7 +180,6 @@ elseif(APPLE)
     target_link_libraries(${PY_TARGET_NAME} PUBLIC
                             ${OPENGL_LIBRARIES}
                             libglew_static
-                            pybind11::module
                             glfw)
 
 else()
@@ -194,7 +199,6 @@ else()
                             ${OPENGL_LIBRARIES}
                             ${GLEW_LIBRARIES}
                             stdc++fs
-                            pybind11::module
                             glfw)
 
 endif()

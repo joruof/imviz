@@ -1,11 +1,11 @@
-#include <imgui.h>
 #include <iostream>
-#include <pybind11/cast.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pytypes.h>
 #include <stdexcept>
 
+#include <imgui.h>
 #include <GL/glew.h>
+
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
 #include "implot.h"
 #include "implot_internal.h"
@@ -28,11 +28,11 @@ void checkAssertion(bool expr, const char* exprStr) {
     }
 }
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 ImViz viz;
 
-PYBIND11_MODULE(cppimviz, m) {
+NB_MODULE(cppimviz, m) {
 
     /**
      * Input module bindings
@@ -51,12 +51,12 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("set_main_window_title", [&](std::string title) {
         glfwSetWindowTitle(viz.window, title.c_str());
     },
-    py::arg("title"));
+    nb::arg("title"));
 
     m.def("set_main_window_size", [&](ImVec2 size) {
         glfwSetWindowSize(viz.window, size.x, size.y);
     },
-    py::arg("size"));
+    nb::arg("size"));
 
     m.def("enter_fullscreen", [&]() {
 
@@ -82,7 +82,7 @@ PYBIND11_MODULE(cppimviz, m) {
     m.def("set_main_window_pos", [&](ImVec2 pos) {
         glfwSetWindowPos(viz.window, pos.x, pos.y);
     },
-    py::arg("size"));
+    nb::arg("size"));
 
     m.def("get_main_window_pos", [&]() {
         int x, y;
@@ -119,7 +119,7 @@ PYBIND11_MODULE(cppimviz, m) {
     This sets the icon of the main window shown in e.g. taskbars.
     The *icon* must be an RGBA image given as an array_like with shape (-1, -1, 4).
     )raw", 
-    py::arg("icon"));
+    nb::arg("icon"));
 
     m.def("get_clipboard", [&]() { 
 
@@ -171,23 +171,23 @@ PYBIND11_MODULE(cppimviz, m) {
 
     Returns the path of the newly selected element.
     )raw",
-    py::arg("label"),
-    py::arg("path"),
-    py::arg("confirm_text") = "Ok");
+    nb::arg("label"),
+    nb::arg("path"),
+    nb::arg("confirm_text") = "Ok");
 
     m.def("multiselect", [&](
                 std::string label,
-                py::list& options,
-                py::list selection) {
+                nb::list& options,
+                nb::list selection) {
 
         bool mod = false;
 
         if (ImGui::BeginPopup(label.c_str())) {
 
-            for (py::handle o : options) {
-                std::string ostr = py::str(o);
+            for (nb::handle o : options) {
+                std::string ostr = nb::cast<std::string>(nb::str(o));
 
-                bool inList = selection.contains(o);
+                bool inList = nb::cast<bool>(selection.attr("__contains__")(o));
 
                 // this will be modified by the checkbox
                 bool selected = inList;
@@ -222,87 +222,9 @@ PYBIND11_MODULE(cppimviz, m) {
 
     Returns the new (possibly modified) selection of options as a list.
     )raw",
-    py::arg("label"),
-    py::arg("options"),
-    py::arg("selection"));
-
-    m.def("dataframe", [&](
-                py::object frame,
-                std::string label,
-                py::list selection) {
-
-        py::list keys = frame.attr("keys")();
-        py::function itemFunc = frame.attr("__getitem__");
-        py::array index = frame.attr("index");
-        py::function indexGetFunc = index.attr("__getitem__");
-
-        size_t columnCount = 2 + py::len(keys);
-
-        ImGuiTableFlags flags =
-            ImGuiTableFlags_Borders
-            | ImGuiTableFlags_RowBg
-            | ImGuiTableFlags_Resizable
-            | ImGuiTableFlags_Reorderable
-            | ImGuiTableFlags_ScrollX
-            | ImGuiTableFlags_ScrollY;
-
-        if (ImGui::BeginTable(label.c_str(), columnCount, flags)) {
-
-            std::vector<py::function> getColDataFuncs;
-            getColDataFuncs.push_back(indexGetFunc);
-
-            ImGui::TableSetupColumn("");
-            ImGui::TableSetupColumn("index");
-
-            for (const py::handle& o : keys) {
-
-                std::string key = py::cast<std::string>(o);
-
-                getColDataFuncs.push_back(
-                        itemFunc(key)
-                        .attr("astype")("str")
-                        .attr("__getitem__"));
-
-                ImGui::TableSetupColumn(key.c_str());
-            }
-
-            ImGui::TableHeadersRow();
-
-            for (ssize_t r = 0; r < index.size(); ++r) {
-                ImGui::TableNextRow();
-
-                py::object rowIndex = indexGetFunc(r);
-                bool state = selection.contains(rowIndex);
-
-                ImGui::TableSetColumnIndex(0);
-
-                ImGui::PushID(r);
-                
-                if (ImGui::Checkbox("###marked", &state)) {
-                    if (state) {
-                        selection.append(rowIndex);
-                    } else if (selection.contains(rowIndex)) {
-                        selection.attr("remove")(rowIndex);
-                    }
-                }
-
-                ImGui::PopID();
-
-                for (size_t c = 0; c < getColDataFuncs.size(); ++c) {
-                    ImGui::TableSetColumnIndex(c + 1);
-                    std::string txt{py::str(getColDataFuncs[c](r))};
-                    ImGui::Text("%s", txt.c_str());
-                }
-            }
-
-            ImGui::EndTable();
-        }
-
-        return selection;
-    },
-    py::arg("frame"),
-    py::arg("label") = "",
-    py::arg("selection") = py::list{});
+    nb::arg("label"),
+    nb::arg("options"),
+    nb::arg("selection"));
 
     /*
      * Essential custom functions
@@ -331,7 +253,7 @@ PYBIND11_MODULE(cppimviz, m) {
     R"raw(
     Can be used to overwrite the modification status flag.
     )raw",
-    py::arg("mod")
+    nb::arg("mod")
     );
 
     m.def("mod_any", [&]() {
@@ -385,7 +307,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
         // release the gil here so that other threads
         // may do something valueable while we wait 
-        py::gil_scoped_release release;
+        nb::gil_scoped_release release;
 
         try {
             viz.doUpdate(vsync);
@@ -445,9 +367,9 @@ PYBIND11_MODULE(cppimviz, m) {
     If *powersave* is True the function will wait for max. *timeout* seconds,
     if NO user input was detected. Otherwise it will return immediately.
     )raw",
-    py::arg("vsync") = true,
-    py::arg("powersave") = false,
-    py::arg("timeout") = 1.0);
+    nb::arg("vsync") = true,
+    nb::arg("powersave") = false,
+    nb::arg("timeout") = 1.0);
 
     /**
      * Image export
@@ -455,7 +377,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
     m.def("get_pixels", [&](int x, int y, int width, int height) {
 
-        py::array_t<uint8_t> pixels({height, width, 4});
+        nb::array_t<uint8_t> pixels({height, width, 4});
 
         int w, h;
         glfwGetWindowSize(viz.window, &w, &h);
@@ -470,7 +392,7 @@ PYBIND11_MODULE(cppimviz, m) {
         // y-axis is flipped when loading directly from gpu
         // need to flip back and copy to fix memory layout
 
-        return pixels[py::slice(-1, -height-1, -1)].attr("copy")();
+        return pixels[nb::slice(-1, -height-1, -1)].attr("copy")();
     },
     R"raw(
     Cuts and returns the specified region from the main framebuffer of 
@@ -482,10 +404,10 @@ PYBIND11_MODULE(cppimviz, m) {
     The region will be returned as uint8-RGBA numpy array
     with shape (height, width, 4).
     )raw",
-    py::arg("x") = 0,
-    py::arg("y") = 0,
-    py::arg("width") = -1,
-    py::arg("height") = -1);
+    nb::arg("x") = 0,
+    nb::arg("y") = 0,
+    nb::arg("width") = -1,
+    nb::arg("height") = -1);
 
     m.def("get_texture", [&](GLuint textureId) {
 
@@ -511,7 +433,7 @@ PYBIND11_MODULE(cppimviz, m) {
             throw std::runtime_error("Unknown internal texture format!");
         }
 
-        py::array_t<uint8_t> pixels({w, h, d});
+        nb::array_t<uint8_t> pixels({w, h, d});
 
         glGetTexImage(GL_TEXTURE_2D,
                       0,
@@ -530,5 +452,5 @@ PYBIND11_MODULE(cppimviz, m) {
     The number of channels depends on the internal format of the texture.
     GL_RED: 1, GL_RGB: 3, GL_RGBA: 4, else: runtime_error
     )raw",
-    py::arg("texture_id") = 0);
+    nb::arg("texture_id") = 0);
 }

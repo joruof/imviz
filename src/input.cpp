@@ -2,13 +2,9 @@
 
 #include <mutex>
 
-#include <pybind11/cast.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pytypes.h>
+#include <nanobind/nanobind.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace input {
 
@@ -237,242 +233,242 @@ std::vector<DropEvent>& getDropEvents() {
     return readState->dropEvents;
 }
 
-void loadPythonBindings(pybind11::module& m) {
+void loadPythonBindings(nanobind::module_& m) {
 
     /*
      * GLFW Constants
      */
 
-    m.add_object("VERSION_MAJOR", py::int_(3));
-    m.add_object("VERSION_MINOR", py::int_(3));
-    m.add_object("VERSION_REVISION", py::int_(5));
-    m.add_object("TRUE", py::int_(1));
-    m.add_object("FALSE", py::int_(0));
-    m.add_object("RELEASE", py::int_(0));
-    m.add_object("PRESS", py::int_(1));
-    m.add_object("REPEAT", py::int_(2));
-    m.add_object("HAT_CENTERED", py::int_(0));
-    m.add_object("HAT_UP", py::int_(1));
-    m.add_object("HAT_RIGHT", py::int_(2));
-    m.add_object("HAT_DOWN", py::int_(4));
-    m.add_object("HAT_LEFT", py::int_(8));
-    m.add_object("KEY_UNKNOWN", py::int_(-1));
-    m.add_object("KEY_SPACE", py::int_(32));
-    m.add_object("KEY_0", py::int_(48));
-    m.add_object("KEY_1", py::int_(49));
-    m.add_object("KEY_2", py::int_(50));
-    m.add_object("KEY_3", py::int_(51));
-    m.add_object("KEY_4", py::int_(52));
-    m.add_object("KEY_5", py::int_(53));
-    m.add_object("KEY_6", py::int_(54));
-    m.add_object("KEY_7", py::int_(55));
-    m.add_object("KEY_8", py::int_(56));
-    m.add_object("KEY_9", py::int_(57));
-    m.add_object("KEY_A", py::int_(65));
-    m.add_object("KEY_B", py::int_(66));
-    m.add_object("KEY_C", py::int_(67));
-    m.add_object("KEY_D", py::int_(68));
-    m.add_object("KEY_E", py::int_(69));
-    m.add_object("KEY_F", py::int_(70));
-    m.add_object("KEY_G", py::int_(71));
-    m.add_object("KEY_H", py::int_(72));
-    m.add_object("KEY_I", py::int_(73));
-    m.add_object("KEY_J", py::int_(74));
-    m.add_object("KEY_K", py::int_(75));
-    m.add_object("KEY_L", py::int_(76));
-    m.add_object("KEY_M", py::int_(77));
-    m.add_object("KEY_N", py::int_(78));
-    m.add_object("KEY_O", py::int_(79));
-    m.add_object("KEY_P", py::int_(80));
-    m.add_object("KEY_Q", py::int_(81));
-    m.add_object("KEY_R", py::int_(82));
-    m.add_object("KEY_S", py::int_(83));
-    m.add_object("KEY_T", py::int_(84));
-    m.add_object("KEY_U", py::int_(85));
-    m.add_object("KEY_V", py::int_(86));
-    m.add_object("KEY_W", py::int_(87));
-    m.add_object("KEY_X", py::int_(88));
-    m.add_object("KEY_Y", py::int_(89));
-    m.add_object("KEY_Z", py::int_(90));
-    m.add_object("KEY_ESCAPE", py::int_(256));
-    m.add_object("KEY_ENTER", py::int_(257));
-    m.add_object("KEY_TAB", py::int_(258));
-    m.add_object("KEY_BACKSPACE", py::int_(259));
-    m.add_object("KEY_INSERT", py::int_(260));
-    m.add_object("KEY_DELETE", py::int_(261));
-    m.add_object("KEY_RIGHT", py::int_(262));
-    m.add_object("KEY_LEFT", py::int_(263));
-    m.add_object("KEY_DOWN", py::int_(264));
-    m.add_object("KEY_UP", py::int_(265));
-    m.add_object("KEY_PAGE_UP", py::int_(266));
-    m.add_object("KEY_PAGE_DOWN", py::int_(267));
-    m.add_object("KEY_HOME", py::int_(268));
-    m.add_object("KEY_END", py::int_(269));
-    m.add_object("KEY_CAPS_LOCK", py::int_(280));
-    m.add_object("KEY_SCROLL_LOCK", py::int_(281));
-    m.add_object("KEY_NUM_LOCK", py::int_(282));
-    m.add_object("KEY_PRINT_SCREEN", py::int_(283));
-    m.add_object("KEY_PAUSE", py::int_(284));
-    m.add_object("KEY_F1", py::int_(290));
-    m.add_object("KEY_F2", py::int_(291));
-    m.add_object("KEY_F3", py::int_(292));
-    m.add_object("KEY_F4", py::int_(293));
-    m.add_object("KEY_F5", py::int_(294));
-    m.add_object("KEY_F6", py::int_(295));
-    m.add_object("KEY_F7", py::int_(296));
-    m.add_object("KEY_F8", py::int_(297));
-    m.add_object("KEY_F9", py::int_(298));
-    m.add_object("KEY_F10", py::int_(299));
-    m.add_object("KEY_F11", py::int_(300));
-    m.add_object("KEY_F12", py::int_(301));
-    m.add_object("KEY_F13", py::int_(302));
-    m.add_object("KEY_F14", py::int_(303));
-    m.add_object("KEY_F15", py::int_(304));
-    m.add_object("KEY_F16", py::int_(305));
-    m.add_object("KEY_F17", py::int_(306));
-    m.add_object("KEY_F18", py::int_(307));
-    m.add_object("KEY_F19", py::int_(308));
-    m.add_object("KEY_F20", py::int_(309));
-    m.add_object("KEY_F21", py::int_(310));
-    m.add_object("KEY_F22", py::int_(311));
-    m.add_object("KEY_F23", py::int_(312));
-    m.add_object("KEY_F24", py::int_(313));
-    m.add_object("KEY_F25", py::int_(314));
-    m.add_object("KEY_KP_0", py::int_(320));
-    m.add_object("KEY_KP_1", py::int_(321));
-    m.add_object("KEY_KP_2", py::int_(322));
-    m.add_object("KEY_KP_3", py::int_(323));
-    m.add_object("KEY_KP_4", py::int_(324));
-    m.add_object("KEY_KP_5", py::int_(325));
-    m.add_object("KEY_KP_6", py::int_(326));
-    m.add_object("KEY_KP_7", py::int_(327));
-    m.add_object("KEY_KP_8", py::int_(328));
-    m.add_object("KEY_KP_9", py::int_(329));
-    m.add_object("KEY_KP_DECIMAL", py::int_(330));
-    m.add_object("KEY_KP_DIVIDE", py::int_(331));
-    m.add_object("KEY_KP_MULTIPLY", py::int_(332));
-    m.add_object("KEY_KP_SUBTRACT", py::int_(333));
-    m.add_object("KEY_KP_ADD", py::int_(334));
-    m.add_object("KEY_KP_ENTER", py::int_(335));
-    m.add_object("KEY_KP_EQUAL", py::int_(336));
-    m.add_object("KEY_LEFT_SHIFT", py::int_(340));
-    m.add_object("KEY_LEFT_CONTROL", py::int_(341));
-    m.add_object("KEY_LEFT_ALT", py::int_(342));
-    m.add_object("KEY_LEFT_SUPER", py::int_(343));
-    m.add_object("KEY_RIGHT_SHIFT", py::int_(344));
-    m.add_object("KEY_RIGHT_CONTROL", py::int_(345));
-    m.add_object("KEY_RIGHT_ALT", py::int_(346));
-    m.add_object("KEY_RIGHT_SUPER", py::int_(347));
-    m.add_object("KEY_MENU", py::int_(348));
-    m.add_object("KEY_LAST", py::int_(GLFW_KEY_MENU));
-    m.add_object("MOD_SHIFT", py::int_(0x0001));
-    m.add_object("MOD_CONTROL", py::int_(0x0002));
-    m.add_object("MOD_ALT", py::int_(0x0004));
-    m.add_object("MOD_SUPER", py::int_(0x0008));
-    m.add_object("MOD_CAPS_LOCK", py::int_(0x0010));
-    m.add_object("MOD_NUM_LOCK", py::int_(0x0020));
-    m.add_object("MOUSE_BUTTON_1", py::int_(0));
-    m.add_object("MOUSE_BUTTON_2", py::int_(1));
-    m.add_object("MOUSE_BUTTON_3", py::int_(2));
-    m.add_object("MOUSE_BUTTON_4", py::int_(3));
-    m.add_object("MOUSE_BUTTON_5", py::int_(4));
-    m.add_object("MOUSE_BUTTON_6", py::int_(5));
-    m.add_object("MOUSE_BUTTON_7", py::int_(6));
-    m.add_object("MOUSE_BUTTON_8", py::int_(7));
-    m.add_object("MOUSE_BUTTON_LAST", py::int_(GLFW_MOUSE_BUTTON_8));
-    m.add_object("MOUSE_BUTTON_LEFT", py::int_(GLFW_MOUSE_BUTTON_1));
-    m.add_object("MOUSE_BUTTON_RIGHT", py::int_(GLFW_MOUSE_BUTTON_2));
-    m.add_object("MOUSE_BUTTON_MIDDLE", py::int_(GLFW_MOUSE_BUTTON_3));
-    m.add_object("JOYSTICK_1", py::int_(0));
-    m.add_object("JOYSTICK_2", py::int_(1));
-    m.add_object("JOYSTICK_3", py::int_(2));
-    m.add_object("JOYSTICK_4", py::int_(3));
-    m.add_object("JOYSTICK_5", py::int_(4));
-    m.add_object("JOYSTICK_6", py::int_(5));
-    m.add_object("JOYSTICK_7", py::int_(6));
-    m.add_object("JOYSTICK_8", py::int_(7));
-    m.add_object("JOYSTICK_9", py::int_(8));
-    m.add_object("JOYSTICK_10", py::int_(9));
-    m.add_object("JOYSTICK_11", py::int_(10));
-    m.add_object("JOYSTICK_12", py::int_(11));
-    m.add_object("JOYSTICK_13", py::int_(12));
-    m.add_object("JOYSTICK_14", py::int_(13));
-    m.add_object("JOYSTICK_15", py::int_(14));
-    m.add_object("JOYSTICK_16", py::int_(15));
-    m.add_object("JOYSTICK_LAST", py::int_(GLFW_JOYSTICK_16));
-    m.add_object("GAMEPAD_BUTTON_A", py::int_(0));
-    m.add_object("GAMEPAD_BUTTON_B", py::int_(1));
-    m.add_object("GAMEPAD_BUTTON_X", py::int_(2));
-    m.add_object("GAMEPAD_BUTTON_Y", py::int_(3));
-    m.add_object("GAMEPAD_BUTTON_LEFT_BUMPER", py::int_(4));
-    m.add_object("GAMEPAD_BUTTON_RIGHT_BUMPER", py::int_(5));
-    m.add_object("GAMEPAD_BUTTON_BACK", py::int_(6));
-    m.add_object("GAMEPAD_BUTTON_START", py::int_(7));
-    m.add_object("GAMEPAD_BUTTON_GUIDE", py::int_(8));
-    m.add_object("GAMEPAD_BUTTON_LEFT_THUMB", py::int_(9));
-    m.add_object("GAMEPAD_BUTTON_RIGHT_THUMB", py::int_(10));
-    m.add_object("GAMEPAD_BUTTON_DPAD_UP", py::int_(11));
-    m.add_object("GAMEPAD_BUTTON_DPAD_RIGHT", py::int_(12));
-    m.add_object("GAMEPAD_BUTTON_DPAD_DOWN", py::int_(13));
-    m.add_object("GAMEPAD_BUTTON_DPAD_LEFT", py::int_(14));
-    m.add_object("GAMEPAD_BUTTON_LAST", py::int_(GLFW_GAMEPAD_BUTTON_DPAD_LEFT));
-    m.add_object("GAMEPAD_BUTTON_CROSS", py::int_(GLFW_GAMEPAD_BUTTON_A));
-    m.add_object("GAMEPAD_BUTTON_CIRCLE", py::int_(GLFW_GAMEPAD_BUTTON_B));
-    m.add_object("GAMEPAD_BUTTON_SQUARE", py::int_(GLFW_GAMEPAD_BUTTON_X));
-    m.add_object("GAMEPAD_BUTTON_TRIANGLE", py::int_(GLFW_GAMEPAD_BUTTON_Y));
-    m.add_object("GAMEPAD_AXIS_LEFT_X", py::int_(0));
-    m.add_object("GAMEPAD_AXIS_LEFT_Y", py::int_(1));
-    m.add_object("GAMEPAD_AXIS_RIGHT_X", py::int_(2));
-    m.add_object("GAMEPAD_AXIS_RIGHT_Y", py::int_(3));
-    m.add_object("GAMEPAD_AXIS_LEFT_TRIGGER", py::int_(4));
-    m.add_object("GAMEPAD_AXIS_RIGHT_TRIGGER", py::int_(5));
-    m.add_object("GAMEPAD_AXIS_LAST", py::int_(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER));
+    m.attr("VERSION_MAJOR") = nb::int_(3);
+    m.attr("VERSION_MINOR") = nb::int_(3);
+    m.attr("VERSION_REVISION") = nb::int_(5);
+    m.attr("TRUE") = nb::int_(1);
+    m.attr("FALSE") = nb::int_(0);
+    m.attr("RELEASE") = nb::int_(0);
+    m.attr("PRESS") = nb::int_(1);
+    m.attr("REPEAT") = nb::int_(2);
+    m.attr("HAT_CENTERED") = nb::int_(0);
+    m.attr("HAT_UP") = nb::int_(1);
+    m.attr("HAT_RIGHT") = nb::int_(2);
+    m.attr("HAT_DOWN") = nb::int_(4);
+    m.attr("HAT_LEFT") = nb::int_(8);
+    m.attr("KEY_UNKNOWN") = nb::int_(-1);
+    m.attr("KEY_SPACE") = nb::int_(32);
+    m.attr("KEY_0") = nb::int_(48);
+    m.attr("KEY_1") = nb::int_(49);
+    m.attr("KEY_2") = nb::int_(50);
+    m.attr("KEY_3") = nb::int_(51);
+    m.attr("KEY_4") = nb::int_(52);
+    m.attr("KEY_5") = nb::int_(53);
+    m.attr("KEY_6") = nb::int_(54);
+    m.attr("KEY_7") = nb::int_(55);
+    m.attr("KEY_8") = nb::int_(56);
+    m.attr("KEY_9") = nb::int_(57);
+    m.attr("KEY_A") = nb::int_(65);
+    m.attr("KEY_B") = nb::int_(66);
+    m.attr("KEY_C") = nb::int_(67);
+    m.attr("KEY_D") = nb::int_(68);
+    m.attr("KEY_E") = nb::int_(69);
+    m.attr("KEY_F") = nb::int_(70);
+    m.attr("KEY_G") = nb::int_(71);
+    m.attr("KEY_H") = nb::int_(72);
+    m.attr("KEY_I") = nb::int_(73);
+    m.attr("KEY_J") = nb::int_(74);
+    m.attr("KEY_K") = nb::int_(75);
+    m.attr("KEY_L") = nb::int_(76);
+    m.attr("KEY_M") = nb::int_(77);
+    m.attr("KEY_N") = nb::int_(78);
+    m.attr("KEY_O") = nb::int_(79);
+    m.attr("KEY_P") = nb::int_(80);
+    m.attr("KEY_Q") = nb::int_(81);
+    m.attr("KEY_R") = nb::int_(82);
+    m.attr("KEY_S") = nb::int_(83);
+    m.attr("KEY_T") = nb::int_(84);
+    m.attr("KEY_U") = nb::int_(85);
+    m.attr("KEY_V") = nb::int_(86);
+    m.attr("KEY_W") = nb::int_(87);
+    m.attr("KEY_X") = nb::int_(88);
+    m.attr("KEY_Y") = nb::int_(89);
+    m.attr("KEY_Z") = nb::int_(90);
+    m.attr("KEY_ESCAPE") = nb::int_(256);
+    m.attr("KEY_ENTER") = nb::int_(257);
+    m.attr("KEY_TAB") = nb::int_(258);
+    m.attr("KEY_BACKSPACE") = nb::int_(259);
+    m.attr("KEY_INSERT") = nb::int_(260);
+    m.attr("KEY_DELETE") = nb::int_(261);
+    m.attr("KEY_RIGHT") = nb::int_(262);
+    m.attr("KEY_LEFT") = nb::int_(263);
+    m.attr("KEY_DOWN") = nb::int_(264);
+    m.attr("KEY_UP") = nb::int_(265);
+    m.attr("KEY_PAGE_UP") = nb::int_(266);
+    m.attr("KEY_PAGE_DOWN") = nb::int_(267);
+    m.attr("KEY_HOME") = nb::int_(268);
+    m.attr("KEY_END") = nb::int_(269);
+    m.attr("KEY_CAPS_LOCK") = nb::int_(280);
+    m.attr("KEY_SCROLL_LOCK") = nb::int_(281);
+    m.attr("KEY_NUM_LOCK") = nb::int_(282);
+    m.attr("KEY_PRINT_SCREEN") = nb::int_(283);
+    m.attr("KEY_PAUSE") = nb::int_(284);
+    m.attr("KEY_F1") = nb::int_(290);
+    m.attr("KEY_F2") = nb::int_(291);
+    m.attr("KEY_F3") = nb::int_(292);
+    m.attr("KEY_F4") = nb::int_(293);
+    m.attr("KEY_F5") = nb::int_(294);
+    m.attr("KEY_F6") = nb::int_(295);
+    m.attr("KEY_F7") = nb::int_(296);
+    m.attr("KEY_F8") = nb::int_(297);
+    m.attr("KEY_F9") = nb::int_(298);
+    m.attr("KEY_F10") = nb::int_(299);
+    m.attr("KEY_F11") = nb::int_(300);
+    m.attr("KEY_F12") = nb::int_(301);
+    m.attr("KEY_F13") = nb::int_(302);
+    m.attr("KEY_F14") = nb::int_(303);
+    m.attr("KEY_F15") = nb::int_(304);
+    m.attr("KEY_F16") = nb::int_(305);
+    m.attr("KEY_F17") = nb::int_(306);
+    m.attr("KEY_F18") = nb::int_(307);
+    m.attr("KEY_F19") = nb::int_(308);
+    m.attr("KEY_F20") = nb::int_(309);
+    m.attr("KEY_F21") = nb::int_(310);
+    m.attr("KEY_F22") = nb::int_(311);
+    m.attr("KEY_F23") = nb::int_(312);
+    m.attr("KEY_F24") = nb::int_(313);
+    m.attr("KEY_F25") = nb::int_(314);
+    m.attr("KEY_KP_0") = nb::int_(320);
+    m.attr("KEY_KP_1") = nb::int_(321);
+    m.attr("KEY_KP_2") = nb::int_(322);
+    m.attr("KEY_KP_3") = nb::int_(323);
+    m.attr("KEY_KP_4") = nb::int_(324);
+    m.attr("KEY_KP_5") = nb::int_(325);
+    m.attr("KEY_KP_6") = nb::int_(326);
+    m.attr("KEY_KP_7") = nb::int_(327);
+    m.attr("KEY_KP_8") = nb::int_(328);
+    m.attr("KEY_KP_9") = nb::int_(329);
+    m.attr("KEY_KP_DECIMAL") = nb::int_(330);
+    m.attr("KEY_KP_DIVIDE") = nb::int_(331);
+    m.attr("KEY_KP_MULTIPLY") = nb::int_(332);
+    m.attr("KEY_KP_SUBTRACT") = nb::int_(333);
+    m.attr("KEY_KP_ADD") = nb::int_(334);
+    m.attr("KEY_KP_ENTER") = nb::int_(335);
+    m.attr("KEY_KP_EQUAL") = nb::int_(336);
+    m.attr("KEY_LEFT_SHIFT") = nb::int_(340);
+    m.attr("KEY_LEFT_CONTROL") = nb::int_(341);
+    m.attr("KEY_LEFT_ALT") = nb::int_(342);
+    m.attr("KEY_LEFT_SUPER") = nb::int_(343);
+    m.attr("KEY_RIGHT_SHIFT") = nb::int_(344);
+    m.attr("KEY_RIGHT_CONTROL") = nb::int_(345);
+    m.attr("KEY_RIGHT_ALT") = nb::int_(346);
+    m.attr("KEY_RIGHT_SUPER") = nb::int_(347);
+    m.attr("KEY_MENU") = nb::int_(348);
+    m.attr("KEY_LAST") = nb::int_(GLFW_KEY_MENU);
+    m.attr("MOD_SHIFT") = nb::int_(0x0001);
+    m.attr("MOD_CONTROL") = nb::int_(0x0002);
+    m.attr("MOD_ALT") = nb::int_(0x0004);
+    m.attr("MOD_SUPER") = nb::int_(0x0008);
+    m.attr("MOD_CAPS_LOCK") = nb::int_(0x0010);
+    m.attr("MOD_NUM_LOCK") = nb::int_(0x0020);
+    m.attr("MOUSE_BUTTON_1") = nb::int_(0);
+    m.attr("MOUSE_BUTTON_2") = nb::int_(1);
+    m.attr("MOUSE_BUTTON_3") = nb::int_(2);
+    m.attr("MOUSE_BUTTON_4") = nb::int_(3);
+    m.attr("MOUSE_BUTTON_5") = nb::int_(4);
+    m.attr("MOUSE_BUTTON_6") = nb::int_(5);
+    m.attr("MOUSE_BUTTON_7") = nb::int_(6);
+    m.attr("MOUSE_BUTTON_8") = nb::int_(7);
+    m.attr("MOUSE_BUTTON_LAST") = nb::int_(GLFW_MOUSE_BUTTON_8);
+    m.attr("MOUSE_BUTTON_LEFT") = nb::int_(GLFW_MOUSE_BUTTON_1);
+    m.attr("MOUSE_BUTTON_RIGHT") = nb::int_(GLFW_MOUSE_BUTTON_2);
+    m.attr("MOUSE_BUTTON_MIDDLE") = nb::int_(GLFW_MOUSE_BUTTON_3);
+    m.attr("JOYSTICK_1") = nb::int_(0);
+    m.attr("JOYSTICK_2") = nb::int_(1);
+    m.attr("JOYSTICK_3") = nb::int_(2);
+    m.attr("JOYSTICK_4") = nb::int_(3);
+    m.attr("JOYSTICK_5") = nb::int_(4);
+    m.attr("JOYSTICK_6") = nb::int_(5);
+    m.attr("JOYSTICK_7") = nb::int_(6);
+    m.attr("JOYSTICK_8") = nb::int_(7);
+    m.attr("JOYSTICK_9") = nb::int_(8);
+    m.attr("JOYSTICK_10") = nb::int_(9);
+    m.attr("JOYSTICK_11") = nb::int_(10);
+    m.attr("JOYSTICK_12") = nb::int_(11);
+    m.attr("JOYSTICK_13") = nb::int_(12);
+    m.attr("JOYSTICK_14") = nb::int_(13);
+    m.attr("JOYSTICK_15") = nb::int_(14);
+    m.attr("JOYSTICK_16") = nb::int_(15);
+    m.attr("JOYSTICK_LAST") = nb::int_(GLFW_JOYSTICK_16);
+    m.attr("GAMEPAD_BUTTON_A") = nb::int_(0);
+    m.attr("GAMEPAD_BUTTON_B") = nb::int_(1);
+    m.attr("GAMEPAD_BUTTON_X") = nb::int_(2);
+    m.attr("GAMEPAD_BUTTON_Y") = nb::int_(3);
+    m.attr("GAMEPAD_BUTTON_LEFT_BUMPER") = nb::int_(4);
+    m.attr("GAMEPAD_BUTTON_RIGHT_BUMPER") = nb::int_(5);
+    m.attr("GAMEPAD_BUTTON_BACK") = nb::int_(6);
+    m.attr("GAMEPAD_BUTTON_START") = nb::int_(7);
+    m.attr("GAMEPAD_BUTTON_GUIDE") = nb::int_(8);
+    m.attr("GAMEPAD_BUTTON_LEFT_THUMB") = nb::int_(9);
+    m.attr("GAMEPAD_BUTTON_RIGHT_THUMB") = nb::int_(10);
+    m.attr("GAMEPAD_BUTTON_DPAD_UP") = nb::int_(11);
+    m.attr("GAMEPAD_BUTTON_DPAD_RIGHT") = nb::int_(12);
+    m.attr("GAMEPAD_BUTTON_DPAD_DOWN") = nb::int_(13);
+    m.attr("GAMEPAD_BUTTON_DPAD_LEFT") = nb::int_(14);
+    m.attr("GAMEPAD_BUTTON_LAST") = nb::int_(GLFW_GAMEPAD_BUTTON_DPAD_LEFT);
+    m.attr("GAMEPAD_BUTTON_CROSS") = nb::int_(GLFW_GAMEPAD_BUTTON_A);
+    m.attr("GAMEPAD_BUTTON_CIRCLE") = nb::int_(GLFW_GAMEPAD_BUTTON_B);
+    m.attr("GAMEPAD_BUTTON_SQUARE") = nb::int_(GLFW_GAMEPAD_BUTTON_X);
+    m.attr("GAMEPAD_BUTTON_TRIANGLE") = nb::int_(GLFW_GAMEPAD_BUTTON_Y);
+    m.attr("GAMEPAD_AXIS_LEFT_X") = nb::int_(0);
+    m.attr("GAMEPAD_AXIS_LEFT_Y") = nb::int_(1);
+    m.attr("GAMEPAD_AXIS_RIGHT_X") = nb::int_(2);
+    m.attr("GAMEPAD_AXIS_RIGHT_Y") = nb::int_(3);
+    m.attr("GAMEPAD_AXIS_LEFT_TRIGGER") = nb::int_(4);
+    m.attr("GAMEPAD_AXIS_RIGHT_TRIGGER") = nb::int_(5);
+    m.attr("GAMEPAD_AXIS_LAST") = nb::int_(GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER);
 
-    py::class_<KeyEvent>(m, "KeyEvent")
-        .def(py::init<>())
-        .def_readwrite("key", &KeyEvent::key)
-        .def_readwrite("scancode", &KeyEvent::scancode)
-        .def_readwrite("action", &KeyEvent::action)
-        .def_readwrite("mod", &KeyEvent::mods);
+    nb::class_<KeyEvent>(m, "KeyEvent")
+        .def(nb::init<>())
+        .def_rw("key", &KeyEvent::key)
+        .def_rw("scancode", &KeyEvent::scancode)
+        .def_rw("action", &KeyEvent::action)
+        .def_rw("mod", &KeyEvent::mods);
 
-    py::class_<CharEvent>(m, "CharEvent")
-        .def(py::init<>())
-        .def_readwrite("codepoint", &CharEvent::codepoint);
+    nb::class_<CharEvent>(m, "CharEvent")
+        .def(nb::init<>())
+        .def_rw("codepoint", &CharEvent::codepoint);
 
-    py::class_<CharModsEvent>(m, "CharModsEvent")
-        .def(py::init<>())
-        .def_readwrite("codepoint", &CharModsEvent::codepoint)
-        .def_readwrite("mods", &CharModsEvent::mods);
+    nb::class_<CharModsEvent>(m, "CharModsEvent")
+        .def(nb::init<>())
+        .def_rw("codepoint", &CharModsEvent::codepoint)
+        .def_rw("mods", &CharModsEvent::mods);
 
-    py::class_<MouseButtonEvent>(m, "MouseButtonEvent")
-        .def(py::init<>())
-        .def_readwrite("button", &MouseButtonEvent::button)
-        .def_readwrite("action", &MouseButtonEvent::action)
-        .def_readwrite("mod", &MouseButtonEvent::mods);
+    nb::class_<MouseButtonEvent>(m, "MouseButtonEvent")
+        .def(nb::init<>())
+        .def_rw("button", &MouseButtonEvent::button)
+        .def_rw("action", &MouseButtonEvent::action)
+        .def_rw("mod", &MouseButtonEvent::mods);
 
-    py::class_<CursorPosEvent>(m, "CursorPosEvent")
-        .def(py::init<>())
-        .def_readwrite("xpos", &CursorPosEvent::xpos)
-        .def_readwrite("ypos", &CursorPosEvent::ypos);
+    nb::class_<CursorPosEvent>(m, "CursorPosEvent")
+        .def(nb::init<>())
+        .def_rw("xpos", &CursorPosEvent::xpos)
+        .def_rw("ypos", &CursorPosEvent::ypos);
 
-    py::class_<CursorEnterEvent>(m, "CursorEnterEvent")
-        .def(py::init<>())
-        .def_readwrite("entered", &CursorEnterEvent::entered);
+    nb::class_<CursorEnterEvent>(m, "CursorEnterEvent")
+        .def(nb::init<>())
+        .def_rw("entered", &CursorEnterEvent::entered);
 
-    py::class_<ScrollEvent>(m, "ScrollEvent")
-        .def(py::init<>())
-        .def_readwrite("xoffset", &ScrollEvent::xoffset)
-        .def_readwrite("yoffset", &ScrollEvent::yoffset);
+    nb::class_<ScrollEvent>(m, "ScrollEvent")
+        .def(nb::init<>())
+        .def_rw("xoffset", &ScrollEvent::xoffset)
+        .def_rw("yoffset", &ScrollEvent::yoffset);
 
-    py::class_<DropEvent>(m, "DropEvent")
-        .def(py::init<>())
-        .def_readonly("count", &DropEvent::paths);
+    nb::class_<DropEvent>(m, "DropEvent")
+        .def(nb::init<>())
+        .def_ro("count", &DropEvent::paths);
 
     m.def("get_key", getKey);
 
     m.def("get_mouse_button", getMouseButton);
     m.def("get_mouse_pos", [&]() {
-        return py::make_tuple(getCursorX(), getCursorY());
+        return nb::make_tuple(getCursorX(), getCursorY());
     });
 
     m.def("get_key_events", getKeyEvents);
@@ -493,7 +489,7 @@ void loadPythonBindings(pybind11::module& m) {
         int count;
         const float* axes = glfwGetJoystickAxes(id, &count);
 
-        py::list l;
+        nb::list l;
 
         for (int i = 0; i < count; ++i) {
             l.append(axes[i]);
@@ -507,7 +503,7 @@ void loadPythonBindings(pybind11::module& m) {
         int count;
         const unsigned char* buttons = glfwGetJoystickButtons(id, &count);
 
-        py::list l;
+        nb::list l;
 
         for (int i = 0; i < count; ++i) {
             l.append(GLFW_PRESS == buttons[i]);
