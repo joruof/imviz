@@ -10,10 +10,9 @@ import numpy as np
 from imviz.storage import ext_setattr
 
 
-def autogui_func(obj, name="", **kwargs):
+def autogui_func(obj, name="", **params):
 
-    ctx = AutoguiContext(**kwargs)
-    return ctx.render(obj, name)
+    return AutoguiContext(params=params).render(obj, name)
 
 
 def list_item_context(obj, name, ctx):
@@ -43,11 +42,13 @@ class AutoguiContext:
         pass
 
     def __init__(self,
+                 params={},
                  path=[],
                  parents=[],
                  annotation=None,
                  ignore_custom=False):
 
+        self.params = params
         self.path = path
         self.parents = parents
         self.annotation = annotation
@@ -90,7 +91,7 @@ class AutoguiContext:
         obj_type = type(obj)
 
         if hasattr(obj, "__autogui__") and not self.ignore_custom:
-            res = obj.__autogui__(name, ctx=self)
+            res = obj.__autogui__(name, ctx=self, **self.params)
             if res is not AutoguiContext.Default:
                 return res
 

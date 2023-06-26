@@ -135,55 +135,6 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
         viz.storage.save(obj, path)
 
 
-LATEX_IMG_CACHE = {}
-
-if hasattr(__main__, "__file__"):
-    wd = os.path.abspath(os.path.dirname(__main__.__file__))
-else:
-    wd = os.getcwd()
-
-LATEX_CACHE_DIR = os.path.join(wd, "__pycache__", "latex")
-os.makedirs(LATEX_CACHE_DIR, exist_ok=True)
-
-
-def latex(text, dpi=120):
-
-    hasher = hashlib.sha1()
-    hasher.update((text + str(dpi)).encode("utf8"))
-    text_hash = hasher.hexdigest()
-
-    latex_img = None
-
-    if text_hash in LATEX_IMG_CACHE:
-        latex_img = LATEX_IMG_CACHE[text_hash]
-    else:
-        tmpl_path = os.path.join(LATEX_CACHE_DIR, "lt.tex")
-        with open(tmpl_path, "w+") as fd:
-            fd.write(r"\documentclass[12pt]{standalone} \begin{document} "
-                     + text
-                     + r" \end{document}")
-
-        proc = subprocess.run("latex -halt-on-error -interaction=nonstopmode "
-                              + "lt.tex "
-                              + f"&& dvipng -D {dpi} lt.dvi -o res.png",
-                              shell=True,
-                              cwd=LATEX_CACHE_DIR,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
-
-        if proc.returncode == 0:
-            latex_img = viz.load_image(
-                    os.path.join(LATEX_CACHE_DIR, "res.png"))
-            latex_img = 255 - latex_img
-            LATEX_IMG_CACHE[text_hash] = latex_img
-        else:
-            print(proc.stdout.decode("utf8") + "\n\n")
-            raise RuntimeError("Latex error: see console for details")
-
-    if latex_img is not None:
-        viz.image(text_hash, latex_img)
-
-
 class Selection():
     """
     This class combines a combo box selection with a list of options.
