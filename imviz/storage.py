@@ -202,7 +202,9 @@ class Serializer:
 
         attrs = None
 
-        if hasattr(obj, "__getstate__"):
+        if hasattr(obj, "__savestate__"):
+            attrs = obj.__savestate__()
+        elif hasattr(obj, "__getstate__"):
             attrs = obj.__getstate__()
         elif hasattr(obj, "__dict__"):
             attrs = obj.__dict__
@@ -300,11 +302,11 @@ class Loader:
 
             # handles general objects and dicts
 
-            if hasattr(obj, "__setstate__"):
+            if hasattr(obj, "__loadstate__"):
                 ld = {k: self.load(None, v) for k, v in json_obj.items()}
                 if "__class__" in ld:
                     del ld["__class__"]
-                obj.__setstate__(ld)
+                obj.__loadstate__(ld)
             elif isinstance(obj, dict) and len(obj) == 0:
                 # if obj is dict-like and empty,
                 # we accept whatever is stored in the json file
