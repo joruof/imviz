@@ -34,13 +34,6 @@ def list_item_context(obj, name, ctx):
 
 class AutoguiContext:
 
-    class Default:
-        """
-        This can be returned by a custom __autogui__ function to signal that
-        default autogui behavior should be applied to the given obj.
-        """
-        pass
-
     def __init__(self,
                  params={},
                  path=[],
@@ -57,6 +50,8 @@ class AutoguiContext:
         self.post_header_hooks = []
         self.remove_item = None
         self.duplicate_item = None
+
+        self.path_of_mod_item = []
 
     def try_render(self, obj, name=""):
 
@@ -91,9 +86,12 @@ class AutoguiContext:
         obj_type = type(obj)
 
         if hasattr(obj, "__autogui__") and not self.ignore_custom:
+            viz.push_mod_any()
             res = obj.__autogui__(name, ctx=self, **self.params)
-            if res is not AutoguiContext.Default:
-                return res
+            if viz.pop_mod_any():
+                if self.path_of_mod_item == []:
+                    self.path_of_mod_item = copy.deepcopy(self.path)
+            return res
 
         if obj is None:
             viz.text(f"{name}: None")
@@ -177,15 +175,17 @@ class AutoguiContext:
                                 viz.text(f"({i}, {j})")
                                 viz.end_tooltip()
 
-                            self.parents.pop()
-                            self.path.pop()
-                            self.path.pop()
-
                             if viz.mod():
                                 obj[indices + (i, j)] = res
+                                if self.path_of_mod_item == []:
+                                    self.path_of_mod_item = copy.deepcopy(self.path)
 
                             if j < arr_view.shape[-1] - 1:
                                 viz.same_line()
+
+                            self.parents.pop()
+                            self.path.pop()
+                            self.path.pop()
 
                 elif len(obj.shape) - li == 1:
 
@@ -199,11 +199,13 @@ class AutoguiContext:
 
                         res = self.render(arr_view[i], str(i))
 
-                        self.parents.pop()
-                        self.path.pop()
-
                         if viz.mod():
                             obj[indices + (i,)] = res
+                            if self.path_of_mod_item == []:
+                                self.path_of_mod_item = copy.deepcopy(self.path)
+
+                        self.parents.pop()
+                        self.path.pop()
                 else:
                     for i in range(obj.shape[li]):
 
@@ -238,14 +240,16 @@ class AutoguiContext:
                     viz.push_mod_any()
                     res = self.render(obj[i], str(i))
 
-                    self.parents.pop()
-                    self.path.pop()
-
                     if viz.pop_mod_any() and res is not obj[i]:
                         try:
                             obj.__setitem__(i, res)
                         except AttributeError:
                             pass
+                        if self.path_of_mod_item == []:
+                            self.path_of_mod_item = copy.deepcopy(self.path)
+
+                    self.parents.pop()
+                    self.path.pop()
 
                 if self.duplicate_item is not None:
                     obj.insert(self.duplicate_item, copy.deepcopy(obj[self.duplicate_item]))
@@ -282,15 +286,17 @@ class AutoguiContext:
                 viz.push_mod_any()
                 new_v = self.render(v, str(k))
 
-                self.annotation = None
-                self.parents.pop()
-                self.path.pop()
-
                 if viz.pop_mod_any() and new_v is not v:
                     try:
                         ext_setattr(obj, k, new_v)
                     except AttributeError:
                         pass
+                    if self.path_of_mod_item == []:
+                        self.path_of_mod_item = copy.deepcopy(self.path)
+
+                self.annotation = None
+                self.parents.pop()
+                self.path.pop()
 
         if len(name) > 0 and tree_open:
             viz.tree_pop()
