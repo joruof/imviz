@@ -154,66 +154,56 @@ class AutoguiContext:
             if tree_open:
                 if len(obj.shape) - li == 2:
 
-                    if viz.begin_child("array_view",
-                                       size=(-1, 300),
-                                       flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR):
+                    # this tremendously speeds up zarr array access
+                    # because we are now operating on a numpy array
+                    arr_view = obj[indices]
 
-                        # this tremendously speeds up zarr array access
-                        # because we are now operating on a numpy array
-                        arr_view = obj[indices]
+                    width_avail, _ = viz.get_content_region_avail()
+                    item_width = max(64, width_avail / arr_view.shape[-1] - 8)
 
-                        width_avail, _ = viz.get_content_region_avail()
-                        item_width = max(64, width_avail / arr_view.shape[-1] - 8)
+                    for i in range(arr_view.shape[-2]):
+                        for j in range(arr_view.shape[-1]):
 
-                        for i in range(arr_view.shape[-2]):
-                            for j in range(arr_view.shape[-1]):
-
-                                viz.set_next_item_width(item_width)
-
-                                self.path.append(i)
-                                self.path.append(j)
-                                self.parents.append(obj)
-
-                                res = self.render(arr_view[i, j], f"###{i},{j}")
-
-                                if viz.is_item_hovered():
-                                    viz.begin_tooltip()
-                                    viz.text(f"({i}, {j})")
-                                    viz.end_tooltip()
-
-                                self.parents.pop()
-                                self.path.pop()
-                                self.path.pop()
-
-                                if viz.mod():
-                                    obj[indices + (i, j)] = res
-
-                                if j < arr_view.shape[-1] - 1:
-                                    viz.same_line()
-
-                    viz.end_child()
-                elif len(obj.shape) - li == 1:
-                    if viz.begin_child("array_view",
-                                    size=(-1, 300),
-                                    flags=viz.WindowFlags.HORIZONTAL_SCROLLBAR):
-
-                        # lookup happens here
-                        arr_view = obj[indices]
-
-                        for i in range(len(arr_view)):
+                            viz.set_next_item_width(item_width)
 
                             self.path.append(i)
+                            self.path.append(j)
                             self.parents.append(obj)
 
-                            res = self.render(arr_view[i], str(i))
+                            res = self.render(arr_view[i, j], f"###{i},{j}")
+
+                            if viz.is_item_hovered():
+                                viz.begin_tooltip()
+                                viz.text(f"({i}, {j})")
+                                viz.end_tooltip()
 
                             self.parents.pop()
                             self.path.pop()
+                            self.path.pop()
 
                             if viz.mod():
-                                obj[indices + (i,)] = res
+                                obj[indices + (i, j)] = res
 
-                    viz.end_child()
+                            if j < arr_view.shape[-1] - 1:
+                                viz.same_line()
+
+                elif len(obj.shape) - li == 1:
+
+                    # lookup happens here
+                    arr_view = obj[indices]
+
+                    for i in range(len(arr_view)):
+
+                        self.path.append(i)
+                        self.parents.append(obj)
+
+                        res = self.render(arr_view[i], str(i))
+
+                        self.parents.pop()
+                        self.path.pop()
+
+                        if viz.mod():
+                            obj[indices + (i,)] = res
                 else:
                     for i in range(obj.shape[li]):
 

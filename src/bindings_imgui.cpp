@@ -1028,6 +1028,12 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("size"),
     py::arg("cond") = ImGuiCond_None);
 
+    m.def("set_next_window_size_contraints", [](ImVec2 minSize, ImVec2 maxSize) {
+        ImGui::SetNextWindowSizeConstraints(minSize, maxSize);
+    },
+    py::arg("min_size"),
+    py::arg("max_size"));
+
     m.def("get_window_open", [&]() { 
         return viz.currentWindowOpen;
     });
