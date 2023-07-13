@@ -216,7 +216,6 @@ ImageInfo interpretImage(py::array& image) {
         i.datatype = GL_FLOAT;
     } else {
         i.datatype = GL_FLOAT;
-        image = array_like<float>::ensure(image);
     }
 
     return i;
@@ -276,6 +275,12 @@ GLuint uploadImage(std::string id, ImageInfo& i, py::array& image, bool skip, bo
     } else {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    }
+
+    if (i.datatype == GL_UNSIGNED_BYTE) {
+        image = array_like<uint8_t>::ensure(image);
+    } else if (i.datatype == GL_FLOAT) {
+        image = array_like<float>::ensure(image);
     }
 
     glTexImage2D(
