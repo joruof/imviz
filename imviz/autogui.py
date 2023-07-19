@@ -81,8 +81,6 @@ class AutoguiContext:
         method in the objects to be rendered.
         """
 
-        name = name.replace("_", " ")
-
         obj_type = type(obj)
 
         if hasattr(obj, "__autogui__") and not self.ignore_custom:

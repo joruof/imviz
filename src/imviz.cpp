@@ -239,7 +239,9 @@ void ImViz::doUpdate (bool useVsync) {
 
 void ImViz::recover()
 {
-    // ImGui::ErrorCheckEndFrameRecover extended for implot
+    // ImGui::ErrorCheckEndFrameRecover extended for implot and mod any
+
+    mod_any = {false};
 
     ImPlotContext& gp = *GImPlot;
 
