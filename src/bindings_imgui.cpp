@@ -1113,6 +1113,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         return ImGui::IsItemHovered();
     });
 
+    m.def("is_mouse_clicked", [](int mouseButton) {
+        return ImGui::IsMouseClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
+    m.def("is_mouse_double_clicked", [](int mouseButton) {
+        return ImGui::IsMouseDoubleClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
     m.def("get_mouse_drag_delta", [](int mouseButton, float lockThreshold) {
         return ImGui::GetMouseDragDelta(mouseButton, lockThreshold);
     },
