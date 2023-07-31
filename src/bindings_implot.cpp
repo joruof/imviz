@@ -499,9 +499,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                            double bar_size,
                            double offset,
                            bool horizontal,
+                           py::handle& color,
                            ImPlotBarsFlags flags) {
 
         PlotArrayInfo pai = interpretPlotArrays(x, y);
+
+        ImVec4 col = interpretColor(color);
+        ImPlot::SetNextFillStyle(col);
 
         ImPlot::PlotBars(label.c_str(),
                          pai.xDataPtr,
@@ -518,6 +522,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("bar_size") = 0.5,
     py::arg("offset") = 0.0,
     py::arg("horizontal") = false,
+    py::arg("color") = ImVec4(0.0f, 0.0f, 0.0f, -1.0f),
     py::arg("flags") = ImPlotBarsFlags_None);
 
     m.def("plot_image", [&](

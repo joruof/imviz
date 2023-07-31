@@ -828,6 +828,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     );
 
     m.def("table_headers_row", &ImGui::TableHeadersRow);
+    m.def("table_setup_scroll_freeze", &ImGui::TableSetupScrollFreeze);
 
     /**
      * Imgui style functions
