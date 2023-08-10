@@ -164,7 +164,10 @@ def loop(cls, func_name):
                 else:
                     if viz.begin_window("Local variables"):
                         f_locals = exc_frames[exc_frame_idx].frame.f_locals
-                        viz.AutoguiContext(ignore_custom=True).render(f_locals)
+                        try:
+                            viz.AutoguiContext(ignore_custom=True).render(f_locals)
+                        except:
+                            viz.text("Could not render local variables!", color="red")
                     viz.end_window()
 
                     new_stack_frame_sel = render_source(

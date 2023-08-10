@@ -12,22 +12,11 @@ import subprocess
 
 import __main__
 
-from contextlib import contextmanager
-
-from imviz.autoreload import ModuleReloader
-
 import imviz as viz
 
-
-class bundle(dict):
-    """
-    A dict, which allows dot notation access.
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        dict.__init__(self, *args, **kwargs)
-        self.__dict__ = self
+from contextlib import contextmanager
+from minireload import ModuleReloader
+from objtoolbox import bundle
 
 
 STATICS = {}
