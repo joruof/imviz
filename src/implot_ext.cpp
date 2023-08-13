@@ -194,7 +194,8 @@ void customPlot(
         const char* label,
         PlotArrayInfo& pai,
         py::handle color,
-        bool noLine) { 
+        bool noLine,
+        ImPlotFlags flags) {
 
     GetterXY<IndexerIdx<double>, IndexerIdx<double>> getter(
              IndexerIdx<double>(pai.xDataPtr, pai.count, 0, sizeof(double)),
@@ -204,7 +205,7 @@ void customPlot(
     if (BeginItemEx(
                 label,
                 Fitter1(getter),
-                ImPlotFlags_None,
+                flags,
                 ImPlotCol_Line)) {
 
         array_like<float> colArr = array_like<float>::ensure(color);

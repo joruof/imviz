@@ -6,6 +6,7 @@ void customPlot(
         const char* label,
         PlotArrayInfo& pai,
         py::handle color,
-        bool noLine = false);
+        bool noLine = false,
+        ImPlotFlags flags = ImPlotFlags_None);
 
 }

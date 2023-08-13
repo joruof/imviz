@@ -449,14 +449,14 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::SetNextLineStyle(ic, lineWeight);
 
         if (isArray) {
-            ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-");
+            ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-", flags);
         } else {
             // plot lines and markers
 
             if (groups[1] == "-") {
                 ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count, flags);
             } else {
-                ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+                ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count, flags);
             }
 
             // plot shade if needed
@@ -473,7 +473,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                                        pai.xDataPtr,
                                        lower.data(),
                                        upper.data(),
-                                       shadeCount);
+                                       shadeCount,
+                                       flags);
                     ImPlot::PopStyleVar();
                 }
             }
