@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image
 
 
-pdf_avail = subprocess.call("inkscape --version",
+pdf_avail = subprocess.call("which inkscape",
                             shell=True,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE) == 0
@@ -618,6 +618,7 @@ class PlotExport:
     countdown = 0
     filetype = ""
     path = os.path.abspath(os.getcwd())
+    csv_data = {}
 
 
 def wrap_begin(begin_func):
@@ -630,8 +631,37 @@ def wrap_begin(begin_func):
                 and PlotExport.countdown < 1
                 and PlotExport.filetype != "png"):
             viz.disable_aa()
+            if PlotExport.filetype == "csv":
+                csv_data = {}
 
         return res
+
+    return inner
+
+
+def wrap_plot(plot_func):
+
+    def inner(*args, **kwargs):
+
+        plot_func(*args, **kwargs)
+
+        if (PlotExport.plot_id == viz.get_plot_id()
+                and PlotExport.countdown < 1
+                and PlotExport.filetype == "csv"):
+            if "label" in kwargs:
+                data_key = kwargs["label"]
+            else:
+                data_key = str(len(PlotExport.csv_data))
+
+            if len(args) == 1:
+                y_data = np.array(args[0])
+                x_data = np.arange(len(args[0]))
+            elif len(args) == 2:
+                y_data = np.array(args[1])
+                x_data = np.array(args[0])
+
+            l = min(x_data.shape[0], y_data.shape[0])
+            PlotExport.csv_data[data_key] = np.vstack((x_data[:l], y_data[:l])).T
 
     return inner
 
@@ -653,6 +683,9 @@ def wrap_end(end_func):
         viz.push_override_id(current_plot_id)
         if viz.begin_popup("##PlotContext"):
             if viz.begin_menu("Export"):
+                if viz.menu_item("As csv"):
+                    PlotExport.filetype = "csv"
+                    file_dialog_requested = True
                 if viz.menu_item("As pdf", enabled=pdf_avail):
                     PlotExport.filetype = "pdf"
                     file_dialog_requested = True
@@ -693,12 +726,23 @@ def wrap_end(end_func):
         if PlotExport.plot_id == current_plot_id:
             if PlotExport.countdown < 1:
 
+                os.makedirs(PlotExport.path, exist_ok=True)
+
                 if os.path.isdir(PlotExport.path):
                     PlotExport.path += "/"
-                if PlotExport.path.endswith("/"):
+                if PlotExport.filetype != "csv" and PlotExport.path.endswith("/"):
                     PlotExport.path += f"plot_{int(time.time() * 10**9)}"
 
-                if PlotExport.filetype == "svg":
+                if PlotExport.filetype == "csv":
+
+                    for k, v in PlotExport.csv_data.items():
+                        np.savetxt(os.path.join(PlotExport.path, f"{k}.csv"),
+                                   v,
+                                   delimiter=",",
+                                   header="x,y",
+                                   comments="")
+
+                elif PlotExport.filetype == "svg":
 
                     if not PlotExport.path.endswith(".svg"):
                         PlotExport.path += ".svg"
@@ -791,6 +835,8 @@ def wrap_end(end_func):
 
 begin_plot = wrap_begin(viz.begin_plot)
 begin_figure = wrap_begin(viz.begin_figure)
+
+plot = wrap_plot(viz.plot)
 
 end_plot = wrap_end(viz.end_plot)
 end_figure = wrap_end(viz.end_figure)

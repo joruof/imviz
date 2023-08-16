@@ -5,364 +5,298 @@ import itertools
 import traceback
 
 import imviz as viz
+import numpy as np
 
 from imviz.storage import ext_setattr
 
 
-def render(obj, name="", **kwargs):
+def autogui_func(obj, name="", **params):
 
-    try:
-        return try_render(obj, name, **kwargs)
-    except Exception as e:
-        viz.text(f"{name}: {e}")
-        if viz.is_item_hovered():
-            viz.begin_tooltip()
-            viz.text(traceback.format_exc())
-            viz.end_tooltip()
-
-    return obj
+    return AutoguiContext(params=params).render(obj, name)
 
 
-def try_render(obj,
-               name="",
-               path=[],
-               parents=[],
-               annotation=None,
-               ignore_custom=False):
-    """
-    This inspects the given object and renders a gui
-    (with best effort) for all fields of the object.
+def list_item_context(obj, name, ctx):
 
-    Rendering can be customized by defining an "__autogui__"
-    method in the objects to be rendered.
-    """
+    i = ctx.path[-1]
 
-    name = name.replace("_", " ")
+    if viz.begin_popup_context_item():
+        if hasattr(ctx.parents[-1], "insert"):
+            if viz.menu_item("Duplicate"):
+                ctx.duplicate_item = i
+        if hasattr(ctx.parents[-1], "__delitem__"):
+            if viz.menu_item("Remove"):
+                ctx.remove_item = i
+                viz.set_mod(True)
+        viz.end_popup()
 
-    obj_type = type(obj)
+    ctx.post_header_hooks.remove(list_item_context)
 
-    if hasattr(obj, "__autogui__") and not ignore_custom:
-        return obj.__autogui__(
-                name=name,
-                path=path,
-                parents=parents,
-                annotation=annotation,
-                ignore_custom=ignore_custom)
 
-    if obj is None:
-        viz.text(f"{name}: None")
-        return obj
+class AutoguiContext:
 
-    if obj_type == bool:
-        if name == "":
-            name = str(path[-1])
-        return viz.checkbox(name, obj)
+    def __init__(self,
+                 params={},
+                 path=[],
+                 parents=[],
+                 annotation=None,
+                 ignore_custom=False):
 
-    if isinstance(obj, numbers.Integral):
-        if name == "":
-            name = str(path[-1])
-        return obj_type(viz.drag(name, obj, 1.0, 0, 0))
+        self.params = params
+        self.path = path
+        self.parents = parents
+        self.annotation = annotation
+        self.ignore_custom = ignore_custom
 
-    if isinstance(obj, numbers.Real):
-        if name == "":
-            name = str(path[-1])
-        return obj_type(viz.drag(name, obj))
+        self.post_header_hooks = []
+        self.remove_item = None
+        self.duplicate_item = None
 
-    if obj_type == str:
-        if name == "":
-            name = str(path[-1])
-        return viz.input(name, obj)
+        self.path_of_mod_item = []
 
-    if obj_type == tuple:
+    def try_render(self, obj, name=""):
 
-        if len(name) > 0:
-            tree_open = viz.tree_node(f"{name} [{len(obj)}]-tuple###{name}")
-        else:
-            tree_open = True
-
-        if tree_open:
-            for i in range(len(obj)):
-
-                node_name = str(i)
-
-                if hasattr(obj[i], "name"):
-                    node_name += f" {obj[i].name}"
-
-                obj_tree_open = viz.tree_node(f"{node_name}###{i}")
-
-                if obj_tree_open:
-
-                    render(obj[i],
-                           "",
-                           path=[*path, i],
-                           parents=[*parents, obj],
-                           ignore_custom=ignore_custom)
-
-                    viz.tree_pop()
-
-        if len(name) > 0 and tree_open:
-            viz.tree_pop()
+        try:
+            return self.try_render(obj, name)
+        except Exception as e:
+            viz.text(f"{name}: {e}")
+            if viz.is_item_hovered():
+                viz.begin_tooltip()
+                viz.text(traceback.format_exc())
+                viz.end_tooltip()
 
         return obj
 
-    if obj_type == list:
+    def call_post_header_hooks(self, obj, name):
 
-        if len(name) > 0:
-            tree_open = viz.tree_node(f"{name} [{len(obj)}]###{name}")
+        for h in self.post_header_hooks:
+            h(obj, name, self)
 
-            if viz.begin_popup_context_item():
-                if annotation is not None:
-                    item_type = typing.get_args(annotation)[0]
-                    if viz.menu_item("New"):
-                        obj.append(item_type())
-                        viz.set_mod(True)
-                if viz.menu_item("Clear"):
-                    obj.clear()
-                    viz.set_mod(True)
-                viz.end_popup()
-        else:
-            tree_open = True
+    def render(self, obj, name=""):
 
-        mod = False
+        """
+        This inspects the given object and renders a gui
+        (with best effort) for all fields of the object.
 
-        remove_list = []
-        duplicate = (None, None)
+        Rendering can be customized by defining an "__autogui__"
+        method in the objects to be rendered.
+        """
 
-        if tree_open:
-            for i in range(len(obj)):
+        obj_type = type(obj)
 
-                node_name = str(i)
+        if hasattr(obj, "__autogui__") and not self.ignore_custom:
+            viz.push_mod_any()
+            res = obj.__autogui__(name, ctx=self, **self.params)
+            if viz.pop_mod_any():
+                if self.path_of_mod_item == []:
+                    self.path_of_mod_item = copy.deepcopy(self.path)
+            return res
 
-                if hasattr(obj[i], "shape"):
-                    node_name += f" {list(obj[i].shape)}"
-                if hasattr(obj[i], "name"):
-                    node_name += f" {obj[i].name}"
+        if obj is None:
+            viz.text(f"{name}: None")
+            self.call_post_header_hooks(obj, name)
+            return obj
 
-                obj_tree_open = viz.tree_node(f"{node_name}###{i}")
+        if obj_type == bool or obj_type == np.bool_:
+            if name == "":
+                name = str(self.path[-1])
+            res = viz.checkbox(name, obj)
+            self.call_post_header_hooks(obj, name)
+            return res
 
-                if viz.begin_popup_context_item():
-                    if viz.menu_item("Duplicate"):
-                        duplicate = (i, copy.deepcopy(obj[i]))
-                    if viz.menu_item("Remove"):
-                        remove_list.append(i)
-                        viz.set_mod(True)
-                    viz.end_popup()
+        if isinstance(obj, numbers.Integral):
+            if name == "":
+                name = str(self.path[-1])
+            res = obj_type(viz.drag(name, obj, 1.0, 0, 0))
+            self.call_post_header_hooks(obj, name)
+            return res
 
-                if obj_tree_open:
+        if isinstance(obj, numbers.Real):
+            if name == "":
+                name = str(self.path[-1])
+            res = obj_type(viz.drag(name, obj))
+            self.call_post_header_hooks(obj, name)
+            return res
 
-                    obj[i] = render(
-                            obj[i],
-                            "",
-                            path=[*path, i],
-                            parents=[*parents, obj],
-                            ignore_custom=ignore_custom)
+        if obj_type == str:
+            if name == "":
+                name = str(self.path[-1])
+            res = viz.input(name, obj)
+            self.call_post_header_hooks(obj, name)
+            return res
 
-                    viz.tree_pop()
-
-            if duplicate[0] is not None:
-                obj.insert(duplicate[0], duplicate[1])
-
-            for idx in remove_list:
-                obj.pop(idx)
-
-        if len(name) > 0 and tree_open:
-            viz.tree_pop()
-
-        return obj
-
-    if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
-
-        # to avoid many array lookups in the loop
-        # we collect the requested indices in "path"
+        # to reduce array lookups we collect the requested indices in "path"
+        # the lookup then happens just before rendering the actual values
         indices = tuple(itertools.takewhile(
                 lambda x: isinstance(x[0], int) and type(x[1]) == type(obj),
-                    zip(path[::-1], parents[::-1])))[::-1]
+                    zip(self.path[::-1], self.parents[::-1])))[::-1]
         indices = tuple(i[0] for i in indices)
-
         li = len(indices)
 
         if len(name) > 0:
-            tree_open = viz.tree_node(f"{name} {list(obj.shape)[li:]}")
+            tree_node_label = f"{name} "
+            if hasattr(obj, "shape") and type(obj.shape) == tuple:
+                tree_node_label += f"{list(obj.shape)[li:]}"
+            elif hasattr(obj, "__len__"):
+                tree_node_label += f"[{len(obj)}]"
+            tree_node_label += f"###{name}"
+
+            tree_open = viz.tree_node(tree_node_label)
+            self.call_post_header_hooks(obj, name)
         else:
             tree_open = True
 
-        mod = False
+        if hasattr(obj, "shape") and hasattr(obj, "__getitem__"):
 
-        if tree_open:
-            if len(obj.shape) == 2:
+            if tree_open:
+                if len(obj.shape) - li == 2:
 
-                width_avail, _ = viz.get_content_region_avail()
-                item_width = max(32, width_avail / obj.shape[1] - 8)
+                    # this tremendously speeds up zarr array access
+                    # because we are now operating on a numpy array
+                    arr_view = obj[indices]
 
-                # this tremendously speeds up zarr array access
-                # because we are now operating on a numpy array
-                arr_view = obj[:, :]
+                    width_avail, _ = viz.get_content_region_avail()
+                    item_width = max(64, width_avail / arr_view.shape[-1] - 8)
 
-                for i in range(obj.shape[0]):
-                    for j in range(obj.shape[1]):
+                    for i in range(arr_view.shape[-2]):
+                        for j in range(arr_view.shape[-1]):
 
-                        viz.set_next_item_width(item_width)
+                            viz.set_next_item_width(item_width)
 
-                        res = render(
-                                arr_view[i, j],
-                                f"###{i},{j}",
-                                path=[*path, i, j],
-                                parents=[*parents, obj],
-                                ignore_custom=ignore_custom)
+                            self.path.append(i)
+                            self.path.append(j)
+                            self.parents.append(obj)
 
-                        if viz.mod():
-                            mod = True
-                            obj[i, j] = res
+                            res = self.render(arr_view[i, j], f"###{i},{j}")
 
-                        if j < obj.shape[1]-1:
-                            viz.same_line()
-            else:
-                # to avoid many array lookups in the loop
-                # we collect the requested indices in "path"
+                            if viz.is_item_hovered():
+                                viz.begin_tooltip()
+                                viz.text(f"({i}, {j})")
+                                viz.end_tooltip()
 
-                if len(obj.shape) < 2:
-                    arr_view = obj[:]
-                    for i in range(len(arr_view)):
-                        # lookup happens here
-                        res = render(
-                                arr_view[i],
-                                str(i),
-                                path=[*path, i],
-                                parents=[*parents, obj],
-                                ignore_custom=ignore_custom)
-                        if viz.mod():
-                            obj[i] = res
-                elif len(obj.shape) - li == 2:
+                            if viz.mod():
+                                obj[indices + (i, j)] = res
+                                if self.path_of_mod_item == []:
+                                    self.path_of_mod_item = copy.deepcopy(self.path)
+
+                            if j < arr_view.shape[-1] - 1:
+                                viz.same_line()
+
+                            self.parents.pop()
+                            self.path.pop()
+                            self.path.pop()
+
+                elif len(obj.shape) - li == 1:
+
                     # lookup happens here
-                    res = render(
-                            obj[indices],
-                            path=[*path],
-                            parents=[*parents, obj],
-                            ignore_custom=ignore_custom)
-                    if viz.mod():
-                        obj[indices] = res
+                    arr_view = obj[indices]
+
+                    for i in range(len(arr_view)):
+
+                        self.path.append(i)
+                        self.parents.append(obj)
+
+                        res = self.render(arr_view[i], str(i))
+
+                        if viz.mod():
+                            obj[indices + (i,)] = res
+                            if self.path_of_mod_item == []:
+                                self.path_of_mod_item = copy.deepcopy(self.path)
+
+                        self.parents.pop()
+                        self.path.pop()
                 else:
                     for i in range(obj.shape[li]):
-                        res = render(
-                                obj,
-                                str(i),
-                                path=[*path, i],
-                                parents=[*parents, obj],
-                                ignore_custom=ignore_custom)
 
-                if viz.mod():
-                    mod = True
+                        self.path.append(i)
+                        self.parents.append(obj)
 
-        if len(name) > 0 and tree_open:
-            viz.tree_pop()
+                        res = self.render(obj, str(i))
 
-        viz.set_mod(mod)
+                        self.parents.pop()
+                        self.path.pop()
 
-        return obj
+            if len(name) > 0 and tree_open:
+                viz.tree_pop()
 
-    # default case, generic object
+            return obj
 
-    if hasattr(obj, "__dict__"):
-        attr_dict = obj.__dict__
-    elif hasattr(obj, "__slots__"):
-        attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
-    elif isinstance(obj, dict):
-        attr_dict = obj
-    else:
-        # weird object has no common attributes
-
-        if hasattr(obj, "__len__") and hasattr(obj, "__getitem__"):
-            
-            # at least we we can iterate it
-
-            if len(name) > 0:
-                tree_open = viz.tree_node(f"{name} [{len(obj)}]###{name}")
-            else:
-                tree_open = True
-
-            mod = False
-
-            remove_list = []
-            duplicate = (None, None)
-
+        if hasattr(obj, "__dict__"):
+            attr_dict = obj.__dict__
+        elif hasattr(obj, "__slots__"):
+            attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
+        elif isinstance(obj, dict):
+            attr_dict = obj
+        elif hasattr(obj, "__len__") and hasattr(obj, "__getitem__"):
             if tree_open:
                 for i in range(len(obj)):
 
-                    node_name = str(i)
+                    self.post_header_hooks.append(list_item_context)
 
-                    if hasattr(obj[i], "shape"):
-                        node_name += f" {list(obj[i].shape)}"
-                    if hasattr(obj[i], "name"):
-                        node_name += f" {obj[i].name}"
+                    self.path.append(i)
+                    self.parents.append(obj)
 
-                    obj_tree_open = viz.tree_node(f"{node_name}###{i}")
+                    viz.push_mod_any()
+                    res = self.render(obj[i], str(i))
 
-                    if viz.begin_popup_context_item():
-                        if viz.menu_item("Duplicate"):
-                            duplicate = (i, copy.deepcopy(obj[i]))
-                        if viz.menu_item("Remove"):
-                            remove_list.append(i)
-                            viz.set_mod(True)
-                        viz.end_popup()
+                    if viz.pop_mod_any() and res is not obj[i]:
+                        try:
+                            obj.__setitem__(i, res)
+                        except AttributeError:
+                            pass
+                        if self.path_of_mod_item == []:
+                            self.path_of_mod_item = copy.deepcopy(self.path)
 
-                    if obj_tree_open:
+                    self.parents.pop()
+                    self.path.pop()
 
-                        obj[i] = render(
-                                obj[i],
-                                "",
-                                path=[*path, i],
-                                parents=[*parents, obj],
-                                ignore_custom=ignore_custom)
+                if self.duplicate_item is not None:
+                    obj.insert(self.duplicate_item, copy.deepcopy(obj[self.duplicate_item]))
+                    viz.set_mod(True)
+                    self.duplicate_item = None
 
-                        viz.tree_pop()
-
-                if duplicate[0] is not None:
-                    obj.insert(duplicate[0], duplicate[1])
-
-                for idx in remove_list:
-                    obj.pop(idx)
+                if self.remove_item is not None:
+                    del obj[self.remove_item]
+                    viz.set_mod(True)
+                    self.remove_item = None
 
             if len(name) > 0 and tree_open:
                 viz.tree_pop()
 
             return obj
         else:
-            viz.text(f"{name}: " + "???")
+            if len(name) == 0:
+                viz.text(f"{name}: " + "???")
             return obj
 
-    if len(name) > 0:
-        tree_open = viz.tree_node(f"{name}")
-    else:
-        tree_open = True
+        obj_annots = getattr(obj, "__annotations__", {})
+    
+        # default case: generic object
 
-    if hasattr(obj, "__annotations__"):
-        obj_annots = obj.__annotations__
-    else:
-        obj_annots = {}
+        if tree_open:
+            for k, v in attr_dict.items():
 
-    if tree_open:
-        for k, v in attr_dict.items():
+                if k in obj_annots:
+                    self.annotation = obj_annots[k]
 
-            if k in obj_annots:
-                annot = obj_annots[k]
-            else:
-                annot = None
+                self.path.append(k)
+                self.parents.append(obj)
 
-            new_v = render(
-                        v,
-                        name=str(k),
-                        path=[*path, k],
-                        parents=[*parents, obj],
-                        annotation=annot,
-                        ignore_custom=ignore_custom)
+                viz.push_mod_any()
+                new_v = self.render(v, str(k))
 
-            if viz.mod_any():
-                try:
-                    ext_setattr(obj, k, new_v)
-                except AttributeError:
-                    pass
+                if viz.pop_mod_any() and new_v is not v:
+                    try:
+                        ext_setattr(obj, k, new_v)
+                    except AttributeError:
+                        pass
+                    if self.path_of_mod_item == []:
+                        self.path_of_mod_item = copy.deepcopy(self.path)
 
-    if len(name) > 0 and tree_open:
-        viz.tree_pop()
+                self.annotation = None
+                self.parents.pop()
+                self.path.pop()
 
-    return obj
+        if len(name) > 0 and tree_open:
+            viz.tree_pop()
+
+        return obj

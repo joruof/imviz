@@ -124,6 +124,12 @@ def loop(cls, func_name):
 
                     time_string = exc_time.strftime("%H:%M:%S")
 
+                    if viz.button("Reload"):
+                        exc_str = None
+                        continue
+
+                    viz.separator()
+
                     viz.text(f"Exception time {time_string}\n", color=col)
                     viz.text(exc_str, color=col)
                     viz.text("\n")
@@ -158,7 +164,10 @@ def loop(cls, func_name):
                 else:
                     if viz.begin_window("Local variables"):
                         f_locals = exc_frames[exc_frame_idx].frame.f_locals
-                        viz.autogui(f_locals, ignore_custom=True)
+                        try:
+                            viz.AutoguiContext(ignore_custom=True).render(f_locals)
+                        except:
+                            viz.text("Could not render local variables!", color="red")
                     viz.end_window()
 
                     new_stack_frame_sel = render_source(

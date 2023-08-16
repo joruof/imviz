@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 project(cppimviz)
 
+# Exports compile commands to .json file for vim YouCompleteMe support.
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(PY_TARGET_NAME "${PROJECT_NAME}")
 
 # ---[ Check for OpenGL (mandatory) ]---
@@ -14,23 +18,6 @@ if(OPENGL_FOUND)
 else(OPENGL_FOUND)
     message(FATAL_ERROR "${ColourBoldRed}OpenGL missing.${ColourReset}")
 endif()
-
-# ---[ Update submodules ]---
-# From: https://cliutils.gitlab.io/modern-cmake/chapters/projects/submodule.html
-
-#find_package(Git QUIET)
-#if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-#    option(GIT_SUBMODULE "Check submodules during build" ON)
-#    if(GIT_SUBMODULE)
-#        message(STATUS "Submodule update ...")
-#        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-#                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#        endif()
-#    endif()
-#endif()
 
 # ---[ External libs ]---
 
@@ -131,7 +118,6 @@ set(SOURCE_FILES
     ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
     ${implot_SOURCE_DIR}/implot.cpp
     ${implot_SOURCE_DIR}/implot_demo.cpp
-    ${implot_SOURCE_DIR}/implot_items.cpp
     ./src/bindings.cpp
     ./src/imviz.cpp
     ./src/input.cpp
@@ -140,7 +126,7 @@ set(SOURCE_FILES
     ./src/bindings_implot.cpp
     ./src/bindings_imgui.cpp
     ./src/source_sans_pro.cpp
-    ./src/load_image.cpp
+    ./src/implot_ext.cpp
    )
 
 set(HEADER_FILES 
@@ -151,8 +137,6 @@ set(HEADER_FILES
     ./src/bindings_implot.hpp
     ./src/bindings_imgui.hpp
     ./src/source_sans_pro.hpp
-    ./src/load_image.hpp
-    ./src/stb_image.h
     )
 
 # Builds the python bindings module.
@@ -199,6 +183,7 @@ else()
                             -DIMGUI_USER_CONFIG="im_user_config.h"
                             -g
                             -O3
+                            -ffast-math
                             -Wall
                             -Wextra
                             -Wpedantic
@@ -213,7 +198,3 @@ else()
                             glfw)
 
 endif()
-
-# Exports compile commands to .json file for vim YouCompleteMe support.
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

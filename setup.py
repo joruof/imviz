@@ -119,7 +119,7 @@ class CMakeBuild(build_ext):
 
 
 setup(name="imviz",
-      version="0.1.22",
+      version="0.2.1",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
@@ -134,6 +134,6 @@ setup(name="imviz",
       cmdclass=dict(build_ext=CMakeBuild, install=Install),
       include_package_data=True,
       install_requires=[
-            "numpy", "zarr>=2.11.3", "Pillow>=9.0.1"
+            "numpy", "Pillow>=9.0.1", "objtoolbox>=0.0.5", "minireload>=0.0.3"
           ]
       )

@@ -6,10 +6,12 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include "implot_internal.h"
+#include "implot_ext.hpp"
 #include <imgui.h>
 #include <implot.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
@@ -37,6 +39,30 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("EQUAL", ImPlotFlags_Equal)
         .value("CROSSHAIRS", ImPlotFlags_Crosshairs)
         .value("CANVAS_ONLY", ImPlotFlags_CanvasOnly);
+
+    py::enum_<ImPlotItemFlags_>(m, "PlotItemFlags", py::arithmetic())
+        .value("NONE", ImPlotItemFlags_None)
+        .value("NO_FIT", ImPlotItemFlags_NoFit)
+        .value("NO_LEGEND", ImPlotItemFlags_NoLegend);
+
+    py::enum_<ImPlotLineFlags_>(m, "PlotLineFlags", py::arithmetic())
+        .value("NONE", ImPlotLineFlags_None)
+        .value("SEGMENTS", ImPlotLineFlags_Segments)
+        .value("LOOP", ImPlotLineFlags_Loop)
+        .value("SKIP_NAN", ImPlotLineFlags_SkipNaN)
+        .value("NO_CLIP", ImPlotLineFlags_NoClip)
+        .value("SHADED", ImPlotLineFlags_Shaded);
+
+    py::enum_<ImPlotBarsFlags_>(m, "PlotBarsFlags", py::arithmetic())
+        .value("NONE", ImPlotBarsFlags_None)
+        .value("HORIZONTAL", ImPlotBarsFlags_Horizontal);
+
+    py::enum_<ImPlotImageFlags_>(m, "PlotImageFlags", py::arithmetic())
+        .value("NONE", ImPlotImageFlags_None);
+
+    py::enum_<ImPlotTextFlags_>(m, "PlotTextFlags", py::arithmetic())
+        .value("NONE", ImPlotTextFlags_None)
+        .value("VERTICAL", ImPlotTextFlags_Vertical);
 
     py::enum_<ImPlotAxisFlags_>(m, "PlotAxisFlags", py::arithmetic())
         .value("NONE", ImPlotAxisFlags_None)
@@ -374,7 +400,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                       float shadeAlpha,
                       float lineWeight,
                       float markerSize,
-                      float markerWeight) {
+                      float markerWeight,
+                      ImPlotLineFlags flags) {
 
         // interpret data
 
@@ -415,33 +442,41 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
+ 
+        bool isArray = false;
+        ImVec4 ic = interpretColor(color, &isArray);
 
-        ImPlot::SetNextLineStyle(interpretColor(color), lineWeight);
+        ImPlot::SetNextLineStyle(ic, lineWeight);
 
-        // plot lines and markers
-
-        if (groups[1] == "-") {
-            ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
+        if (isArray) {
+            ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-", flags);
         } else {
-            ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count);
-        }
+            // plot lines and markers
 
-        // plot shade if needed
+            if (groups[1] == "-") {
+                ImPlot::PlotLine(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count, flags);
+            } else {
+                ImPlot::PlotScatter(label.c_str(), pai.xDataPtr, pai.yDataPtr, pai.count, flags);
+            }
 
-        size_t shadeCount = std::min(pai.count, (size_t)shade.shape()[0]);
+            // plot shade if needed
 
-        if (shadeCount != 0) {
-            if (1 == shade.ndim()) {
-                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
-                auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
-                py::array_t<double> upper = mean + shade;
-                py::array_t<double> lower = mean - shade;
-                ImPlot::PlotShaded(label.c_str(),
-                                   pai.xDataPtr,
-                                   lower.data(),
-                                   upper.data(),
-                                   shadeCount);
-                ImPlot::PopStyleVar();
+            size_t shadeCount = std::min(pai.count, (size_t)shade.shape()[0]);
+
+            if (shadeCount != 0) {
+                if (1 == shade.ndim()) {
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, shadeAlpha);
+                    auto mean = py::cast<py::array_t<double>>(y[py::slice(0, shadeCount, 1)]);
+                    py::array_t<double> upper = mean + shade;
+                    py::array_t<double> lower = mean - shade;
+                    ImPlot::PlotShaded(label.c_str(),
+                                       pai.xDataPtr,
+                                       lower.data(),
+                                       upper.data(),
+                                       shadeCount,
+                                       flags);
+                    ImPlot::PopStyleVar();
+                }
             }
         }
 
@@ -456,16 +491,22 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("shade_alpha") = 0.3f,
     py::arg("line_weight") = 1.0f, 
     py::arg("marker_size") = 4.0f, 
-    py::arg("marker_weight") = 1.0f);
+    py::arg("marker_weight") = 1.0f,
+    py::arg("flags") = ImPlotLineFlags_None);
 
     m.def("plot_bars", [&](array_like<double> x,
                            array_like<double> y,
                            std::string label,
                            double bar_size,
                            double offset,
-                           bool horizontal) {
+                           bool horizontal,
+                           py::handle& color,
+                           ImPlotBarsFlags flags) {
 
         PlotArrayInfo pai = interpretPlotArrays(x, y);
+
+        ImVec4 col = interpretColor(color);
+        ImPlot::SetNextFillStyle(col);
 
         ImPlot::PlotBars(label.c_str(),
                          pai.xDataPtr,
@@ -473,14 +514,17 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                          pai.count,
                          bar_size,
                          horizontal ? ImPlotBarsFlags_Horizontal : ImPlotBarsFlags_None,
-                         offset);
+                         offset,
+                         flags);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("label") = "",
     py::arg("bar_size") = 0.5,
     py::arg("offset") = 0.0,
-    py::arg("horizontal") = false);
+    py::arg("horizontal") = false,
+    py::arg("color") = ImVec4(0.0f, 0.0f, 0.0f, -1.0f),
+    py::arg("flags") = ImPlotBarsFlags_None);
 
     m.def("plot_image", [&](
                 std::string label,
@@ -490,7 +534,11 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 double displayWidth,
                 double displayHeight,
                 ImVec2 uv0,
-                ImVec2 uv1) {
+                ImVec2 uv1,
+                py::handle& tint,
+                bool interpolate,
+                bool skip_upload,
+                ImPlotImageFlags flags) {
 
         ImageInfo info = interpretImage(image);
         
@@ -501,10 +549,12 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             displayHeight = info.imageHeight;
         }
 
-        GLuint textureId = uploadImage(label, info, image);
+        GLuint textureId = uploadImage(label, info, image, skip_upload, interpolate);
 
         ImPlotPoint boundsMin(x, y);
         ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImVec4 tintCol = interpretColor(tint);
 
         ImPlot::PlotImage(
                 label.c_str(),
@@ -512,7 +562,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 boundsMin,
                 boundsMax,
                 uv0,
-                uv1);
+                uv1,
+                tintCol,
+                flags);
     },
     py::arg("label"),
     py::arg("image"),
@@ -521,7 +573,11 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("width") = -1,
     py::arg("height") = -1,
     py::arg("uv0") = ImVec2(0.0f, 0.0f),
-    py::arg("uv1") = ImVec2(1.0f, 1.0f));
+    py::arg("uv1") = ImVec2(1.0f, 1.0f),
+    py::arg("tint") = ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+    py::arg("interpolate") = true,
+    py::arg("skip_upload") = false,
+    py::arg("flags") = ImPlotImageFlags_None);
 
     m.def("plot_image_texture", [&](
                 std::string label,
@@ -529,23 +585,37 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 double x,
                 double y,
                 double displayWidth,
-                double displayHeight) {
+                double displayHeight,
+                ImVec2 uv0,
+                ImVec2 uv1,
+                py::handle& tint,
+                ImPlotImageFlags flags) {
 
         ImPlotPoint boundsMin(x, y);
         ImPlotPoint boundsMax(x + displayWidth, y + displayHeight);
+
+        ImVec4 tintCol = interpretColor(tint);
 
         ImPlot::PlotImage(
                 label.c_str(),
                 (void*)(intptr_t)textureId,
                 boundsMin,
-                boundsMax);
+                boundsMax,
+                uv0,
+                uv1,
+                tintCol,
+                flags);
     },
     py::arg("label"),
     py::arg("texture_id"),
     py::arg("x") = 0,
     py::arg("y") = 0,
     py::arg("width") = -1,
-    py::arg("height") = -1);
+    py::arg("height") = -1,
+    py::arg("uv0") = ImVec2(0.0f, 0.0f),
+    py::arg("uv1") = ImVec2(1.0f, 1.0f),
+    py::arg("tint") = ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+    py::arg("flags") = ImPlotImageFlags_None);
 
     m.def("drag_point", [&](std::string label,
                             array_like<double> point,
@@ -610,11 +680,12 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("drag_vline", [&](std::string label,
                             double x,
                             py::handle color,
-                            double width) {
+                            double width,
+                            ImPlotDragToolFlags flags) {
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragLineX(ImGui::GetID(label.c_str()), &x, c, width);
+        bool mod = ImPlot::DragLineX(ImGui::GetID(label.c_str()), &x, c, width, flags);
         viz.setMod(mod);
 
         return x;
@@ -622,16 +693,18 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("x"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotDragToolFlags_None);
 
     m.def("drag_hline", [&](std::string label,
                             double y,
                             py::handle color,
-                            double width) {
+                            double width,
+                            ImPlotDragToolFlags flags) {
 
         ImVec4 c = interpretColor(color);
 
-        bool mod = ImPlot::DragLineY(ImGui::GetID(label.c_str()), &y, c, width);
+        bool mod = ImPlot::DragLineY(ImGui::GetID(label.c_str()), &y, c, width, flags);
         viz.setMod(mod);
 
         return y;
@@ -639,11 +712,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("y"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotDragToolFlags_None);
 
     m.def("drag_rect", [&](std::string label,
-                            array_like<double> rect,
-                            py::handle color) {
+                           array_like<double> rect,
+                           py::handle color,
+                           ImPlotDragToolFlags flags) {
 
         assert_shape(rect, {{4}});
 
@@ -656,7 +731,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 rect.mutable_data(2),
                 rect.mutable_data(3),
                 c, 
-                ImPlotDragToolFlags_None);
+                flags);
 
         viz.setMod(mod);
 
@@ -664,7 +739,31 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     },
     py::arg("label"),
     py::arg("rect"),
-    py::arg("color") = py::array_t<double>());
+    py::arg("color") = py::array_t<double>(),
+    py::arg("flags") = ImPlotDragToolFlags_None);
+
+    m.def("plot_text", [&](
+                std::string text,
+                double x,
+                double y,
+                ImVec2 pix_offset,
+                ImPlotTextFlags flags) {
+
+        ImPlot::PlotText(text.c_str(), x, y, pix_offset, flags);
+    },
+    py::arg("text"),
+    py::arg("x"),
+    py::arg("y"),
+    py::arg("pix_offset") = ImVec2(0.0, 0.0),
+    py::arg("flags") = ImPlotTextFlags_None);
+
+    m.def("plot_dummy", [&](std::string label, py::handle legendColor) {
+        ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(legendColor));
+        ImPlot::PlotDummy(label.c_str());
+        ImPlot::PopStyleColor();
+    },
+    py::arg("label"),
+    py::arg("legend_color") = py::array());
 
     m.def("plot_annotation", [&](
                 double x,
@@ -702,7 +801,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                            py::handle color,
                            ImPlotPoint offset,
                            float rotation,
-                           float lineWeight) {
+                           float lineWeight,
+                           ImPlotLineFlags flags) {
 
         std::vector<double> xs(5);
         std::vector<double> ys(5);
@@ -734,7 +834,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(color));
-        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), 5);
+        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), 5, flags);
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
     },
@@ -744,14 +844,16 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("color") = py::array(),
     py::arg("offset") = ImPlotPoint(0.5f, 0.5f),
     py::arg("rotation") = 0.0f,
-    py::arg("line_weight") = 1.0f);
+    py::arg("line_weight") = 1.0f,
+    py::arg("flags") = ImPlotLineFlags_None);
 
     m.def("plot_circle", [&](ImPlotPoint center,
                              double radius,
                              std::string label,
                              py::handle color,
                              size_t segments,
-                             float lineWeight) {
+                             float lineWeight,
+                             ImPlotLineFlags flags) {
 
         size_t steps = segments + 1;
 
@@ -768,7 +870,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
         ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
         ImPlot::PushStyleColor(ImPlotCol_Line, interpretColor(color));
-        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), steps);
+        ImPlot::PlotLine(label.c_str(), xs.data(), ys.data(), steps, flags);
         ImPlot::PopStyleColor();
         ImPlot::PopStyleVar();
     },
@@ -777,9 +879,22 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label") = "",
     py::arg("color") = py::array(),
     py::arg("segments") = 36,
-    py::arg("line_weight") = 1.0f);
+    py::arg("line_weight") = 1.0f,
+    py::arg("flags") = ImPlotLineFlags_None);
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
+
+    m.def("is_plot_item_hidden", [&](std::string& label_id) {
+        ImPlotContext& gp = *GImPlot;
+        ImPlotItem* item = NULL;
+        if (label_id == "") {
+           item = gp.CurrentItem;
+        } else {
+            item = gp.CurrentItems->GetItem(label_id.c_str());
+        }
+        return item != NULL && !item->Show;
+    },
+    py::arg("label_id") = "");
 
     m.def("get_plot_selection", [&]() {
         ImPlotRect sel = ImPlot::GetPlotSelection();
@@ -862,4 +977,91 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             return py::cast(plot->ID);
         }
     });
+
+    m.def("get_plot_flags", [&]() {
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return ImPlotFlags_None;
+        } else {
+            return (ImPlotFlags_)plot->Flags;
+        }
+    });
+
+    m.def("begin_plot_popup", [&]() {
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return false;
+        }
+
+        // this needs to happend outside of the popup context
+        ImPlotPoint mousePos = ImPlot::GetPlotMousePos();
+
+        ImGui::PushOverrideID(plot->ID);
+
+        viz.plotPopupOpen = ImGui::BeginPopup("##PlotContext");
+
+        if (viz.plotPopupOpen && viz.plotPopupId != plot->ID) {
+            viz.plotPopupPoint = mousePos;
+            viz.plotPopupId = plot->ID;
+        }
+        if (!viz.plotPopupOpen && viz.plotPopupId == plot->ID) {
+            viz.plotPopupPoint = {0.0, 0.0};
+            viz.plotPopupId = 0;
+        }
+
+        return viz.plotPopupOpen;
+    });
+
+    m.def("end_plot_popup", [&]() {
+        if (viz.plotPopupOpen) {
+            ImGui::EndPopup();
+        }
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot != nullptr) {
+            ImGui::PopID();
+        }
+    });
+
+    m.def("get_plot_popup_point", [&]() {
+        return viz.plotPopupPoint;
+    });
+
+    m.def("begin_legend_popup", [&](std::string label_id) {
+        return ImPlot::BeginLegendPopup(label_id.c_str());
+    },
+    py::arg("label_id"));
+
+    m.def("end_legend_popup", &ImPlot::EndLegendPopup);
+
+    m.def("push_plot_style_var", [](ImPlotStyleVar idx, float val){
+        ImPlot::PushStyleVar(idx, val);
+    },
+    py::arg("idx"),
+    py::arg("val"));
+
+    m.def("push_plot_style_var", [](ImPlotStyleVar idx, int val){
+        ImPlot::PushStyleVar(idx, val);
+    },
+    py::arg("idx"),
+    py::arg("val"));
+
+    m.def("push_plot_style_var", [](ImPlotStyleVar idx, ImVec2 val){
+        ImPlot::PushStyleVar(idx, val);
+    },
+    py::arg("idx"),
+    py::arg("val"));
+
+    m.def("pop_plot_style_var", [](int count) {
+        ImPlot::PopStyleVar(count);
+    },
+    py::arg("count") = 1);
+
+    m.def("is_axis_hovered", [](ImAxis axis) {
+        ImPlotPlot* plot = ImPlot::GetCurrentPlot();
+        if (plot == nullptr) {
+            return false;
+        }
+        return plot->Axes[axis].Hovered;
+    },
+    py::arg("axis"));
 }

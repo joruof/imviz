@@ -64,7 +64,7 @@ void assertArrayShape(std::string name,
     }
 }
 
-ImVec4 interpretColor(py::handle& color) {
+ImVec4 interpretColor(py::handle& color, bool* isArray) {
 
     std::string typeName = py::str(color.attr("__class__").attr("__name__"));
 
@@ -152,9 +152,14 @@ ImVec4 interpretColor(py::handle& color) {
         return ImVec4(f, f, f, 1.0f);
     }
 
-    array_like<double> colorArray = array_like<double>::ensure(color);
+    array_like<float> colorArray = array_like<float>::ensure(color);
 
-    assert_shape(colorArray, {{-1}});
+    assert_shape(colorArray, {{-1}, {-1, 4}});
+
+    if (colorArray.ndim() == 2 && isArray != nullptr) {
+        *isArray = true;
+        return ImVec4(1, 1, 1, 1);
+    }
 
     ImVec4 c(0, 0, 0, 1);
     size_t colorLength = colorArray.shape()[0];
@@ -211,13 +216,12 @@ ImageInfo interpretImage(py::array& image) {
         i.datatype = GL_FLOAT;
     } else {
         i.datatype = GL_FLOAT;
-        image = array_like<float>::ensure(image);
     }
 
     return i;
 }
 
-GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
+GLuint uploadImage(std::string id, ImageInfo& i, py::array& image, bool skip, bool lerp) {
 
     static std::unordered_map<ImGuiID, GLuint> textureCache;
 
@@ -235,11 +239,17 @@ GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
         glBindTexture(GL_TEXTURE_2D, 0);
 
         textureCache[uniqueId] = textureId;
+
+        skip = false;
     }
 
     // upload texture
 
     GLuint textureId = textureCache[uniqueId];
+
+    if (skip) {
+        return textureId;
+    }
 
     glBindTexture(GL_TEXTURE_2D, textureId);
 
@@ -259,8 +269,19 @@ GLuint uploadImage(std::string id, ImageInfo& i, py::array& image) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    if (lerp) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    }
+
+    if (i.datatype == GL_UNSIGNED_BYTE) {
+        image = array_like<uint8_t>::ensure(image);
+    } else if (i.datatype == GL_FLOAT) {
+        image = array_like<float>::ensure(image);
+    }
 
     glTexImage2D(
             GL_TEXTURE_2D,

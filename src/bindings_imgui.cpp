@@ -2,6 +2,7 @@
 
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
+#include <pybind11/pybind11.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -72,6 +73,40 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("RIGHT", ImGuiDir_Right)
         .value("UP", ImGuiDir_Up)
         .value("DOWN", ImGuiDir_Down);
+
+    py::enum_<ImGuiWindowFlags_>(m, "WindowFlags")
+        .value("NONE", ImGuiWindowFlags_None)
+        .value("NO_TITLE_BAR", ImGuiWindowFlags_NoTitleBar)
+        .value("NO_RESIZE", ImGuiWindowFlags_NoResize)
+        .value("NO_MOVE", ImGuiWindowFlags_NoMove)
+        .value("NO_SCROLL_BAR", ImGuiWindowFlags_NoScrollbar)
+        .value("NO_SCROLL_WITH_MOUSE", ImGuiWindowFlags_NoScrollWithMouse)
+        .value("NO_COLLAPSE", ImGuiWindowFlags_NoCollapse)
+        .value("ALWAYS_AUTO_RESIZE", ImGuiWindowFlags_AlwaysAutoResize)
+        .value("NO_BACKGROUND", ImGuiWindowFlags_NoBackground)
+        .value("NO_SAVED_SETTINGS", ImGuiWindowFlags_NoSavedSettings)
+        .value("NO_MOUSE_INPUTS", ImGuiWindowFlags_NoMouseInputs)
+        .value("MENUBAR", ImGuiWindowFlags_MenuBar)
+        .value("HORIZONTAL_SCROLLBAR", ImGuiWindowFlags_HorizontalScrollbar)
+        .value("NO_FOCUS_ON_APPEARING", ImGuiWindowFlags_NoFocusOnAppearing)
+        .value("NO_BRING_TO_FRONT_ON_FOCUS", ImGuiWindowFlags_NoBringToFrontOnFocus)
+        .value("ALWAYS_VERTICAL_SCROLLBAR", ImGuiWindowFlags_AlwaysVerticalScrollbar)
+        .value("ALWAYS_HORIZONTAL_SCROLLBAR", ImGuiWindowFlags_AlwaysHorizontalScrollbar)
+        .value("ALWAYS_USE_WINDOW_PADDING", ImGuiWindowFlags_AlwaysUseWindowPadding)
+        .value("NO_NAV_INPUTS", ImGuiWindowFlags_NoNavInputs)
+        .value("NO_NAV_FOCUS", ImGuiWindowFlags_NoNavFocus)
+        .value("UNSAVED_DOCUMENT", ImGuiWindowFlags_UnsavedDocument)
+        .value("NO_DOCKING", ImGuiWindowFlags_NoDocking)
+        .value("NO_NAV", ImGuiWindowFlags_NoNav)
+        .value("NO_DECORATION", ImGuiWindowFlags_NoDecoration)
+        .value("NO_INPUTS", ImGuiWindowFlags_NoInputs)
+        .value("NAV_FLATTENED", ImGuiWindowFlags_NavFlattened)
+        .value("CHILD_WINDOW", ImGuiWindowFlags_ChildWindow)
+        .value("TOOLTIP", ImGuiWindowFlags_Tooltip)
+        .value("POPUP", ImGuiWindowFlags_Popup)
+        .value("MODAL", ImGuiWindowFlags_Modal)
+        .value("CHILD_MENU", ImGuiWindowFlags_ChildMenu)
+        .value("DOCK_NODE_HOST", ImGuiWindowFlags_DockNodeHost);
 
     py::enum_<ImGuiTreeNodeFlags_>(m, "TreeNodeFlags", py::arithmetic())
         .value("NONE", ImGuiTreeNodeFlags_None)
@@ -206,6 +241,90 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_RESIZE", ImGuiDockNodeFlags_NoResize)
         .value("AUTO_HIDE_TAB_BAR", ImGuiDockNodeFlags_AutoHideTabBar);
 
+    py::enum_<ImGuiCol_>(m, "GuiCol")
+        .value("TEXT", ImGuiCol_Text)
+        .value("TEXT_DISABLED", ImGuiCol_TextDisabled)
+        .value("WINDOW_BG", ImGuiCol_WindowBg)
+        .value("CHILD_BG", ImGuiCol_ChildBg)
+        .value("POPUP_BG", ImGuiCol_PopupBg)
+        .value("BORDER", ImGuiCol_Border)
+        .value("BORDER_SHADOW", ImGuiCol_BorderShadow)
+        .value("FRAME_BG", ImGuiCol_FrameBg)
+        .value("FRAME_BG_HOVERED", ImGuiCol_FrameBgHovered)
+        .value("FRAME_BG_ACTIVE", ImGuiCol_FrameBgActive)
+        .value("TITLE_BG", ImGuiCol_TitleBg)
+        .value("TITLE_BG_ACTIVE", ImGuiCol_TitleBgActive)
+        .value("TITLE_BG_COLLAPSED", ImGuiCol_TitleBgCollapsed)
+        .value("MENU_BAR_BG", ImGuiCol_MenuBarBg)
+        .value("SCROLL_BAR_BG", ImGuiCol_ScrollbarBg)
+        .value("SCROLL_BAR_GRAB", ImGuiCol_ScrollbarGrab)
+        .value("SCROLL_BAR_GRAB_HOVERED", ImGuiCol_ScrollbarGrabHovered)
+        .value("SCROLL_BAR_GRAB_ACTIVE", ImGuiCol_ScrollbarGrabActive)
+        .value("CHECK_MARK", ImGuiCol_CheckMark)
+        .value("SLIDER_GRAB", ImGuiCol_SliderGrab)
+        .value("SLIDER_GRAB_ACTIVE", ImGuiCol_SliderGrabActive)
+        .value("BUTTON", ImGuiCol_Button)
+        .value("BUTTON_HOVERED", ImGuiCol_ButtonHovered)
+        .value("BUTTON_ACTIVE", ImGuiCol_ButtonActive)
+        .value("HEADER", ImGuiCol_Header)
+        .value("HEADER_HOVERED", ImGuiCol_HeaderHovered)
+        .value("HEADER_ACTIVE", ImGuiCol_HeaderActive)
+        .value("SEPARATOR", ImGuiCol_Separator)
+        .value("SEPARATOR_HOVERED", ImGuiCol_SeparatorHovered)
+        .value("SEPARATOR_ACTIVE", ImGuiCol_SeparatorActive)
+        .value("RESIZE_GRIP", ImGuiCol_ResizeGrip)
+        .value("RESIZE_GRIP_HOVERED", ImGuiCol_ResizeGripHovered)
+        .value("RESIZE_GRIP_ACTIVE", ImGuiCol_ResizeGripActive)
+        .value("TAB", ImGuiCol_Tab)
+        .value("TAB_HOVERED", ImGuiCol_TabHovered)
+        .value("TAB_ACTIVE", ImGuiCol_TabActive)
+        .value("TAB_UNFOCUSED", ImGuiCol_TabUnfocused)
+        .value("TAB_UNFOCUSED_ACTIVE", ImGuiCol_TabUnfocusedActive)
+        .value("DOCKING_PREVIEW", ImGuiCol_DockingPreview)
+        .value("DOCKING_EMPTY_BG", ImGuiCol_DockingEmptyBg)
+        .value("PLOT_LINES", ImGuiCol_PlotLines)
+        .value("PLOT_LINES_HOVERED", ImGuiCol_PlotLinesHovered)
+        .value("PLOT_HISTOGRAM", ImGuiCol_PlotHistogram)
+        .value("PLOT_HISTOGRAM_HOVERED", ImGuiCol_PlotHistogramHovered)
+        .value("TABLE_HEADER_BG", ImGuiCol_TableHeaderBg)
+        .value("TABLE_BORDER_STRONG", ImGuiCol_TableBorderStrong)
+        .value("TABLE_BORDER_LIGHT", ImGuiCol_TableBorderLight)
+        .value("TABLE_ROW_BG", ImGuiCol_TableRowBg)
+        .value("TABLE_ROW_BG_ALT", ImGuiCol_TableRowBgAlt)
+        .value("TEXT_SELECTED_BG", ImGuiCol_TextSelectedBg)
+        .value("DRAG_DROP_TARGET", ImGuiCol_DragDropTarget)
+        .value("NAV_HIGHLIGHT", ImGuiCol_NavHighlight)
+        .value("NAV_WINDOWING_HIGHLIGHT", ImGuiCol_NavWindowingHighlight)
+        .value("NAV_WINDOWING_DIM_BG", ImGuiCol_NavWindowingDimBg)
+        .value("MODAL_WINDOW_DIM_BG", ImGuiCol_ModalWindowDimBg);
+
+    py::enum_<ImGuiStyleVar_>(m, "StyleVar")
+        .value("ALPHA", ImGuiStyleVar_Alpha)
+        .value("DISABLED_ALPHA", ImGuiStyleVar_DisabledAlpha)
+        .value("WINDOW_PADDING", ImGuiStyleVar_WindowPadding)
+        .value("WINDOW_ROUNDING", ImGuiStyleVar_WindowRounding)
+        .value("WINDOW_BORDER_SIZE", ImGuiStyleVar_WindowBorderSize)
+        .value("WINDOW_MIN_SIZE", ImGuiStyleVar_WindowMinSize)
+        .value("WINDOW_TITLE_ALIGN", ImGuiStyleVar_WindowTitleAlign)
+        .value("CHILD_ROUNDING", ImGuiStyleVar_ChildRounding)
+        .value("CHILD_BORDER_SIZE", ImGuiStyleVar_ChildBorderSize)
+        .value("POPUP_ROUNDING", ImGuiStyleVar_PopupRounding)
+        .value("POPUP_BORDER_SIZE", ImGuiStyleVar_PopupBorderSize)
+        .value("FRAME_PADDING", ImGuiStyleVar_FramePadding)
+        .value("FRAME_ROUNDING", ImGuiStyleVar_FrameRounding)
+        .value("FRAME_BORDER_SIZE", ImGuiStyleVar_FrameBorderSize)
+        .value("ITEM_SPACING", ImGuiStyleVar_ItemSpacing)
+        .value("ITEM_INNER_SPACING", ImGuiStyleVar_ItemInnerSpacing)
+        .value("INDENT_SPACING", ImGuiStyleVar_IndentSpacing)
+        .value("CELL_PADDING", ImGuiStyleVar_CellPadding)
+        .value("SCROLL_BAR_SIZE", ImGuiStyleVar_ScrollbarSize)
+        .value("SCROLL_BAR_ROUNDING", ImGuiStyleVar_ScrollbarRounding)
+        .value("GRAB_MIN_SIZE", ImGuiStyleVar_GrabMinSize)
+        .value("GRAB_ROUNDING", ImGuiStyleVar_GrabRounding)
+        .value("TAB_ROUNDING", ImGuiStyleVar_TabRounding)
+        .value("BUTTON_TEXT_ALIGN", ImGuiStyleVar_ButtonTextAlign)
+        .value("SELECTABLE_TEXT_ALIGN", ImGuiStyleVar_SelectableTextAlign);
+
     /*
      * Imgui widgets
      */
@@ -234,6 +353,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
             assert_shape(size, {{2}});
             const float* data = size.data();
             ImGui::SetNextWindowSize({data[0], data[1]});
+        } else {
+            ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_Once);
         }
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_None;
@@ -266,13 +387,14 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("end_window", ImGui::End);
 
-    m.def("begin_child", [](std::string label, ImVec2 size, bool border){
+    m.def("begin_child", [](std::string label, ImVec2 size, bool border, ImGuiWindowFlags flags){
 
-        return ImGui::BeginChild(label.c_str(), size, border);
+        return ImGui::BeginChild(label.c_str(), size, border, flags);
     },
     py::arg("label"),
     py::arg("size") = ImVec2(0.0f, 0.0f),
-    py::arg("border") = false);
+    py::arg("border") = false,
+    py::arg("flags") = ImGuiWindowFlags_None);
 
     m.def("end_child", ImGui::EndChild);
 
@@ -424,6 +546,24 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("label"),
     py::arg("obj"));
 
+    m.def("get_input_cursor_index", [&](std::string label) {
+
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (nullptr == window) {
+            return -1;
+        }
+
+        const ImGuiID id = window->GetID(label.c_str());
+
+        ImGuiInputTextState* state = ImGui::GetInputTextState(id);
+        if (nullptr == state) {
+            return -1;
+        }
+
+        return state->Stb.cursor;
+    },
+    py::arg("label"));
+
     m.def("checkbox", [&](std::string label, bool& obj) {
         
         bool mod = ImGui::Checkbox(label.c_str(), &obj);
@@ -461,7 +601,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("max") = 1);
 
     m.def("drag", [&](std::string title, int& value, float speed, int min, int max) {
-        
+
         bool mod = ImGui::DragInt(title.c_str(), &value, speed, min, max);
         viz.setMod(mod);
 
@@ -689,6 +829,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("table_headers_row", &ImGui::TableHeadersRow);
 
+    m.def("table_setup_scroll_freeze", &ImGui::TableSetupScrollFreeze);
+
     /**
      * Imgui style functions
      */
@@ -696,6 +838,80 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("style_colors_dark", [&](){
         ImGui::StyleColorsDark();
         ImPlot::StyleColorsDark();
+    });
+
+    m.def("style_colors_imviz", [&](){
+
+        ImVec4* colors = ImGui::GetStyle().Colors;
+        colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+        colors[ImGuiCol_WindowBg]               = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+        colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_PopupBg]                = ImVec4(0.11f, 0.11f, 0.11f, 1.00f);
+        colors[ImGuiCol_Border]                 = ImVec4(0.215f, 0.215f, 0.215f, 0.50f);
+        colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg]                = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.39f, 0.39f, 0.39f, 0.67f);
+        colors[ImGuiCol_TitleBg]                = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.17f, 0.17f, 0.17f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
+        colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.02f, 0.02f, 0.02f, 0.00f);
+        colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+        colors[ImGuiCol_CheckMark]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_Button]                 = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_ButtonActive]           = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+        colors[ImGuiCol_Header]                 = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_HeaderActive]           = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+        colors[ImGuiCol_Separator]              = ImVec4(0.17f, 0.17f, 0.17f, 1.00f);
+        colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.27f, 0.27f, 0.27f, 0.78f);
+        colors[ImGuiCol_SeparatorActive]        = ImVec4(0.39f, 0.39f, 0.39f, 1.00f);
+        colors[ImGuiCol_ResizeGrip]             = ImVec4(0.20f, 0.20f, 0.20f, 0.20f);
+        colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.27f, 0.27f, 0.27f, 0.67f);
+        colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.39f, 0.39f, 0.39f, 0.95f);
+        colors[ImGuiCol_Tab]                    = ImVec4(0.20f, 0.20f, 0.20f, 0.86f);
+        colors[ImGuiCol_TabHovered]             = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_TabActive]              = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_TabUnfocused]           = ImVec4(0.07f, 0.07f, 0.07f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.17f, 0.17f, 0.17f, 1.00f);
+        colors[ImGuiCol_DockingPreview]         = ImVec4(0.26f, 0.59f, 0.98f, 0.70f);
+        colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+        colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+        colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+        colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+        colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+        colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+        colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.26f, 0.59f, 0.98f, 0.69f);
+        colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+        colors[ImGuiCol_NavHighlight]           = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        style.WindowRounding = 3;
+        style.ChildRounding = 0;
+        style.FrameRounding = 2;
+        style.PopupRounding = 3;
+        style.ScrollbarRounding = 9;
+        style.GrabRounding = 2;
+        style.TabRounding = 2;
+        style.FrameBorderSize = 1.0f;
+        style.TabBorderSize = 1.0f;
+        style.ScrollbarSize = 15.0f;
+        style.IndentSpacing = 19.0f;
     });
 
     m.def("style_colors_light", [&](){
@@ -814,6 +1030,12 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("size"),
     py::arg("cond") = ImGuiCond_None);
 
+    m.def("set_next_window_size_contraints", [](ImVec2 minSize, ImVec2 maxSize) {
+        ImGui::SetNextWindowSizeConstraints(minSize, maxSize);
+    },
+    py::arg("min_size"),
+    py::arg("max_size"));
+
     m.def("get_window_open", [&]() { 
         return viz.currentWindowOpen;
     });
@@ -893,6 +1115,16 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         return ImGui::IsItemHovered();
     });
 
+    m.def("is_mouse_clicked", [](int mouseButton) {
+        return ImGui::IsMouseClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
+    m.def("is_mouse_double_clicked", [](int mouseButton) {
+        return ImGui::IsMouseDoubleClicked(mouseButton);
+    },
+    py::arg("mouse_button") = 0);
+
     m.def("get_mouse_drag_delta", [](int mouseButton, float lockThreshold) {
         return ImGui::GetMouseDragDelta(mouseButton, lockThreshold);
     },
@@ -938,6 +1170,33 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("id"));
 
     m.def("get_item_id", ImGui::GetItemID);
+
+    /**
+     * Styling
+     */
+
+    m.def("push_style_color", [](ImGuiCol idx, py::handle& col){
+        ImVec4 color = interpretColor(col); 
+        ImGui::PushStyleColor(idx, color);
+    },
+    py::arg("idx"),
+    py::arg("col"));
+
+    m.def("pop_style_color", [](int count) {
+        ImGui::PopStyleColor(count);
+    }, 
+    py::arg("count") = 1);
+
+    m.def("push_style_var", [](ImGuiStyleVar idx, ImVec2 val){
+        ImGui::PushStyleVar(idx, val);
+    },
+    py::arg("idx"),
+    py::arg("val"));
+
+    m.def("pop_style_var", [](int count) {
+        ImGui::PopStyleVar(count);
+    }, 
+    py::arg("count") = 1);
 
     /**
      * Drag'n'drop
