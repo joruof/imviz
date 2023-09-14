@@ -3,8 +3,10 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <iostream>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 namespace fs = std::filesystem;
 
@@ -94,6 +96,7 @@ namespace ImGui {
                 sizeof(filenameInputBuf) - 1);
 
         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.8f);
+        ImGui::SetKeyboardFocusHere();
         ImGui::InputText("selected",
                 filenameInputBuf, IM_ARRAYSIZE(filenameInputBuf));
         ImGui::PopItemWidth();
@@ -121,10 +124,21 @@ namespace ImGui {
 
             if (!fileDialogOpen) {
                 currentPath = selectedPath;
+                currentPath = fs::absolute(currentPath);
+                while (!fs::exists(currentPath)) {
+                    currentPath = fs::path(currentPath).parent_path();
+                }
             }
-            fileDialogOpen = true;
 
             ImGui::PathSelector(currentPath);
+
+            // this depends on input being the last element in path selector
+            ImGuiWindow* window = GetCurrentWindow();
+            const ImGuiID id = window->GetID("selected");
+            ImGuiInputTextState* state = GetInputTextState(id);
+            std::cout << "output:" << state << std::endl;
+
+            fileDialogOpen = true;
 
             if (ImGui::Button(confirmLabel, ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
@@ -132,8 +146,6 @@ namespace ImGui {
                 selectedPath = currentPath;
                 result = true;
             }
-
-            ImGui::SetItemDefaultFocus();
 
             ImGui::SameLine();
 
