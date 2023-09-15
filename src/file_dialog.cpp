@@ -3,8 +3,10 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <iostream>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 namespace fs = std::filesystem;
 
@@ -16,9 +18,10 @@ namespace ImGui {
     void PathSelector (std::string& selectedPath) { 
 
         ImGui::BeginChild("Dir Listing",
-                ImVec2(500, 400),
+                ImVec2(600, 400),
                 false,
-                ImGuiWindowFlags_HorizontalScrollbar);
+                ImGuiWindowFlags_HorizontalScrollbar
+                | ImGuiWindowFlags_NoResize);
 
         if (ImGui::Selectable("./..", false)) {
             if (!fs::is_directory(selectedPath) 
@@ -87,18 +90,27 @@ namespace ImGui {
 
         ImGui::EndChild();
 
-        char filenameInputBuf[256];
+        char filenameInputBuf[1024];
 
         strncpy(filenameInputBuf, 
                 selectedPath.c_str(), 
                 sizeof(filenameInputBuf) - 1);
 
-        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.8f);
+        float width = 600 * 0.8f;
+        ImGui::PushItemWidth(width);
         ImGui::InputText("selected",
                 filenameInputBuf, IM_ARRAYSIZE(filenameInputBuf));
         ImGui::PopItemWidth();
 
         selectedPath = std::string(filenameInputBuf);
+    }
+
+    bool IsItemActivePreviousFrame()
+    {
+        ImGuiContext& g = *GImGui;
+        if (g.ActiveIdPreviousFrame)
+            return g.ActiveIdPreviousFrame == GImGui->LastItemData.ID;
+        return false;
     }
 
     bool FileDialogPopup (
@@ -121,30 +133,58 @@ namespace ImGui {
 
             if (!fileDialogOpen) {
                 currentPath = selectedPath;
+                currentPath = fs::absolute(currentPath);
+                while (!fs::exists(currentPath)) {
+                    currentPath = fs::path(currentPath).parent_path();
+                }
             }
-            fileDialogOpen = true;
+
+            std::string basedir;
+            if (!fs::is_directory(currentPath)
+                    || fs::path(currentPath).filename().empty()) {
+                basedir = fs::path(currentPath)
+                    .parent_path()
+                    .filename();
+            } else {
+                basedir = fs::path(currentPath).filename();
+            }
+
+            ImGui::Text("%s", ("Directory: " + basedir).c_str());
+            ImGui::Separator();
 
             ImGui::PathSelector(currentPath);
 
-            if (ImGui::Button(confirmLabel, ImVec2(120, 0))) {
+            bool pressed_enter = IsItemActivePreviousFrame()
+                                 && !IsItemActive()
+                                 && IsKeyPressed(ImGuiKey_Enter);
+            pressed_enter = pressed_enter
+                            || IsKeyPressed(ImGuiKey_Enter);
+
+            bool pressed_escape = IsItemActivePreviousFrame()
+                                  && !IsItemActive()
+                                  && IsKeyPressed(ImGuiKey_Escape);
+            pressed_escape = pressed_escape
+                             || IsKeyPressed(ImGuiKey_Escape);
+
+            fileDialogOpen = true;
+
+            if (pressed_enter || ImGui::Button(confirmLabel, ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
                 fileDialogOpen = false;
                 selectedPath = currentPath;
                 result = true;
             }
 
-            ImGui::SetItemDefaultFocus();
-
             ImGui::SameLine();
 
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            if (pressed_escape || ImGui::Button("Cancel", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
                 fileDialogOpen = false;
                 result = false;
             }
 
             ImGui::EndPopup();
-        } 
+        }
 
         return result;
     }

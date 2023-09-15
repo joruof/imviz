@@ -9,11 +9,12 @@ this module as a reference for your own (development) main module.
 """
 
 import argparse
+import minireload as mr
 
 # i like this
 from pydoc import locate
 
-from imviz.dev import loop
+from imviz.dev import build_launcher
 
 
 def main():
@@ -39,7 +40,9 @@ def main():
         print(f"Could not find class {args.class_name}")
         return
 
-    loop(cls, args.func_name)
+    imviz_launcher = build_launcher(cls, args.func_name)
+
+    mr.loop(imviz_launcher, "loop", "exc_func")
 
 
 if __name__ == "__main__":
