@@ -9,7 +9,6 @@
 
 #include "implot.h"
 #include "implot_internal.h"
-
 #include "im_user_config.h"
 
 #include "imviz.hpp"

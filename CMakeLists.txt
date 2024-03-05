@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.0)
 project(cppimviz)
 
 # Exports compile commands to .json file for vim YouCompleteMe support.
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Sometimes helps to find the right python version.
+set(PYBIND11_FINDPYTHON ON)
 
 set(PY_TARGET_NAME "${PROJECT_NAME}")
 
@@ -31,7 +33,7 @@ include(FetchContent)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY "https://github.com/ocornut/imgui"
-    GIT_TAG "c191faf0ba478e9c58a69c63306986a21ebfb6e4"
+    GIT_TAG "c6aa051629753f0ef0d26bf775a8b6a92aa213b2"
 )
 
 message(STATUS "Loading imgui ...")
@@ -40,7 +42,7 @@ FetchContent_MakeAvailable(imgui)
 FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "d87512353495e7760e7fda7566a05beef7627d8f"
+    GIT_TAG "f156599faefe316f7dd20fe6c783bf87c8bb6fd9"
 )
 
 message(STATUS "Loading implot ...")
@@ -49,7 +51,7 @@ FetchContent_MakeAvailable(implot)
 FetchContent_Declare(
     pybind
     GIT_REPOSITORY "https://github.com/pybind/pybind11"
-    GIT_TAG "v2.10.0"
+    GIT_TAG "v2.11.1"
 )
 
 message(STATUS "Loading pybind ...")

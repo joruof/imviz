@@ -5,12 +5,14 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
-#include "implot_internal.h"
-#include "implot_ext.hpp"
-#include <imgui.h>
-#include <implot.h>
+
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+
+#include "imgui.h"
+#include "implot.h"
+#include "implot_internal.h"
+#include "implot_ext.hpp"
 
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
@@ -35,7 +37,6 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_INPUTS", ImPlotFlags_NoInputs)
         .value("NO_MENUS", ImPlotFlags_NoMenus)
         .value("NO_BOX_SELECT", ImPlotFlags_NoBoxSelect)
-        .value("NO_CHILD", ImPlotFlags_NoChild)
         .value("EQUAL", ImPlotFlags_Equal)
         .value("CROSSHAIRS", ImPlotFlags_Crosshairs)
         .value("CANVAS_ONLY", ImPlotFlags_CanvasOnly);

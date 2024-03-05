@@ -119,7 +119,7 @@ class CMakeBuild(build_ext):
 
 
 setup(name="imviz",
-      version="0.2.3",
+      version="0.2.4",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
@@ -128,7 +128,7 @@ setup(name="imviz",
       zip_safe=False,
       long_description=Path('README.md').read_text('utf-8'),
       long_description_content_type="text/markdown",
-      python_requires=">=3.6",
+      python_requires=">=3.8",
       packages=find_packages(),
       ext_modules=[CMakeExtension("cppimviz")],
       cmdclass=dict(build_ext=CMakeBuild, install=Install),

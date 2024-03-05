@@ -1,25 +1,20 @@
 #include "bindings_implot.hpp"
-
 #include "binding_helpers.hpp"
 #include "imviz.hpp"
-#include <pybind11/pybind11.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
-#include <imgui.h>
-#include <pybind11/pytypes.h>
 #include <sstream>
 #include <iomanip>
 
-#ifndef IMGUI_DEFINE_MATH_OPERATORS
-#define IMGUI_DEFINE_MATH_OPERATORS
-#endif
+#include <pybind11/pytypes.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
+#include "imgui.h"
 #include "imgui_internal.h"
 #include "implot_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
-
-#include "pybind11/stl.h"
 
 static py::object dragDropRef = py::none();
 static int dragDropClearCounter = 0;

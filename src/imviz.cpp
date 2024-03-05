@@ -79,6 +79,8 @@ void ImViz::reloadFonts () {
 
         io.Fonts->Clear();
 
+        ImGui_ImplOpenGL3_DestroyFontsTexture();
+
         smallFont = io.Fonts->AddFontFromMemoryCompressedTTF(
                 getSourceSansProData(),
                 getSourceSansProSize(),
