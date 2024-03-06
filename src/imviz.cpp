@@ -1,5 +1,10 @@
 #include "imviz.hpp"
 
+#define EGL_EGLEXT_PROTOTYPES
+#include <GL/glew.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+
 #include <imgui.h>
 #include <iostream>
 
@@ -22,44 +27,134 @@ void ImViz::init() {
         return;
     }
 
-    if (!glfwInit()) {
-        std::cout << "Could not initialize GLFW!" << std::endl;
-        std::exit(-1);
+    if (glfwInit()) {
+
+        glfwSetErrorCallback(error_callback);
+
+        glfwWindowHint(GLFW_SAMPLES, 4);
+        glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+
+        // Required on MacOS
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+
+        window = glfwCreateWindow(
+                800,
+                600,
+                "imviz",
+                nullptr,
+                nullptr);
+
+        if (!window) {
+            printf("Window creation failed!\n");
+            exit(1);
+        }
+
+        glfwMakeContextCurrent(window);
+    } else {
+
+        /**
+         * First we need to open an EGL display.
+         *
+         * For some reason we cannot simple call eglGetDisplay(...) in docker.
+         * Instead we need to do the following:
+         */
+
+        static const int MAX_DEVICES = 32;
+        EGLDeviceEXT eglDevs[MAX_DEVICES];
+        EGLint numDevices;
+
+        PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT =
+          (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
+
+        eglQueryDevicesEXT(MAX_DEVICES, eglDevs, &numDevices);
+
+        if (0 == numDevices) {
+            throw std::runtime_error("Found 0 EGL capable devices!");
+        }
+
+        PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT =
+          (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress(
+              "eglGetPlatformDisplayEXT");
+
+        const char* selectedDevice = std::getenv("CUDA_VISIBLE_DEVICES");
+        size_t gpuId = 0;
+
+        if (selectedDevice != nullptr) {
+            gpuId = (size_t)std::min(MAX_DEVICES, std::stoi(selectedDevice));
+        }
+
+        EGLDisplay eglDpy =
+          eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[gpuId], 0);
+
+        if (0 == eglDpy) {
+            throw std::runtime_error("EGL display creation has failed!");
+        }
+
+        // ok we got our virtual display, initialize
+
+        EGLint major = 0;
+        EGLint minor = 0;
+
+        if (!eglInitialize(eglDpy, &major, &minor)) {
+            throw std::runtime_error("EGL initialization has failed!");
+        }
+
+        // create virtual surface for rendering
+
+        EGLint numConfigs;
+        EGLConfig eglCfg;
+
+        const EGLint configAttribs[] = {
+              EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+              EGL_BLUE_SIZE, 8,
+              EGL_GREEN_SIZE, 8,
+              EGL_RED_SIZE, 8,
+              EGL_DEPTH_SIZE, 8,
+              EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+              EGL_NONE
+        };
+
+        const EGLint pbufferAttribs[] = {
+            EGL_WIDTH, 1920,
+            EGL_HEIGHT, 1080,
+            EGL_NONE,
+        };
+
+        eglChooseConfig(eglDpy, configAttribs, &eglCfg, 1, &numConfigs);
+        EGLSurface eglSurf = eglCreatePbufferSurface(
+                eglDpy, eglCfg, pbufferAttribs);
+
+        if (0 == eglSurf) {
+            throw std::runtime_error("EGL surface creation has failed!");
+        }
+
+        eglBindAPI(EGL_OPENGL_API);
+
+        // create opengl context
+
+        EGLContext eglCtx = eglCreateContext(
+                eglDpy, eglCfg, EGL_NO_CONTEXT, NULL);
+        eglMakeCurrent(eglDpy, eglSurf, eglSurf, eglCtx);
+
+        if (0 == eglCtx) {
+            throw std::runtime_error("EGL context creation has failed!");
+        }
     }
-
-    glfwSetErrorCallback(error_callback);
-
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
-
-    // Required on MacOS
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-
-    window = glfwCreateWindow(
-            800,
-            600,
-            "imviz",
-            nullptr,
-            nullptr);
-
-    if (!window) {
-        printf("Window creation failed!\n");
-        exit(1);
-    }
-
-    glfwMakeContextCurrent(window);
 
     glewExperimental = true;
 
-    if (GLEW_OK != glewInit()) {
-        std::cout << "GL Extension Wrangler initialization failed!"
-                  << std::endl;
-        std::exit(-1);
+    GLenum initResult = glewInit();
+
+    // Complaining about having no GLX display, is ok in EGL mode,
+    // as there is (by definition) no X-Server involved.
+    if (GLEW_ERROR_NO_GLX_DISPLAY != initResult && GLEW_OK != initResult) {
+        throw std::runtime_error("GLEW initialization with EGL has failed!");
     }
 
     setupImLibs();
@@ -67,6 +162,34 @@ void ImViz::init() {
     prepareUpdate();
 
     this->initialized = true;
+}
+
+void ImViz::setWindowSize(ImVec2 size) {
+
+    if (nullptr != window) {
+        glfwSetWindowSize(window, (int)size.x, (int)size.y);
+    } else {
+        eglWindowWidth = (int)size.x;
+        eglWindowHeight = (int)size.y;
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = size;
+    }
+}
+
+ImVec2 ImViz::getWindowSize() {
+
+    int w = 0;
+    int h = 0;
+
+    if (nullptr != window) {
+        glfwGetWindowSize(window, &w, &h);
+    } else {
+        w = eglWindowWidth;
+        h = eglWindowHeight;
+    }
+
+    return ImVec2(w, h);
 }
 
 void ImViz::reloadFonts () {
@@ -97,7 +220,7 @@ void ImViz::reloadFonts () {
 
 void ImViz::setupImLibs() {
 
-    if (imGuiCtx != nullptr) {
+    if (imGuiCtx != nullptr && window != nullptr) {
         ImGui_ImplGlfw_Shutdown();
     }
     if (imGuiCtx != nullptr) { 
@@ -109,7 +232,9 @@ void ImViz::setupImLibs() {
 
     // input setup
     
-    input::registerCallbacks(window);
+    if (window != nullptr) {
+        input::registerCallbacks(window);
+    }
 
     // basic imgui setup
 
@@ -125,7 +250,11 @@ void ImViz::setupImLibs() {
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.IniFilename = NULL;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    if (window != nullptr) {
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+    } else {
+        io.DisplaySize = ImVec2(eglWindowWidth, eglWindowHeight);
+    }
     ImGui_ImplOpenGL3_Init("#version 330");
 
     io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
@@ -149,7 +278,9 @@ void ImViz::prepareUpdate() {
     reloadFonts();
 
     ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
+    if (window != nullptr) {
+        ImGui_ImplGlfw_NewFrame();
+    }
     ImGui::NewFrame();
 
     // dock space
@@ -190,7 +321,9 @@ void ImViz::doUpdate (bool useVsync) {
 
     currentWindowOpen = false;
 
-    glfwShowWindow(window);
+    if (nullptr != window) {
+        glfwShowWindow(window);
+    }
 
     // Try soft error recovery. At first we do not destroy the imgui context.
     // If recover fails, the second recovery stage will recreate the context.
@@ -218,17 +351,23 @@ void ImViz::doUpdate (bool useVsync) {
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     int display_w, display_h;
-    glfwMakeContextCurrent(window);
-    glfwGetFramebufferSize(window, &display_w, &display_h);
+    if (nullptr != window) {
+        glfwMakeContextCurrent(window);
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+    } else {
+        display_w = eglWindowWidth;
+        display_h = eglWindowHeight;
+    }
 
     glViewport(0, 0, display_w, display_h);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    glfwMakeContextCurrent(window);
-
-    glfwSwapInterval(useVsync);
-    glfwSwapBuffers(window);
+    if (nullptr != window) {
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(useVsync);
+        glfwSwapBuffers(window);
+    }
 
     ImGuiIO& io = ImGui::GetIO();
 

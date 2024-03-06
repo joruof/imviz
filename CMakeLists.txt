@@ -194,6 +194,7 @@ else()
 
     target_link_libraries(${PY_TARGET_NAME} PUBLIC
                             ${OPENGL_LIBRARIES}
+                            ${OPENGL_egl_LIBRARY}
                             ${GLEW_LIBRARIES}
                             stdc++fs
                             pybind11::module
