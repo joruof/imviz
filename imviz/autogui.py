@@ -266,6 +266,8 @@ class AutoguiContext:
         else:
             if len(name) == 0:
                 viz.text(f"{name}: " + "???")
+            if tree_open:
+                viz.tree_pop()
             return obj
 
         obj_annots = getattr(obj, "__annotations__", {})
