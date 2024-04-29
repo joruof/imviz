@@ -226,6 +226,8 @@ class AutoguiContext:
             attr_dict = {n: getattr(obj, n) for n in obj.__slots__}
         elif isinstance(obj, dict):
             attr_dict = obj
+        elif isinstance(obj, set):
+            attr_dict = {i: n for i, n in enumerate(obj)}
         elif hasattr(obj, "__len__") and hasattr(obj, "__getitem__"):
             if tree_open:
                 for i in range(len(obj)):
