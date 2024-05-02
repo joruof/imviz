@@ -3,8 +3,6 @@
 Pythonic bindings for the great [imgui](https://github.com/ocornut/imgui) and
 [implot](https://github.com/epezent/implot) libraries.
 
-**This is work in progress and at a very early state.**
-
 ## What?
 
 The goal of this project is to create bindings, which map the immediate mode
@@ -39,7 +37,7 @@ utterly incapable (also me) to deal with application state management in PyQt
 OpenGL libraries, GLFW, and GLEW are mandatory dependencies and are expected
 to be installed on the system.
 
-On Ubuntu 20.04 OpenGL libraries are already installed and GLFW, GLEW can be
+On Ubuntu 22.04 OpenGL libraries are already installed and GLFW, GLEW can be
 installed with:
 
 ```
