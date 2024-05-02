@@ -1,4 +1,5 @@
 #include "imviz.hpp"
+#include <stdexcept>
 
 #define EGL_EGLEXT_PROTOTYPES
 #include <GL/glew.h>
@@ -51,12 +52,13 @@ void ImViz::init() {
                 nullptr);
 
         if (!window) {
-            printf("Window creation failed!\n");
+            throw std::runtime_error("GLFW window creation failed!\n");
             exit(1);
         }
 
         glfwMakeContextCurrent(window);
     } else {
+        std::cerr << "Cannot initialize GLFW, using headless mode" << std::endl;
 
         /**
          * First we need to open an EGL display.
