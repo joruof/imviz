@@ -16,7 +16,7 @@ struct ImViz {
 
     ImFont* smallFont = nullptr;
     ImFont* largeFont = nullptr;
-    double fontBaseSize = 20.0;
+    float fontBaseSize = 20.0;
 
     ImGuiID mainDockSpaceId;
 
@@ -47,4 +47,12 @@ struct ImViz {
     void recover();
     void trigger();
     void setMod(bool m);
+
+    void setWindowSize(ImVec2 size);
+    ImVec2 getWindowSize();
+
+private:
+
+    int eglWindowWidth = 800;
+    int eglWindowHeight = 600;
 };

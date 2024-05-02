@@ -9,7 +9,6 @@
 
 #include "implot.h"
 #include "implot_internal.h"
-
 #include "im_user_config.h"
 
 #include "imviz.hpp"
@@ -49,59 +48,66 @@ PYBIND11_MODULE(cppimviz, m) {
      */
 
     m.def("set_main_window_title", [&](std::string title) {
-        glfwSetWindowTitle(viz.window, title.c_str());
+        if (nullptr != viz.window) {
+            glfwSetWindowTitle(viz.window, title.c_str());
+        }
     },
     py::arg("title"));
 
     m.def("set_main_window_size", [&](ImVec2 size) {
-        glfwSetWindowSize(viz.window, size.x, size.y);
+        viz.setWindowSize(size);
     },
     py::arg("size"));
+
+    m.def("get_main_window_size", [&]() {
+        return viz.getWindowSize();
+    });
 
     m.def("enter_fullscreen", [&]() {
 
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-        glfwSetWindowMonitor(viz.window, monitor,
-                             0, 0,
-                             mode->width, mode->height,
-                             mode->refreshRate);
+        if (nullptr != viz.window) {
+            glfwSetWindowMonitor(viz.window, monitor,
+                                 0, 0,
+                                 mode->width, mode->height,
+                                 mode->refreshRate);
+        }
     });
 
     m.def("leave_fullscreen", [&]() {
-        glfwSetWindowMonitor(viz.window, nullptr, 0, 0, 800, 600, 0);
-    });
-
-    m.def("get_main_window_size", [&]() {
-        int w, h;
-        glfwGetWindowSize(viz.window, &w, &h);
-        return ImVec2(w, h);
+        if (nullptr != viz.window) {
+            glfwSetWindowMonitor(viz.window, nullptr, 0, 0, 800, 600, 0);
+        }
     });
 
     m.def("set_main_window_pos", [&](ImVec2 pos) {
-        glfwSetWindowPos(viz.window, pos.x, pos.y);
+        if (nullptr != viz.window) {
+            glfwSetWindowPos(viz.window, pos.x, pos.y);
+        }
     },
     py::arg("size"));
 
     m.def("get_main_window_pos", [&]() {
-        int x, y;
-        glfwGetWindowPos(viz.window, &x, &y);
+        int x = 0;
+        int y = 0;
+        if (nullptr != viz.window) {
+            glfwGetWindowPos(viz.window, &x, &y);
+        }
         return ImVec2(x, y);
     });
 
-    m.def("get_main_window_size", [&]() {
-        int w, h;
-        glfwGetWindowSize(viz.window, &w, &h);
-        return ImVec2(w, h);
-    });
-
     m.def("hide_main_window", [&]() {
-        glfwHideWindow(viz.window);
+        if (nullptr != viz.window) {
+            glfwHideWindow(viz.window);
+        }
     });
 
     m.def("show_main_window", [&]() {
-        glfwShowWindow(viz.window);
+        if (nullptr != viz.window) {
+            glfwShowWindow(viz.window);
+        }
     });
 
     m.def("set_main_window_icon", [&](array_like<uint8_t> icon) {
@@ -113,7 +119,9 @@ PYBIND11_MODULE(cppimviz, m) {
         img.width = icon.shape(1);
         img.pixels = icon.mutable_data();
 
-        glfwSetWindowIcon(viz.window, 1, &img);
+        if (nullptr != viz.window) {
+            glfwSetWindowIcon(viz.window, 1, &img);
+        }
     },
     R"raw(
     This sets the icon of the main window shown in e.g. taskbars.
@@ -404,7 +412,11 @@ PYBIND11_MODULE(cppimviz, m) {
 
             viz.prepareUpdate();
 
-            return !glfwWindowShouldClose(viz.window);
+            if (viz.window != nullptr) {
+                return !glfwWindowShouldClose(viz.window);
+            } else {
+                return true;
+            }
         }
 
         input::update();
@@ -422,7 +434,10 @@ PYBIND11_MODULE(cppimviz, m) {
         }
 
         viz.prepareUpdate();
-        return !glfwWindowShouldClose(viz.window);
+        if (viz.window != nullptr) {
+            return !glfwWindowShouldClose(viz.window);
+        }
+        return true;
     },
     R"raw(
     This is the main update function of imviz.
@@ -457,8 +472,7 @@ PYBIND11_MODULE(cppimviz, m) {
 
         py::array_t<uint8_t> pixels({height, width, 4});
 
-        int w, h;
-        glfwGetWindowSize(viz.window, &w, &h);
+        int h = (int)viz.getWindowSize().y;
 
         glReadPixels(
                 x, h - y - height,
