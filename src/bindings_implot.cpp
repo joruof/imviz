@@ -884,6 +884,9 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("flags") = ImPlotLineFlags_None);
 
     m.def("is_plot_selected", ImPlot::IsPlotSelected);
+    m.def("is_plot_hovered", ImPlot::IsPlotHovered);
+    m.def("is_subplots_hovered", ImPlot::IsSubplotsHovered);
+    m.def("is_axis_hovered", ImPlot::IsAxisHovered);
 
     m.def("is_plot_item_hidden", [&](std::string& label_id) {
         ImPlotContext& gp = *GImPlot;
