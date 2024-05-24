@@ -119,7 +119,7 @@ class CMakeBuild(build_ext):
 
 
 setup(name="imviz",
-      version="0.2.4",
+      version="0.2.5",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
