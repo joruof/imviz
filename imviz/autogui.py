@@ -19,7 +19,7 @@ def list_item_context(obj, name, ctx):
 
     i = ctx.path[-1]
 
-    if viz.begin_popup_context_item():
+    if viz.get_item_id() > 0 and viz.begin_popup_context_item():
         if hasattr(ctx.parents[-1], "insert"):
             if viz.menu_item("Duplicate"):
                 ctx.duplicate_item = i
