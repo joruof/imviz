@@ -33,7 +33,7 @@ include(FetchContent)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY "https://github.com/ocornut/imgui"
-    GIT_TAG "c6aa051629753f0ef0d26bf775a8b6a92aa213b2"
+    GIT_TAG "v1.90.6-docking"
 )
 
 message(STATUS "Loading imgui ...")
@@ -42,7 +42,7 @@ FetchContent_MakeAvailable(imgui)
 FetchContent_Declare(
     implot
     GIT_REPOSITORY "https://github.com/epezent/implot"
-    GIT_TAG "f156599faefe316f7dd20fe6c783bf87c8bb6fd9"
+    GIT_TAG "v0.16"
 )
 
 message(STATUS "Loading implot ...")
