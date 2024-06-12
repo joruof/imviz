@@ -128,6 +128,7 @@ set(SOURCE_FILES
     ./src/bindings_implot.cpp
     ./src/bindings_imgui.cpp
     ./src/source_sans_pro.cpp
+    ./src/fa_solid_900.cpp
     ./src/implot_ext.cpp
    )
 
@@ -139,6 +140,7 @@ set(HEADER_FILES
     ./src/bindings_implot.hpp
     ./src/bindings_imgui.hpp
     ./src/source_sans_pro.hpp
+    ./src/fa_solid_900.hpp
     )
 
 # Builds the python bindings module.

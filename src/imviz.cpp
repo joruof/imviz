@@ -11,6 +11,7 @@
 
 #include "input.hpp"
 #include "source_sans_pro.hpp"
+#include "fa_solid_900.hpp"
 
 #include "imgui_internal.h"
 #include "implot_internal.h"
@@ -199,7 +200,7 @@ void ImViz::reloadFonts () {
     ImGuiIO& io = ImGui::GetIO();
 
     if (smallFont == nullptr
-        || largeFont == nullptr
+        || iconFont == nullptr
         || smallFont->FontSize != fontBaseSize) {
 
         io.Fonts->Clear();
@@ -211,10 +212,21 @@ void ImViz::reloadFonts () {
                 getSourceSansProSize(),
                 fontBaseSize);
 
-        largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(
-                getSourceSansProData(),
-                getSourceSansProSize(),
-                100.0);
+        const float iconFontSize = fontBaseSize * 2.0f / 3.0f;
+
+        ImFontConfig iconsConfig;
+        iconsConfig.MergeMode = true;
+        iconsConfig.PixelSnapH = true;
+        iconsConfig.GlyphMinAdvanceX = iconFontSize*1.3;
+
+        static const ImWchar iconsRanges[] = {0xe005, 0xf8ff, 0};
+
+        iconFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+                getFontAwesomeSolid900Data(),
+                getFontAwesomeSolid900Size(),
+                iconFontSize,
+                &iconsConfig,
+                iconsRanges);
 
         ImGui_ImplOpenGL3_CreateFontsTexture();
     }

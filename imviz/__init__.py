@@ -66,6 +66,7 @@ configure_ini_path(__main__)
 from imviz.common import *
 from imviz.autogui import autogui_func as autogui
 from imviz.autogui import AutoguiContext
+from imviz.icon import Icon
 
 import imviz.dev
 import imviz.task
