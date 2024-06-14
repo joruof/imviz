@@ -41,9 +41,9 @@ class AutoguiContext:
                  annotation=None,
                  ignore_custom=False):
 
-        self.params = params
-        self.path = path
-        self.parents = parents
+        self.params = {**params}
+        self.path = [*path]
+        self.parents = [*parents]
         self.annotation = annotation
         self.ignore_custom = ignore_custom
 
