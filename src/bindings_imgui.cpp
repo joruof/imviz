@@ -337,7 +337,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                        bool scrollbar,
                        bool scrollWithMouse,
                        bool collapse,
-                       bool autoResize) {
+                       bool autoResize,
+                       bool menuBar) {
 
         if (position.shape()[0] > 0) { 
             assert_shape(position, {{2}});
@@ -361,6 +362,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         flags |= ImGuiWindowFlags_NoScrollWithMouse * !scrollWithMouse;
         flags |= ImGuiWindowFlags_NoCollapse * !collapse;
         flags |= ImGuiWindowFlags_AlwaysAutoResize * autoResize;
+        flags |= ImGuiWindowFlags_MenuBar * menuBar;
 
         viz.currentWindowOpen = opened;
 
@@ -378,7 +380,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("scrollbar") = true,
     py::arg("scroll_with_mouse") = true,
     py::arg("collapse") = true,
-    py::arg("auto_resize") = false);
+    py::arg("auto_resize") = false,
+    py::arg("menu_bar") = true);
 
     m.def("end_window", ImGui::End);
 
