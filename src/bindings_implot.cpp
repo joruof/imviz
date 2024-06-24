@@ -492,10 +492,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_bars", [&](array_like<double> x,
                            array_like<double> y,
                            std::string label,
-                           double bar_size,
-                           double offset,
-                           bool horizontal,
                            py::handle& color,
+                           double bar_size,
                            ImPlotBarsFlags flags) {
 
         PlotArrayInfo pai = interpretPlotArrays(x, y);
@@ -508,17 +506,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                          pai.yDataPtr,
                          pai.count,
                          bar_size,
-                         horizontal ? ImPlotBarsFlags_Horizontal : ImPlotBarsFlags_None,
-                         offset,
                          flags);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("label") = "",
-    py::arg("bar_size") = 0.5,
-    py::arg("offset") = 0.0,
-    py::arg("horizontal") = false,
     py::arg("color") = ImVec4(0.0f, 0.0f, 0.0f, -1.0f),
+    py::arg("bar_size") = 0.5,
     py::arg("flags") = ImPlotBarsFlags_None);
 
     m.def("plot_image", [&](
