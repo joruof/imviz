@@ -424,30 +424,26 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             }
         }
 
+        ImPlotMarker markerStyle = ImPlotMarker_None;
         if (groups[2] == "o") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
+            markerStyle = ImPlotMarker_Circle;
         } else if (groups[2] == "s") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Square);
+            markerStyle = ImPlotMarker_Square;
         } else if (groups[2] == "d") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Diamond);
+            markerStyle = ImPlotMarker_Diamond;
         } else if (groups[2] == "+") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Cross);
+            markerStyle = ImPlotMarker_Cross;
         } else if (groups[2] == "*") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Asterisk);
-        } else {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
+            markerStyle = ImPlotMarker_Asterisk;
         }
 
-        // set style vars
-
-        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
- 
         bool isArray = false;
         ImVec4 ic = interpretColor(color, &isArray);
 
+        // set style vars
+
         ImPlot::SetNextLineStyle(ic, lineWeight);
+        ImPlot::SetNextMarkerStyle(markerStyle, markerSize, ic, markerWeight, ic);
 
         if (isArray) {
             ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-", flags);
@@ -480,8 +476,6 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 }
             }
         }
-
-        ImPlot::PopStyleVar(4);
     },
     py::arg("x"),
     py::arg("y") = py::array(),

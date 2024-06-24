@@ -381,7 +381,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("scroll_with_mouse") = true,
     py::arg("collapse") = true,
     py::arg("auto_resize") = false,
-    py::arg("menu_bar") = true);
+    py::arg("menu_bar") = false);
 
     m.def("end_window", ImGui::End);
 
