@@ -54,6 +54,10 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_CLIP", ImPlotLineFlags_NoClip)
         .value("SHADED", ImPlotLineFlags_Shaded);
 
+    py::enum_<ImPlotInfLinesFlags_>(m, "PlotInfLineFlags", py::arithmetic())
+        .value("NONE", ImPlotInfLinesFlags_None)
+        .value("HORIZONTAL", ImPlotInfLinesFlags_Horizontal);
+
     py::enum_<ImPlotBarsFlags_>(m, "PlotBarsFlags", py::arithmetic())
         .value("NONE", ImPlotBarsFlags_None)
         .value("HORIZONTAL", ImPlotBarsFlags_Horizontal);
@@ -632,39 +636,44 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
                             py::handle color,
-                            float width) {
+                            float width,
+                            ImPlotInfLinesFlags flags) {
 
         assert_shape(xs, {{-1}});
 
-        ImVec4 c = interpretColor(color);
+        flags &= ~ImPlotInfLinesFlags_Horizontal;
 
+        ImVec4 c = interpretColor(color);
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotInfLines(label.c_str(), xs.data(), xs.shape(0));
+        ImPlot::PlotInfLines(label.c_str(), xs.data(), xs.shape(0), flags);
     },
     py::arg("label"),
     py::arg("xs"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotInfLinesFlags_None);
 
     m.def("plot_hlines", [&](std::string label,
                             array_like<double> ys,
                             py::handle color,
-                            float width) {
+                            float width,
+                            ImPlotInfLinesFlags flags) {
 
         assert_shape(ys, {{-1}});
 
-        ImVec4 c = interpretColor(color);
+        flags |= ImPlotInfLinesFlags_Horizontal;
 
+        ImVec4 c = interpretColor(color);
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotInfLines(label.c_str(), ys.data(), ys.shape(0),
-                             ImPlotInfLinesFlags_Horizontal);
+        ImPlot::PlotInfLines(label.c_str(), ys.data(), ys.shape(0), flags);
     },
     py::arg("label"),
     py::arg("ys"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotInfLinesFlags_None);
 
     m.def("drag_vline", [&](std::string label,
                             double x,
