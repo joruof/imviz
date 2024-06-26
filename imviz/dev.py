@@ -12,9 +12,8 @@ import minireload as mr
 def launch(cls, func_name):
 
     obj = cls()
-    func = mr.WrappingReloader(getattr(obj, func_name))
+    func = mr.WrappingReloader(getattr(obj, func_name), retry_after_secs=0.01)
 
-    viz.configure_ini_path(sys.modules[cls.__module__])
     dbg_view = ImvizDebugView(obj)
 
     while True:
