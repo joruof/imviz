@@ -15,6 +15,8 @@ import __main__
 import imviz as viz
 
 from contextlib import contextmanager
+
+import objtoolbox as otb
 from objtoolbox import bundle
 
 
@@ -85,7 +87,7 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
         AUTOSAVE_TIME[path] = -1
 
     if AUTOSAVE_TIME[path] < 0:
-        viz.storage.load(obj, path)
+        otb.load(obj, path)
         AUTOSAVE_TIME[path] = time.time()
 
     viz.push_mod_any()
@@ -98,7 +100,7 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
 
     if AUTOSAVE_REQ[path] and (time.time() - AUTOSAVE_TIME[path]) > timeout:
         AUTOSAVE_REQ[path] = False
-        viz.storage.save(obj, path)
+        otb.save(obj, path)
 
 
 class Selection():

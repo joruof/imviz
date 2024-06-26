@@ -7,7 +7,7 @@ import traceback
 import imviz as viz
 import numpy as np
 
-from imviz.storage import ext_setattr
+from objtoolbox import ext_setattr
 
 
 def autogui_func(obj, name="", **params):

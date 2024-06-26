@@ -262,12 +262,6 @@ class Demo:
 
                 viz.tree_pop()
 
-            if viz.tree_node("Dataframe"):
-
-                viz.dataframe(s.frame, "dataframe", s.frame_selection)
-
-                viz.tree_pop()
-
             if viz.tree_node("Plotting"):
 
                 sc = viz.get_pixels(0, 0, 300, 300)
@@ -457,16 +451,6 @@ class Demo:
                         viz.drag(f"###{i},{j}", 0.0)
                         if j < 9:
                             viz.same_line()
-
-                viz.tree_pop()
-
-            if viz.tree_node("Storage"):
-
-                if viz.button("save"):
-                    viz.storage.save(s, "./config")
-                viz.same_line()
-                if viz.button("load"):
-                    viz.storage.load(s, "./config")
 
                 viz.tree_pop()
 
