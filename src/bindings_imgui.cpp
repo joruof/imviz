@@ -957,6 +957,12 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("window_name"),
     py::arg("node_id"));
 
+    m.def("dock_builder_set_node_size", [](ImGuiID nodeId, ImVec2 size) {
+              ImGui::DockBuilderSetNodeSize(nodeId, size);
+          },
+    py::arg("node_id"),
+    py::arg("size"));
+
     m.def("dock_builder_remove_node", ImGui::DockBuilderRemoveNode);
     m.def("dock_builder_remove_node_child_nodes", ImGui::DockBuilderRemoveNodeChildNodes);
     m.def("dock_builder_finish", ImGui::DockBuilderFinish);
