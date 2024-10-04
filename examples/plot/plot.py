@@ -34,7 +34,3 @@ class Demo:
 
 def main():
     viz.dev.launch(Demo, "__autogui__")
-
-
-if __name__ == "__main__":
-    main()

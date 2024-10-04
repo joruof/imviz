@@ -7,7 +7,7 @@ import traceback
 import imviz as viz
 import numpy as np
 
-from imviz.storage import ext_setattr
+from objtoolbox import ext_setattr
 
 
 def autogui_func(obj, name="", **params):
@@ -41,9 +41,9 @@ class AutoguiContext:
                  annotation=None,
                  ignore_custom=False):
 
-        self.params = params
-        self.path = path
-        self.parents = parents
+        self.params = {**params}
+        self.path = [*path]
+        self.parents = [*parents]
         self.annotation = annotation
         self.ignore_custom = ignore_custom
 

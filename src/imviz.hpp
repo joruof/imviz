@@ -15,7 +15,7 @@ struct ImViz {
     ImPlotContext* imPlotCtx = nullptr;
 
     ImFont* smallFont = nullptr;
-    ImFont* largeFont = nullptr;
+    ImFont* iconFont = nullptr;
     float fontBaseSize = 20.0;
 
     ImGuiID mainDockSpaceId;

@@ -311,7 +311,10 @@ def export_text_polygons(state):
     for font in fonts:
         for g in font.get_glyphs():
             k = str(g.u0) + str(g.v0)
-            c = bytearray([g.codepoint, 0]).decode("utf16")
+            if g.codepoint <= 255:
+                c = bytearray([g.codepoint, 0]).decode("utf16")
+            else:
+                c = ""
 
             v = bundle()
             v.text = c
@@ -726,12 +729,8 @@ def wrap_end(end_func):
         if PlotExport.plot_id == current_plot_id:
             if PlotExport.countdown < 1:
 
-                os.makedirs(PlotExport.path, exist_ok=True)
-
-                if os.path.isdir(PlotExport.path):
-                    PlotExport.path += "/"
-                if PlotExport.filetype != "csv" and PlotExport.path.endswith("/"):
-                    PlotExport.path += f"plot_{int(time.time() * 10**9)}"
+                if PlotExport.filetype != "csv" and os.path.isdir(PlotExport.path):
+                    PlotExport.path = os.path.join(PlotExport.path, f"plot_{int(time.time() * 10**9)}")
 
                 if PlotExport.filetype == "csv":
 

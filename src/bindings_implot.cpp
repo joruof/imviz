@@ -54,6 +54,10 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("NO_CLIP", ImPlotLineFlags_NoClip)
         .value("SHADED", ImPlotLineFlags_Shaded);
 
+    py::enum_<ImPlotInfLinesFlags_>(m, "PlotInfLineFlags", py::arithmetic())
+        .value("NONE", ImPlotInfLinesFlags_None)
+        .value("HORIZONTAL", ImPlotInfLinesFlags_Horizontal);
+
     py::enum_<ImPlotBarsFlags_>(m, "PlotBarsFlags", py::arithmetic())
         .value("NONE", ImPlotBarsFlags_None)
         .value("HORIZONTAL", ImPlotBarsFlags_Horizontal);
@@ -424,30 +428,26 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
             }
         }
 
+        ImPlotMarker markerStyle = ImPlotMarker_None;
         if (groups[2] == "o") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Circle);
+            markerStyle = ImPlotMarker_Circle;
         } else if (groups[2] == "s") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Square);
+            markerStyle = ImPlotMarker_Square;
         } else if (groups[2] == "d") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Diamond);
+            markerStyle = ImPlotMarker_Diamond;
         } else if (groups[2] == "+") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Cross);
+            markerStyle = ImPlotMarker_Cross;
         } else if (groups[2] == "*") {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_Asterisk);
-        } else {
-            ImPlot::PushStyleVar(ImPlotStyleVar_Marker, ImPlotMarker_None);
+            markerStyle = ImPlotMarker_Asterisk;
         }
 
-        // set style vars
-
-        ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, lineWeight);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, markerSize);
-        ImPlot::PushStyleVar(ImPlotStyleVar_MarkerWeight, markerWeight);
- 
         bool isArray = false;
         ImVec4 ic = interpretColor(color, &isArray);
 
+        // set style vars
+
         ImPlot::SetNextLineStyle(ic, lineWeight);
+        ImPlot::SetNextMarkerStyle(markerStyle, markerSize, ic, markerWeight, ic);
 
         if (isArray) {
             ImPlot::customPlot(label.c_str(), pai, color, groups[1] != "-", flags);
@@ -480,8 +480,6 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                 }
             }
         }
-
-        ImPlot::PopStyleVar(4);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
@@ -498,10 +496,8 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_bars", [&](array_like<double> x,
                            array_like<double> y,
                            std::string label,
-                           double bar_size,
-                           double offset,
-                           bool horizontal,
                            py::handle& color,
+                           double bar_size,
                            ImPlotBarsFlags flags) {
 
         PlotArrayInfo pai = interpretPlotArrays(x, y);
@@ -514,17 +510,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
                          pai.yDataPtr,
                          pai.count,
                          bar_size,
-                         horizontal ? ImPlotBarsFlags_Horizontal : ImPlotBarsFlags_None,
-                         offset,
                          flags);
     },
     py::arg("x"),
     py::arg("y") = py::array(),
     py::arg("label") = "",
-    py::arg("bar_size") = 0.5,
-    py::arg("offset") = 0.0,
-    py::arg("horizontal") = false,
     py::arg("color") = ImVec4(0.0f, 0.0f, 0.0f, -1.0f),
+    py::arg("bar_size") = 0.5,
     py::arg("flags") = ImPlotBarsFlags_None);
 
     m.def("plot_image", [&](
@@ -644,39 +636,44 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("plot_vlines", [&](std::string label,
                             array_like<double> xs,
                             py::handle color,
-                            float width) {
+                            float width,
+                            ImPlotInfLinesFlags flags) {
 
         assert_shape(xs, {{-1}});
 
-        ImVec4 c = interpretColor(color);
+        flags &= ~ImPlotInfLinesFlags_Horizontal;
 
+        ImVec4 c = interpretColor(color);
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotInfLines(label.c_str(), xs.data(), xs.shape(0));
+        ImPlot::PlotInfLines(label.c_str(), xs.data(), xs.shape(0), flags);
     },
     py::arg("label"),
     py::arg("xs"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotInfLinesFlags_None);
 
     m.def("plot_hlines", [&](std::string label,
                             array_like<double> ys,
                             py::handle color,
-                            float width) {
+                            float width,
+                            ImPlotInfLinesFlags flags) {
 
         assert_shape(ys, {{-1}});
 
-        ImVec4 c = interpretColor(color);
+        flags |= ImPlotInfLinesFlags_Horizontal;
 
+        ImVec4 c = interpretColor(color);
         ImPlot::SetNextLineStyle(c, width);
 
-        ImPlot::PlotInfLines(label.c_str(), ys.data(), ys.shape(0),
-                             ImPlotInfLinesFlags_Horizontal);
+        ImPlot::PlotInfLines(label.c_str(), ys.data(), ys.shape(0), flags);
     },
     py::arg("label"),
     py::arg("ys"),
     py::arg("color") = py::array_t<double>(),
-    py::arg("width") = 1.0);
+    py::arg("width") = 1.0,
+    py::arg("flags") = ImPlotInfLinesFlags_None);
 
     m.def("drag_vline", [&](std::string label,
                             double x,

@@ -138,8 +138,6 @@ class Demo:
 
         viz.text(viz.task.active("test_task"))
 
-        viz.latex(r"$\sum_i^T \alpha, \textrm{in} [m/s] \beta, \gamma$")
-
         # menus
 
         if viz.begin_main_menu_bar():
@@ -259,12 +257,6 @@ class Demo:
                 s.multi_selection = viz.multiselect("multiselect",
                                                     s.items,
                                                     s.multi_selection)
-
-                viz.tree_pop()
-
-            if viz.tree_node("Dataframe"):
-
-                viz.dataframe(s.frame, "dataframe", s.frame_selection)
 
                 viz.tree_pop()
 
@@ -460,16 +452,6 @@ class Demo:
 
                 viz.tree_pop()
 
-            if viz.tree_node("Storage"):
-
-                if viz.button("save"):
-                    viz.storage.save(s, "./config")
-                viz.same_line()
-                if viz.button("load"):
-                    viz.storage.load(s, "./config")
-
-                viz.tree_pop()
-
             if viz.tree_node("Font scale"):
 
                 if viz.button("rescale fonts"):
@@ -477,14 +459,8 @@ class Demo:
 
                 viz.tree_pop()
 
-
         viz.end_window()
 
 
 def main():
-
     viz.dev.launch(Demo, "__autogui__")
-
-
-if __name__ == "__main__":
-    main()

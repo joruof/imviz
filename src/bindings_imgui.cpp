@@ -337,7 +337,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
                        bool scrollbar,
                        bool scrollWithMouse,
                        bool collapse,
-                       bool autoResize) {
+                       bool autoResize,
+                       bool menuBar) {
 
         if (position.shape()[0] > 0) { 
             assert_shape(position, {{2}});
@@ -361,6 +362,7 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
         flags |= ImGuiWindowFlags_NoScrollWithMouse * !scrollWithMouse;
         flags |= ImGuiWindowFlags_NoCollapse * !collapse;
         flags |= ImGuiWindowFlags_AlwaysAutoResize * autoResize;
+        flags |= ImGuiWindowFlags_MenuBar * menuBar;
 
         viz.currentWindowOpen = opened;
 
@@ -378,7 +380,8 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("scrollbar") = true,
     py::arg("scroll_with_mouse") = true,
     py::arg("collapse") = true,
-    py::arg("auto_resize") = false);
+    py::arg("auto_resize") = false,
+    py::arg("menu_bar") = false);
 
     m.def("end_window", ImGui::End);
 
@@ -954,6 +957,12 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     py::arg("window_name"),
     py::arg("node_id"));
 
+    m.def("dock_builder_set_node_size", [](ImGuiID nodeId, ImVec2 size) {
+              ImGui::DockBuilderSetNodeSize(nodeId, size);
+          },
+    py::arg("node_id"),
+    py::arg("size"));
+
     m.def("dock_builder_remove_node", ImGui::DockBuilderRemoveNode);
     m.def("dock_builder_remove_node_child_nodes", ImGui::DockBuilderRemoveNodeChildNodes);
     m.def("dock_builder_finish", ImGui::DockBuilderFinish);
@@ -1061,14 +1070,6 @@ void loadImguiPythonBindings(pybind11::module& m, ImViz& viz) {
     /**
      * Font functions
      */
-
-    m.def("push_large_font", [&]() {
-        ImGui::PushFont(viz.largeFont);
-    });
-
-    m.def("pop_font", [&]() {
-        ImGui::PopFont();
-    });
 
     m.def("get_global_font_size", [&]() {
         return viz.smallFont->FontSize;

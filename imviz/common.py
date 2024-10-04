@@ -15,7 +15,8 @@ import __main__
 import imviz as viz
 
 from contextlib import contextmanager
-from minireload import ModuleReloader
+
+import objtoolbox as otb
 from objtoolbox import bundle
 
 
@@ -56,28 +57,6 @@ Contains a global module reloader for easier access.
 """
 
 
-def update_autoreload():
-    """
-    This checks all used python modules for changes (mtime), reloads
-    the respective code, and updates existing code as far as possible.
-
-    The "__main__" module cannot be reloaded due to python limitations.
-
-    As this uses asynchronous modification scanning, the function
-    must be called repeatedly in the main application loop.
-
-    Returns True if at least one module was sucessfully reloaded.
-    Returns False otherwise.
-    """
-
-    global RELOADER
-
-    if RELOADER is None:
-        RELOADER = ModuleReloader()
-
-    return RELOADER.reload()
-
-
 @contextmanager
 def error_sink():
     """
@@ -108,7 +87,7 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
         AUTOSAVE_TIME[path] = -1
 
     if AUTOSAVE_TIME[path] < 0:
-        viz.storage.load(obj, path)
+        otb.load(obj, path)
         AUTOSAVE_TIME[path] = time.time()
 
     viz.push_mod_any()
@@ -121,7 +100,7 @@ def autosave(obj, path=".imviz_save", timeout=0.5):
 
     if AUTOSAVE_REQ[path] and (time.time() - AUTOSAVE_TIME[path]) > timeout:
         AUTOSAVE_REQ[path] = False
-        viz.storage.save(obj, path)
+        otb.save(obj, path)
 
 
 class Selection():
