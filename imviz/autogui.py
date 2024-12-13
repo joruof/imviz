@@ -265,6 +265,8 @@ class AutoguiContext:
                 viz.tree_pop()
 
             return obj
+        elif hasattr(obj, "__dir__"):
+            attr_dict = {n: getattr(obj, n) for n in obj.__dir__()}
         else:
             if len(name) == 0:
                 viz.text(f"{name}: " + "???")
