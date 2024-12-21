@@ -12,6 +12,10 @@ import pickle
 import subprocess
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore")
+
+import matplotlib
 import matplotlib.pyplot as plt
 
 from PIL import Image
@@ -120,23 +124,8 @@ def wrap_end(end_func):
 
         viz.push_override_id(current_plot_id)
         if viz.begin_popup("##PlotContext"):
-            if viz.begin_menu("Export"):
-                if viz.menu_item("As csv"):
-                    p.export_filetype = "csv"
-                    file_dialog_requested = True
-                if viz.menu_item("As pdf"):
-                    p.export_filetype = "pdf"
-                    file_dialog_requested = True
-                if viz.menu_item("As pgfplot"):
-                    p.export_filetype = "pgfplot"
-                    file_dialog_requested = True
-                if viz.menu_item("As png"):
-                    p.export_filetype = "png"
-                    file_dialog_requested = True
-                if viz.menu_item("As svg"):
-                    p.export_filetype = "svg"
-                    file_dialog_requested = True
-                viz.end_menu()
+            if viz.menu_item("Export"):
+                file_dialog_requested = True
             viz.separator()
             viz.end_popup()
 
@@ -151,7 +140,22 @@ def wrap_end(end_func):
                 "Export")
 
         if viz.mod():
-            p.capture = True
+            if os.path.exists(p.export_path) and not os.path.isfile(p.export_path):
+                viz.open_popup("Invalid file path")
+                viz.set_mod(False)
+            else:
+                p.capture = True
+
+        if viz.begin_popup_modal("Invalid file path"):
+            viz.text("The selected file path is invalid.")
+            viz.separator()
+            if viz.button("Ok"):
+                file_dialog_requested = True
+                viz.close_current_popup()
+            viz.end_popup()
+
+        if file_dialog_requested:
+            viz.open_popup("Select export path")
 
         viz.pop_id()
 
@@ -291,10 +295,15 @@ def export_cmd_plot_image(cmd, p):
 
 def export_plot(p):
 
+    matplotlib.rcParams.update({
+        'font.family': 'serif',
+        'font.size': 10,
+        "font.serif": 'cmr10'
+    })
+
     plt.figure()
 
     for c in p.commands:
-        print(c.func_name)
         if c.func_name == "plot":
             export_cmd_plot(c, p)
         elif c.func_name == "plot_image":
@@ -314,7 +323,7 @@ def export_plot(p):
     ax.set(xlim=(p.limits[0], p.limits[2]),
            ylim=(p.limits[1], p.limits[3]))
 
-    plt.show()
+    plt.savefig(p.export_path, bbox_inches="tight")
 
 
 begin_plot = wrap_begin(viz.begin_plot)
