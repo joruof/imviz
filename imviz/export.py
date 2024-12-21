@@ -18,18 +18,7 @@ warnings.filterwarnings("ignore")
 import matplotlib
 import matplotlib.pyplot as plt
 
-from PIL import Image
-
-
-try:
-    import cppimviz as viz
-except ModuleNotFoundError:
-    sys.path.append(os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "../build"))
-    import cppimviz as viz
-
-
-from imviz.common import bundle
+import imviz as viz
 
 
 class PlotCommand:
@@ -61,8 +50,15 @@ class PlotBuffer:
 
         self.capture = False
 
-        self.export_filetype = ""
-        self.export_path = os.getcwd()
+        self.export_filetype = "pdf"
+        self.export_path = os.path.abspath(os.path.expanduser("~"))
+        self.export_title = ""
+        self.export_x_label = ""
+        self.export_y_label = ""
+        self.export_width = 10
+        self.export_height = 6
+        self.export_dpi = 300.0
+        self.export_font_size = 9.0
 
         self.reset()
 
@@ -120,42 +116,60 @@ def wrap_end(end_func):
 
         p = PlotBuffer.plots[current_plot_id]
 
+        export_requested = False
         file_dialog_requested = False
 
         viz.push_override_id(current_plot_id)
         if viz.begin_popup("##PlotContext"):
             if viz.menu_item("Export"):
-                file_dialog_requested = True
+                export_requested = True
             viz.separator()
             viz.end_popup()
 
-        if file_dialog_requested:
-            viz.open_popup("Select export path")
+        if export_requested:
+            viz.open_popup("Export plot")
 
-        # create export path chooser
+        if viz.begin_popup_modal("Export plot"):
+            filetypes = ["pdf", "svg", "png"]
+            idx = filetypes.index(p.export_filetype)
+            idx = viz.combo("filetype", filetypes, idx)
+            p.export_filetype = filetypes[idx]
 
-        p.export_path = viz.file_dialog_popup(
-                "Select export path",
-                p.export_path,
-                "Export")
+            if viz.button(f"{viz.Icon.FOLDER}"):
+                viz.open_popup("Select export path")
+            p.export_path = viz.file_dialog_popup(
+                    "Select export path",
+                    p.export_path,
+                    "Export")
+            viz.same_line()
+            p.export_path = viz.input("path", p.export_path)
 
-        if viz.mod():
-            if os.path.exists(p.export_path) and not os.path.isfile(p.export_path):
-                viz.open_popup("Invalid file path")
-                viz.set_mod(False)
+            path_invalid = os.path.exists(p.export_path) and not os.path.isfile(p.export_path)
+            if path_invalid:
+                viz.text("The selected file path is invalid", color="red")
             else:
-                p.capture = True
+                p.export_path = os.path.splitext(p.export_path)[0] + "." + p.export_filetype
 
-        if viz.begin_popup_modal("Invalid file path"):
-            viz.text("The selected file path is invalid.")
+            p.export_title = viz.autogui(p.export_title, "title") 
+            p.export_x_label = viz.autogui(p.export_x_label, "x label") 
+            p.export_y_label = viz.autogui(p.export_y_label, "y label") 
+            p.export_width = viz.autogui(p.export_width * 2.54, "width [cm]") / 2.54
+            p.export_height = viz.autogui(p.export_height * 2.54, "height [cm]") / 2.54
+            p.export_dpi = viz.autogui(p.export_dpi, "dpi")
+            p.export_font_size = viz.autogui(p.export_font_size, "font_size")
+
             viz.separator()
-            if viz.button("Ok"):
-                file_dialog_requested = True
-                viz.close_current_popup()
-            viz.end_popup()
 
-        if file_dialog_requested:
-            viz.open_popup("Select export path")
+            if viz.button("Cancel"):
+                viz.close_current_popup()
+            viz.same_line()
+            viz.begin_disabled(path_invalid)
+            if viz.button("Ok"):
+                p.capture = True
+                viz.close_current_popup()
+            viz.end_disabled()
+
+            viz.end_popup()
 
         viz.pop_id()
 
@@ -297,11 +311,16 @@ def export_plot(p):
 
     matplotlib.rcParams.update({
         'font.family': 'serif',
-        'font.size': 10,
-        "font.serif": 'cmr10'
+        'font.size': p.export_font_size,
+        "font.serif": 'cmr10',
+        "mathtext.fontset": 'cm'
     })
 
-    plt.figure()
+    plt.figure(figsize=(p.export_width, p.export_height), dpi=p.export_dpi)
+
+    plt.title(p.export_title)
+    plt.xlabel(p.export_x_label)
+    plt.ylabel(p.export_y_label)
 
     for c in p.commands:
         if c.func_name == "plot":
