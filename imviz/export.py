@@ -41,24 +41,35 @@ class PlotCommand:
         return arg
 
 
+class PlotExportSettings:
+
+    def __init__(self):
+
+        self.filetype = "pdf"
+        self.path = os.path.abspath(os.path.expanduser("~"))
+        self.title = ""
+        self.x_label = ""
+        self.y_label = ""
+        self.width = 10
+        self.height = 6
+        self.dpi = 300.0
+        self.font_size = 9.0
+
+
 class PlotBuffer:
 
     plots = {}
     capture = False
 
+    @staticmethod
+    def current():
+        
+        return PlotBuffer.plots[viz.get_plot_id()]
+
     def __init__(self):
 
         self.capture = False
-
-        self.export_filetype = "pdf"
-        self.export_path = os.path.abspath(os.path.expanduser("~"))
-        self.export_title = ""
-        self.export_x_label = ""
-        self.export_y_label = ""
-        self.export_width = 10
-        self.export_height = 6
-        self.export_dpi = 300.0
-        self.export_font_size = 9.0
+        self.export = PlotExportSettings()
 
         self.reset()
 
@@ -129,34 +140,35 @@ def wrap_end(end_func):
         if export_requested:
             viz.open_popup("Export plot")
 
-        if viz.begin_popup_modal("Export plot"):
+        export_dialog_open = viz.begin_popup_modal("Export plot")
+        if export_dialog_open:
             filetypes = ["pdf", "svg", "png"]
-            idx = filetypes.index(p.export_filetype)
+            idx = filetypes.index(p.export.filetype)
             idx = viz.combo("filetype", filetypes, idx)
-            p.export_filetype = filetypes[idx]
+            p.export.filetype = filetypes[idx]
 
             if viz.button(f"{viz.Icon.FOLDER}"):
                 viz.open_popup("Select export path")
-            p.export_path = viz.file_dialog_popup(
+            p.export.path = viz.file_dialog_popup(
                     "Select export path",
-                    p.export_path,
+                    p.export.path,
                     "Export")
             viz.same_line()
-            p.export_path = viz.input("path", p.export_path)
+            p.export.path = viz.input("path", p.export.path)
 
-            path_invalid = os.path.exists(p.export_path) and not os.path.isfile(p.export_path)
+            path_invalid = os.path.exists(p.export.path) and not os.path.isfile(p.export.path)
             if path_invalid:
                 viz.text("The selected file path is invalid", color="red")
             else:
-                p.export_path = os.path.splitext(p.export_path)[0] + "." + p.export_filetype
+                p.export.path = os.path.splitext(p.export.path)[0] + "." + p.export.filetype
 
-            p.export_title = viz.autogui(p.export_title, "title") 
-            p.export_x_label = viz.autogui(p.export_x_label, "x label") 
-            p.export_y_label = viz.autogui(p.export_y_label, "y label") 
-            p.export_width = viz.autogui(p.export_width * 2.54, "width [cm]") / 2.54
-            p.export_height = viz.autogui(p.export_height * 2.54, "height [cm]") / 2.54
-            p.export_dpi = viz.autogui(p.export_dpi, "dpi")
-            p.export_font_size = viz.autogui(p.export_font_size, "font_size")
+            p.export.title = viz.autogui(p.export.title, "title") 
+            p.export.x_label = viz.autogui(p.export.x_label, "x label") 
+            p.export.y_label = viz.autogui(p.export.y_label, "y label") 
+            p.export.width = viz.autogui(p.export.width * 2.54, "width [cm]") / 2.54
+            p.export.height = viz.autogui(p.export.height * 2.54, "height [cm]") / 2.54
+            p.export.dpi = viz.autogui(p.export.dpi, "dpi")
+            p.export.font_size = viz.autogui(p.export.font_size, "font_size")
 
             viz.separator()
 
@@ -178,6 +190,10 @@ def wrap_end(end_func):
             p.flags = viz.get_plot_flags()
             p.capture = False
             export_plot(p)
+
+        if not p.capture and not export_dialog_open:
+            # delete after capture to avoid PlotBuffer.plots pollution
+            del PlotBuffer.plots[current_plot_id]
 
         end_func()
 
@@ -311,16 +327,16 @@ def export_plot(p):
 
     matplotlib.rcParams.update({
         'font.family': 'serif',
-        'font.size': p.export_font_size,
+        'font.size': p.export.font_size,
         "font.serif": 'cmr10',
         "mathtext.fontset": 'cm'
     })
 
-    plt.figure(figsize=(p.export_width, p.export_height), dpi=p.export_dpi)
+    plt.figure(figsize=(p.export.width, p.export.height), dpi=p.export.dpi)
 
-    plt.title(p.export_title)
-    plt.xlabel(p.export_x_label)
-    plt.ylabel(p.export_y_label)
+    plt.title(p.export.title)
+    plt.xlabel(p.export.x_label)
+    plt.ylabel(p.export.y_label)
 
     for c in p.commands:
         if c.func_name == "plot":
@@ -342,7 +358,7 @@ def export_plot(p):
     ax.set(xlim=(p.limits[0], p.limits[2]),
            ylim=(p.limits[1], p.limits[3]))
 
-    plt.savefig(p.export_path, bbox_inches="tight")
+    plt.savefig(p.export.path, bbox_inches="tight")
 
 
 begin_plot = wrap_begin(viz.begin_plot)
