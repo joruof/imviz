@@ -47,9 +47,14 @@ class PlotExportSettings:
 
         self.filetype = "pdf"
         self.path = os.path.abspath(os.path.expanduser("~"))
+
         self.title = ""
+        self.overwrite_title = False
         self.x_label = ""
+        self.overwrite_x_label = False
         self.y_label = ""
+        self.overwrite_y_label = False
+
         self.width = 10
         self.height = 6
         self.dpi = 300.0
