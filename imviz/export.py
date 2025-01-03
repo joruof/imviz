@@ -55,6 +55,8 @@ class PlotExportSettings:
         self.y_label = ""
         self.overwrite_y_label = False
 
+        self.limits = None
+
         self.width = 10
         self.height = 6
         self.dpi = 300.0
@@ -81,7 +83,6 @@ class PlotBuffer:
     def reset(self):
 
         self.commands = []
-        self.limits = None
         self.flags = None
 
 
@@ -170,6 +171,31 @@ def wrap_end(end_func):
             p.export.title = viz.autogui(p.export.title, "title") 
             p.export.x_label = viz.autogui(p.export.x_label, "x label") 
             p.export.y_label = viz.autogui(p.export.y_label, "y label") 
+
+            if p.export.limits is None:
+                if viz.button(f"{viz.Icon.BORDER_ALL}"):
+                    p.export.limits = viz.get_plot_limits()
+                if viz.is_item_hovered():
+                    viz.begin_tooltip()
+                    viz.text("Overwrite plot limits")
+                    viz.end_tooltip()
+            else:
+                if viz.button(f"{viz.Icon.BORDER_NONE}"):
+                    p.export.limits = None
+                if viz.is_item_hovered():
+                    viz.begin_tooltip()
+                    viz.text("Use current plot limits")
+                    viz.end_tooltip()
+            viz.same_line()
+            if viz.tree_node("limits"):
+                if p.export.limits is None:
+                    viz.begin_disabled(True)
+                    viz.autogui(viz.get_plot_limits())
+                    viz.end_disabled()
+                else:
+                    viz.autogui(p.export.limits)
+                viz.tree_pop()
+
             p.export.width = viz.autogui(p.export.width * 2.54, "width [cm]") / 2.54
             p.export.height = viz.autogui(p.export.height * 2.54, "height [cm]") / 2.54
             p.export.dpi = viz.autogui(p.export.dpi, "dpi")
@@ -191,7 +217,6 @@ def wrap_end(end_func):
         viz.pop_id()
 
         if p.capture and len(p.commands) > 0:
-            p.limits = viz.get_plot_limits()
             p.flags = viz.get_plot_flags()
             p.capture = False
             export_plot(p)
@@ -314,13 +339,17 @@ def export_cmd_plot_image(cmd, p):
 
     extent = (x, x + width, y, y + height)
 
-    if extent[1] < p.limits[0]:
+    lims = p.export.limits
+    if lims is None:
+        lims = viz.get_plot_limits()
+
+    if extent[1] < lims[0]:
         return
-    if extent[0] > p.limits[2]:
+    if extent[0] > lims[2]:
         return
-    if extent[3] < p.limits[1]:
+    if extent[3] < lims[1]:
         return
-    if extent[2] > p.limits[3]:
+    if extent[2] > lims[3]:
         return
 
     plt.imshow(img,
@@ -360,8 +389,12 @@ def export_plot(p):
     if p.flags & viz.PlotFlags.EQUAL:
         ax.axis("equal")
 
-    ax.set(xlim=(p.limits[0], p.limits[2]),
-           ylim=(p.limits[1], p.limits[3]))
+    lims = p.export.limits
+    if lims is None:
+        lims = viz.get_plot_limits()
+
+    ax.set(xlim=(lims[0], lims[2]),
+           ylim=(lims[1], lims[3]))
 
     plt.savefig(p.export.path, bbox_inches="tight")
 
