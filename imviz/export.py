@@ -55,6 +55,11 @@ class PlotExportSettings:
         self.y_label = ""
         self.overwrite_y_label = False
 
+        self.legend_loc = "hidden"
+        self.legend_columns = 1
+        self.legend_bbox_to_anchor_x = 0.0
+        self.legend_bbox_to_anchor_y = 0.0
+
         self.limits = None
 
         self.width = 10
@@ -84,6 +89,11 @@ class PlotBuffer:
 
         self.commands = []
         self.flags = None
+
+
+def clean_label(label):
+
+    return label.split("#")[0].replace("_", " ")
 
 
 def wrap_begin(begin_func):
@@ -171,6 +181,20 @@ def wrap_end(end_func):
             p.export.title = viz.autogui(p.export.title, "title") 
             p.export.x_label = viz.autogui(p.export.x_label, "x label") 
             p.export.y_label = viz.autogui(p.export.y_label, "y label") 
+
+            if viz.tree_node("legend"):
+                legend_locs = ["hidden", "best", "upper right", "upper left",
+                               "lower left", "lower right", "right", "center left",
+                               "center right", "lower center", "upper center", "center"]
+                idx = legend_locs.index(p.export.legend_loc)
+                idx = viz.combo("location", legend_locs, idx)
+                p.export.legend_loc = legend_locs[idx]
+                p.export.legend_columns = viz.drag("columns", p.export.legend_columns)
+                p.export.legend_bbox_to_anchor_x = viz.drag(
+                        "bbox_to_anchor_x", p.export.legend_bbox_to_anchor_x)
+                p.export.legend_bbox_to_anchor_y = viz.drag(
+                        "bbox_to_anchor_y", p.export.legend_bbox_to_anchor_y)
+                viz.tree_pop()
 
             if p.export.limits is None:
                 if viz.button(f"{viz.Icon.BORDER_ALL}"):
@@ -273,7 +297,7 @@ def export_cmd_plot_circle(cmd, p):
 
     plt.plot(xs,
              ys,
-             label=label,
+             label=clean_label(label),
              color=color,
              linewidth=line_weight)
 
@@ -301,7 +325,7 @@ def export_cmd_plot_rect(cmd, p):
 
     plt.plot(ps[0, :] + position[0],
              ps[1, :] + position[1],
-             label=label,
+             label=clean_label(label),
              color=color,
              linewidth=line_weight)
 
@@ -314,7 +338,7 @@ def export_cmd_plot(cmd, p):
     if "color" in cmd.kwargs:
         kwargs["color"] = cmd.kwargs["color"]
     if "label" in cmd.kwargs:
-        kwargs["label"] = cmd.kwargs["label"]
+        kwargs["label"] = clean_label(cmd.kwargs["label"])
     if "line_weight" in cmd.kwargs:
         kwargs["linewidth"] = cmd.kwargs["line_weight"]
     if "marker_size" in cmd.kwargs:
@@ -395,6 +419,15 @@ def export_plot(p):
 
     ax.set(xlim=(lims[0], lims[2]),
            ylim=(lims[1], lims[3]))
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    ld = dict(zip(labels, handles))
+    plt.legend(ld.values(),
+               ld.keys(),
+               loc=p.export.legend_loc,
+               ncol=p.export.legend_columns,
+               bbox_to_anchor=(p.export.legend_bbox_to_anchor_x,
+                               p.export.legend_bbox_to_anchor_y))
 
     plt.savefig(p.export.path, bbox_inches="tight")
 
