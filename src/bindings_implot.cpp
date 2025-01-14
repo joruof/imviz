@@ -396,6 +396,18 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("set_axis", &ImPlot::SetAxis);
     m.def("set_axes", &ImPlot::SetAxes);
 
+    m.def("push_plot_style_color", [](ImPlotCol idx, py::handle& col){
+        ImVec4 color = interpretColor(col);
+        ImPlot::PushStyleColor(idx, color);
+    },
+    py::arg("idx"),
+    py::arg("col"));
+
+    m.def("pop_plot_style_color", [](int count){
+        ImPlot::PopStyleColor(count);
+    },
+    py::arg("count") = 1);
+
     m.def("plot", [&](array_like<double> x,
                       array_like<double> y,
                       std::string fmt,

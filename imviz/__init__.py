@@ -73,4 +73,14 @@ import imviz.dev
 import imviz.task
 
 
-from imviz.export import (begin_plot, end_plot, plot, begin_figure, end_figure)
+from imviz.export import (
+        begin_plot, 
+        end_plot, 
+        plot, 
+        plot_image, 
+        plot_circle, 
+        plot_rect, 
+        drag_point, 
+        begin_figure, 
+        end_figure
+    )
