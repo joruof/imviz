@@ -21,6 +21,9 @@ import matplotlib.pyplot as plt
 import imviz as viz
 
 
+PX_TO_PT = 0.75
+
+
 class PlotCommand:
 
     def __init__(self, func_name, args, kwargs):
@@ -62,8 +65,8 @@ class PlotExportSettings:
 
         self.limits = None
 
-        self.width = 10
-        self.height = 6
+        self.width = 4.0
+        self.height = 3.0
         self.dpi = 300.0
         self.font_size = 9.0
 
@@ -72,6 +75,7 @@ class PlotBuffer:
 
     plots = {}
     capture = False
+    persistent = False
 
     @staticmethod
     def current():
@@ -89,6 +93,7 @@ class PlotBuffer:
 
         self.commands = []
         self.flags = None
+        self.label = None
 
 
 def clean_label(label):
@@ -98,9 +103,9 @@ def clean_label(label):
 
 def wrap_begin(begin_func):
 
-    def inner(*args, **kwargs):
+    def inner(label, *args, **kwargs):
 
-        res = begin_func(*args, **kwargs)
+        res = begin_func(label, *args, **kwargs)
 
         if res:
             try:
@@ -109,6 +114,7 @@ def wrap_begin(begin_func):
                 p = PlotBuffer()
                 PlotBuffer.plots[viz.get_plot_id()] = p
             p.reset()
+            p.label = label
             PlotBuffer.capture = p.capture
 
         return res
@@ -245,7 +251,7 @@ def wrap_end(end_func):
             p.capture = False
             export_plot(p)
 
-        if not p.capture and not export_dialog_open:
+        if not PlotBuffer.persistent and not p.capture and not export_dialog_open:
             # delete after capture to avoid PlotBuffer.plots pollution
             del PlotBuffer.plots[current_plot_id]
 
@@ -260,7 +266,7 @@ def export_cmd_drag_point(cmd, p):
 
     point = cmd.args[1]
     color = cmd.opt_arg(2, "color", None)
-    radius = cmd.opt_arg(3, "radius", 4)
+    radius = cmd.opt_arg(3, "radius", 4) * PX_TO_PT
 
     if type(color) == float:
         color = str(color)
@@ -279,7 +285,7 @@ def export_cmd_plot_circle(cmd, p):
     label = cmd.opt_arg(2, "label", "")
     color = cmd.opt_arg(3, "color", None)
     segments = cmd.opt_arg(4, "segments", 36)
-    line_weight = cmd.opt_arg(5, "line_weight", 1.0)
+    line_weight = cmd.opt_arg(5, "line_weight", 1.0) * PX_TO_PT
 
     if type(color) == float:
         color = str(color)
@@ -310,7 +316,7 @@ def export_cmd_plot_rect(cmd, p):
     color = cmd.opt_arg(3, "color", None)
     offset = cmd.opt_arg(4, "offset", np.array((0.5, 0.5)))
     rotation = cmd.opt_arg(5, "rotation", 1.0)
-    line_weight = cmd.opt_arg(6, "line_weight", 1.0)
+    line_weight = cmd.opt_arg(6, "line_weight", 1.0) * PX_TO_PT
 
     px = -size[0] * offset[0];
     py = -size[1] * offset[1];
@@ -340,9 +346,9 @@ def export_cmd_plot(cmd, p):
     if "label" in cmd.kwargs:
         kwargs["label"] = clean_label(cmd.kwargs["label"])
     if "line_weight" in cmd.kwargs:
-        kwargs["linewidth"] = cmd.kwargs["line_weight"]
+        kwargs["linewidth"] = cmd.kwargs["line_weight"] * PX_TO_PT
     if "marker_size" in cmd.kwargs:
-        kwargs["markersize"] = cmd.kwargs["marker_size"]
+        kwargs["markersize"] = cmd.kwargs["marker_size"] * PX_TO_PT
 
     plt.plot(cmd.args[0],
              cmd.args[1],
@@ -387,7 +393,8 @@ def export_plot(p):
         'font.family': 'serif',
         'font.size': p.export.font_size,
         "font.serif": 'cmr10',
-        "mathtext.fontset": 'cm'
+        "mathtext.fontset": 'cm',
+        "axes.unicode_minus": False
     })
 
     plt.figure(figsize=(p.export.width, p.export.height), dpi=p.export.dpi)
@@ -422,12 +429,13 @@ def export_plot(p):
 
     handles, labels = plt.gca().get_legend_handles_labels()
     ld = dict(zip(labels, handles))
-    plt.legend(ld.values(),
-               ld.keys(),
-               loc=p.export.legend_loc,
-               ncol=p.export.legend_columns,
-               bbox_to_anchor=(p.export.legend_bbox_to_anchor_x,
-                               p.export.legend_bbox_to_anchor_y))
+    if p.export.legend_loc != "hidden":
+        plt.legend(ld.values(),
+                   ld.keys(),
+                   loc=p.export.legend_loc,
+                   ncol=p.export.legend_columns,
+                   bbox_to_anchor=(p.export.legend_bbox_to_anchor_x,
+                                   p.export.legend_bbox_to_anchor_y))
 
     plt.savefig(p.export.path, bbox_inches="tight")
 
