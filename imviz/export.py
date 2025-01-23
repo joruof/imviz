@@ -58,6 +58,8 @@ class PlotExportSettings:
         self.y_label = ""
         self.overwrite_y_label = False
 
+        self.grid = False
+
         self.legend_loc = "hidden"
         self.legend_columns = 1
         self.legend_bbox_to_anchor_x = 0.0
@@ -187,6 +189,8 @@ def wrap_end(end_func):
             p.export.title = viz.autogui(p.export.title, "title") 
             p.export.x_label = viz.autogui(p.export.x_label, "x label") 
             p.export.y_label = viz.autogui(p.export.y_label, "y label") 
+
+            p.export.grid = viz.autogui(p.export.grid, "grid") 
 
             if viz.tree_node("legend"):
                 legend_locs = ["hidden", "best", "upper right", "upper left",
@@ -402,6 +406,9 @@ def export_plot(p):
     plt.title(p.export.title)
     plt.xlabel(p.export.x_label)
     plt.ylabel(p.export.y_label)
+
+    if p.export.grid:
+        plt.grid()
 
     for c in p.commands:
         if c.func_name == "plot":
