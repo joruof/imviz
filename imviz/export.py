@@ -411,7 +411,7 @@ def export_cmd_plot(cmd, p):
 
         marker_fmt = fmt.replace("-", "")
         if marker_fmt != "":
-            s = kwargs["markersize"]
+            s = (kwargs["markersize"]/2.0)**2 * np.pi
             del kwargs["markersize"]
             plt.scatter(cmd.args[0],
                         cmd.args[1],
