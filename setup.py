@@ -134,6 +134,6 @@ setup(name="imviz",
       cmdclass=dict(build_ext=CMakeBuild, install=Install),
       include_package_data=True,
       install_requires=[
-            "numpy", "Pillow>=9.0.1", "objtoolbox>=0.0.11", "minireload>=0.0.9", "matplotlib", "matplotlib-scalebar"
+            "numpy", "Pillow>=9.0.1", "objtoolbox>=0.0.14", "minireload>=0.0.9", "matplotlib", "matplotlib-scalebar"
           ]
       )
