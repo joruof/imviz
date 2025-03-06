@@ -119,7 +119,7 @@ class CMakeBuild(build_ext):
 
 
 setup(name="imviz",
-      version="0.2.10",
+      version="0.2.11",
       description="Pythonic bindings for imgui/implot",
       url="https://github.com/joruof/imviz",
       author="Jona Ruof",
@@ -134,6 +134,6 @@ setup(name="imviz",
       cmdclass=dict(build_ext=CMakeBuild, install=Install),
       include_package_data=True,
       install_requires=[
-            "numpy", "Pillow>=9.0.1", "objtoolbox>=0.0.11", "minireload>=0.0.9"
+            "numpy", "Pillow>=9.0.1", "objtoolbox>=0.0.15", "minireload>=0.0.9", "matplotlib", "matplotlib-scalebar"
           ]
       )

@@ -17,8 +17,15 @@ warnings.filterwarnings("ignore")
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
+from matplotlib.patheffects import Stroke
+from matplotlib_scalebar.scalebar import ScaleBar
+from matplotlib.collections import LineCollection
 
 import imviz as viz
+
+
+PX_TO_PT = 0.75
 
 
 class PlotCommand:
@@ -33,7 +40,7 @@ class PlotCommand:
 
         if name in self.kwargs:
             arg = self.kwargs[name]
-        elif len(self.args) >= pos+1:
+        elif pos < len(self.args):
             arg = self.args[pos]
         else:
             arg = default
@@ -55,15 +62,25 @@ class PlotExportSettings:
         self.y_label = ""
         self.overwrite_y_label = False
 
+        self.grid = False
+
         self.legend_loc = "hidden"
         self.legend_columns = 1
         self.legend_bbox_to_anchor_x = 0.0
         self.legend_bbox_to_anchor_y = 0.0
 
+        self.scale_bar_loc = "hidden"
+        self.scale_bar_bbox_to_anchor_x = 0.0
+        self.scale_bar_bbox_to_anchor_y = 0.0
+
+        self.tight_layout = True
+        self.tight_layout_padding = 0.1
+        self.bbox = np.array([[0.0, 0.0], [1.0, 1.0]])
+
         self.limits = None
 
-        self.width = 10
-        self.height = 6
+        self.width = 4.0
+        self.height = 3.0
         self.dpi = 300.0
         self.font_size = 9.0
 
@@ -72,6 +89,7 @@ class PlotBuffer:
 
     plots = {}
     capture = False
+    persistent = False
 
     @staticmethod
     def current():
@@ -89,6 +107,7 @@ class PlotBuffer:
 
         self.commands = []
         self.flags = None
+        self.label = None
 
 
 def clean_label(label):
@@ -98,9 +117,9 @@ def clean_label(label):
 
 def wrap_begin(begin_func):
 
-    def inner(*args, **kwargs):
+    def inner(label, *args, **kwargs):
 
-        res = begin_func(*args, **kwargs)
+        res = begin_func(label, *args, **kwargs)
 
         if res:
             try:
@@ -109,6 +128,7 @@ def wrap_begin(begin_func):
                 p = PlotBuffer()
                 PlotBuffer.plots[viz.get_plot_id()] = p
             p.reset()
+            p.label = label
             PlotBuffer.capture = p.capture
 
         return res
@@ -182,18 +202,31 @@ def wrap_end(end_func):
             p.export.x_label = viz.autogui(p.export.x_label, "x label") 
             p.export.y_label = viz.autogui(p.export.y_label, "y label") 
 
+            p.export.grid = viz.autogui(p.export.grid, "grid") 
+
+            locs = ["hidden", "best", "upper right", "upper left",
+                           "lower left", "lower right", "right", "center left",
+                           "center right", "lower center", "upper center", "center"]
+
             if viz.tree_node("legend"):
-                legend_locs = ["hidden", "best", "upper right", "upper left",
-                               "lower left", "lower right", "right", "center left",
-                               "center right", "lower center", "upper center", "center"]
-                idx = legend_locs.index(p.export.legend_loc)
-                idx = viz.combo("location", legend_locs, idx)
-                p.export.legend_loc = legend_locs[idx]
+                idx = locs.index(p.export.legend_loc)
+                idx = viz.combo("location", locs, idx)
+                p.export.legend_loc = locs[idx]
                 p.export.legend_columns = viz.drag("columns", p.export.legend_columns)
                 p.export.legend_bbox_to_anchor_x = viz.drag(
                         "bbox_to_anchor_x", p.export.legend_bbox_to_anchor_x)
                 p.export.legend_bbox_to_anchor_y = viz.drag(
                         "bbox_to_anchor_y", p.export.legend_bbox_to_anchor_y)
+                viz.tree_pop()
+
+            if viz.tree_node("scale_bar"):
+                idx = locs.index(p.export.scale_bar_loc)
+                idx = viz.combo("location", locs, idx)
+                p.export.scale_bar_loc = locs[idx]
+                p.export.scale_bar_bbox_to_anchor_x = viz.drag(
+                        "bbox_to_anchor_x", p.export.scale_bar_bbox_to_anchor_x)
+                p.export.scale_bar_bbox_to_anchor_y = viz.drag(
+                        "bbox_to_anchor_y", p.export.scale_bar_bbox_to_anchor_y)
                 viz.tree_pop()
 
             if p.export.limits is None:
@@ -220,6 +253,18 @@ def wrap_end(end_func):
                     viz.autogui(p.export.limits)
                 viz.tree_pop()
 
+            viz.separator()
+
+            p.export.tight_layout = viz.checkbox(
+                    "tight_layout",
+                    p.export.tight_layout)
+            p.export.tight_layout_padding = viz.drag(
+                    "tight_layout_padding",
+                    p.export.tight_layout_padding)
+            viz.begin_disabled(p.export.tight_layout)
+            p.export.bbox = viz.autogui(p.export.bbox, "bbox")
+            viz.end_disabled()
+
             p.export.width = viz.autogui(p.export.width * 2.54, "width [cm]") / 2.54
             p.export.height = viz.autogui(p.export.height * 2.54, "height [cm]") / 2.54
             p.export.dpi = viz.autogui(p.export.dpi, "dpi")
@@ -245,7 +290,7 @@ def wrap_end(end_func):
             p.capture = False
             export_plot(p)
 
-        if not p.capture and not export_dialog_open:
+        if not PlotBuffer.persistent and not p.capture and not export_dialog_open:
             # delete after capture to avoid PlotBuffer.plots pollution
             del PlotBuffer.plots[current_plot_id]
 
@@ -260,7 +305,7 @@ def export_cmd_drag_point(cmd, p):
 
     point = cmd.args[1]
     color = cmd.opt_arg(2, "color", None)
-    radius = cmd.opt_arg(3, "radius", 4)
+    radius = cmd.opt_arg(3, "radius", 4) * PX_TO_PT
 
     if type(color) == float:
         color = str(color)
@@ -279,7 +324,7 @@ def export_cmd_plot_circle(cmd, p):
     label = cmd.opt_arg(2, "label", "")
     color = cmd.opt_arg(3, "color", None)
     segments = cmd.opt_arg(4, "segments", 36)
-    line_weight = cmd.opt_arg(5, "line_weight", 1.0)
+    line_weight = cmd.opt_arg(5, "line_weight", 1.0) * PX_TO_PT
 
     if type(color) == float:
         color = str(color)
@@ -310,7 +355,7 @@ def export_cmd_plot_rect(cmd, p):
     color = cmd.opt_arg(3, "color", None)
     offset = cmd.opt_arg(4, "offset", np.array((0.5, 0.5)))
     rotation = cmd.opt_arg(5, "rotation", 1.0)
-    line_weight = cmd.opt_arg(6, "line_weight", 1.0)
+    line_weight = cmd.opt_arg(6, "line_weight", 1.0) * PX_TO_PT
 
     px = -size[0] * offset[0];
     py = -size[1] * offset[1];
@@ -332,7 +377,7 @@ def export_cmd_plot_rect(cmd, p):
 
 def export_cmd_plot(cmd, p):
 
-    fmt = cmd.opt_arg(3, "fmt", "-")
+    fmt = cmd.opt_arg(2, "fmt", "-")
 
     kwargs = {}
     if "color" in cmd.kwargs:
@@ -340,14 +385,45 @@ def export_cmd_plot(cmd, p):
     if "label" in cmd.kwargs:
         kwargs["label"] = clean_label(cmd.kwargs["label"])
     if "line_weight" in cmd.kwargs:
-        kwargs["linewidth"] = cmd.kwargs["line_weight"]
+        kwargs["linewidth"] = cmd.kwargs["line_weight"] * PX_TO_PT
+    else:
+        kwargs["linewidth"] = 1.0 * PX_TO_PT
     if "marker_size" in cmd.kwargs:
-        kwargs["markersize"] = cmd.kwargs["marker_size"]
+        kwargs["markersize"] = cmd.kwargs["marker_size"] * PX_TO_PT
+    else:
+        kwargs["markersize"] = 4.0 * PX_TO_PT
 
-    plt.plot(cmd.args[0],
-             cmd.args[1],
-             fmt,
-             **kwargs)
+    if hasattr(kwargs["color"], "shape") and len(kwargs["color"].shape) > 1:
+        # special case for lines with varying color
+
+        if "-" in fmt:
+            pts = list(zip(cmd.args[0], cmd.args[1]))
+            segs = []
+            for a, b in zip(pts[:-1], pts[1:]):
+                segs.append(np.array([a, b]))
+
+            lc = LineCollection(segs,
+                                colors=kwargs["color"],
+                                linewidth=kwargs["linewidth"],
+                                zorder=2,
+                                path_effects=[Stroke(capstyle="round")])
+            plt.gca().add_collection(lc)
+
+        marker_fmt = fmt.replace("-", "")
+        if marker_fmt != "":
+            s = (kwargs["markersize"]/2.0)**2 * np.pi
+            del kwargs["markersize"]
+            plt.scatter(cmd.args[0],
+                        cmd.args[1],
+                        s=s,
+                        marker=marker_fmt,
+                        zorder=2,
+                        **kwargs)
+    else:
+        plt.plot(cmd.args[0],
+                 cmd.args[1],
+                 fmt,
+                 **kwargs)
 
 
 def export_cmd_plot_image(cmd, p):
@@ -376,7 +452,13 @@ def export_cmd_plot_image(cmd, p):
     if extent[2] > lims[3]:
         return
 
+    if len(img.shape) < 3 or img.shape[2] == 1:
+        cmap = "gray"
+    else:
+        cmap = "viridis"
+
     plt.imshow(img,
+               cmap=cmap,
                extent=extent,
                interpolation="bilinear" if interpolate else "nearest")
 
@@ -387,7 +469,9 @@ def export_plot(p):
         'font.family': 'serif',
         'font.size': p.export.font_size,
         "font.serif": 'cmr10',
-        "mathtext.fontset": 'cm'
+        "mathtext.fontset": 'cm',
+        "axes.unicode_minus": False,
+        "lines.solid_capstyle": "round"
     })
 
     plt.figure(figsize=(p.export.width, p.export.height), dpi=p.export.dpi)
@@ -395,6 +479,9 @@ def export_plot(p):
     plt.title(p.export.title)
     plt.xlabel(p.export.x_label)
     plt.ylabel(p.export.y_label)
+
+    if p.export.grid:
+        plt.grid()
 
     for c in p.commands:
         if c.func_name == "plot":
@@ -411,7 +498,9 @@ def export_plot(p):
     ax = plt.gca()
 
     if p.flags & viz.PlotFlags.EQUAL:
-        ax.axis("equal")
+        ax.set_aspect("equal", adjustable="datalim")
+    else:
+        ax.set_aspect("auto")
 
     lims = p.export.limits
     if lims is None:
@@ -420,16 +509,32 @@ def export_plot(p):
     ax.set(xlim=(lims[0], lims[2]),
            ylim=(lims[1], lims[3]))
 
+    if p.export.scale_bar_loc != "hidden":
+        plt.xticks([], [])     
+        plt.yticks([], [])
+        scalebar = ScaleBar(1.0,
+                            location=p.export.scale_bar_loc,
+                            scale_loc="top")
+        ax.add_artist(scalebar)
+
     handles, labels = plt.gca().get_legend_handles_labels()
     ld = dict(zip(labels, handles))
-    plt.legend(ld.values(),
-               ld.keys(),
-               loc=p.export.legend_loc,
-               ncol=p.export.legend_columns,
-               bbox_to_anchor=(p.export.legend_bbox_to_anchor_x,
-                               p.export.legend_bbox_to_anchor_y))
+    if p.export.legend_loc != "hidden":
+        plt.legend(ld.values(),
+                   ld.keys(),
+                   loc=p.export.legend_loc,
+                   ncol=p.export.legend_columns,
+                   bbox_to_anchor=(p.export.legend_bbox_to_anchor_x,
+                                   p.export.legend_bbox_to_anchor_y))
 
-    plt.savefig(p.export.path, bbox_inches="tight")
+    if p.export.tight_layout:
+        bbox_inches = "tight"
+    else:
+        bbox_inches = Bbox(p.export.bbox / 2.54)
+
+    plt.savefig(p.export.path,
+                bbox_inches=bbox_inches,
+                pad_inches=p.export.tight_layout_padding)
 
 
 begin_plot = wrap_begin(viz.begin_plot)

@@ -115,10 +115,8 @@ class Selection():
 
     def __autogui__(self, name, **kwargs):
 
-        self.index = viz.combo(name, self.options, self.index)
-        viz.same_line()
-        self.options = viz.autogui(
-                self.options, f"###{name}_options")
+        idx = id(self)
+        self.index = viz.combo(f"{name}###{idx}", self.options, self.index)
 
         return self
 
