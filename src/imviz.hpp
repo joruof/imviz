@@ -1,5 +1,6 @@
 #pragma once
 
+#include <imgui.h>
 #include <regex>
 
 #include <GL/glew.h>
@@ -33,6 +34,8 @@ struct ImViz {
     std::vector<bool> mod_any = {false};
 
     std::string iniFilePath = "";
+	
+	ImVec2 windowSizeBeforeFullscreen = ImVec2(0, 0);
 
     // initially update for two whole seconds (assuming vsync)
     int powerSaveFrameCounter = 120;

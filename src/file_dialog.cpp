@@ -133,9 +133,9 @@ namespace ImGui {
 
             if (!fileDialogOpen) {
                 currentPath = selectedPath;
-                currentPath = fs::absolute(currentPath);
+                currentPath = fs::absolute(currentPath).string();
                 while (!fs::exists(currentPath)) {
-                    currentPath = fs::path(currentPath).parent_path();
+                    currentPath = fs::path(currentPath).parent_path().string();
                 }
             }
 
@@ -144,9 +144,10 @@ namespace ImGui {
                     || fs::path(currentPath).filename().empty()) {
                 basedir = fs::path(currentPath)
                     .parent_path()
-                    .filename();
+                    .filename()
+					.string();
             } else {
-                basedir = fs::path(currentPath).filename();
+                basedir = fs::path(currentPath).filename().string();
             }
 
             ImGui::Text("%s", ("Directory: " + basedir).c_str());

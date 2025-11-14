@@ -7,7 +7,16 @@ import traceback
 import imviz as viz
 import numpy as np
 
-from objtoolbox import ext_setattr
+
+def ext_setattr(obj, name, value):
+    """
+    Sets attributes for objects and key-value pairs for dicts.
+    """
+
+    if type(obj) == dict:
+        obj[name] = value
+    else:
+        setattr(obj, name, value)
 
 
 def autogui_func(obj, name="", **params):

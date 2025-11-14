@@ -1,8 +1,9 @@
-build
+*build*
 dist
-*.ini
 __pycache__
 .cache
+.venv
+*.ini
 *.egg-info
 *.so
 *.dll

@@ -17,9 +17,7 @@
 
 void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
-    /**
-     * Flags and defines
-     */
+    #pragma region Flags and defines
 
     py::enum_<ImAxis_>(m, "Axis", py::arithmetic())
         .value("X1", ImAxis_X1)
@@ -225,31 +223,23 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         .value("RICE", ImPlotBin_Rice)
         .value("SCOTT", ImPlotBin_Scott);
 
-    /*
-     * ImPlot functions
-     */
+    #pragma endregion
+
+    #pragma region ImPlot functions
 
     m.def("begin_figure", [&](std::string label,
-                            array_like<float> size,
+                            ImVec2 size,
                             ImPlotFlags flags) {
 
         viz.currentWindowOpen = true;
         bool windowOpen = ImGui::Begin(label.c_str(), &viz.currentWindowOpen);
 
-        ImVec2 plotSize = ImGui::GetContentRegionAvail();
-
-        if (size.shape()[0] > 0) {
-            assert_shape(size, {{2}});
-            const float* data = size.data();
-            plotSize = ImVec2(data[0], data[1]);
-        } 
-
-        viz.figurePlotOpen = ImPlot::BeginPlot(label.c_str(), plotSize, flags);
+        viz.figurePlotOpen = ImPlot::BeginPlot(label.c_str(), size, flags);
 
         return windowOpen && viz.figurePlotOpen;
     },
     py::arg("label") = "",
-    py::arg("size") = py::array_t<float>(),
+    py::arg("size") = ImVec2(-1, 0),
     py::arg("flags") = ImPlotFlags_None);
 
     m.def("end_figure", [&] () {
@@ -262,21 +252,13 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     });
 
     m.def("begin_plot", [&](std::string label,
-                            array_like<float> size,
+                            ImVec2 size,
                             ImPlotFlags flags) {
 
-        ImVec2 plotSize = ImGui::GetContentRegionAvail();
-
-        if (size.shape()[0] > 0) {
-            assert_shape(size, {{2}});
-            const float* data = size.data();
-            plotSize = ImVec2(data[0], data[1]);
-        } 
-
-        return ImPlot::BeginPlot(label.c_str(), plotSize, flags);
+        return ImPlot::BeginPlot(label.c_str(), size, flags);
     },
     py::arg("label"),
-    py::arg("size") = py::array_t<float>(),
+    py::arg("size") = ImVec2(-1, 0),
     py::arg("flags") = ImPlotFlags_None);
 
     m.def("end_plot", &ImPlot::EndPlot);
@@ -284,27 +266,19 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
     m.def("begin_subplots", [&](std::string label,
                                 int rows,
                                 int cols,
-                                array_like<float> size,
+                                ImVec2 size,
                                 ImPlotSubplotFlags flags) {
-
-        ImVec2 plotSize(-1, 0);
-
-        if (size.shape()[0] > 0) {
-            assert_shape(size, {{2}});
-            const float* data = size.data();
-            plotSize = ImVec2(data[0], data[1]);
-        }
 
         return ImPlot::BeginSubplots(label.c_str(),
                                      rows,
                                      cols,
-                                     plotSize,
+                                     size,
                                      flags);
     },
     py::arg("label"),
     py::arg("rows"),
     py::arg("cols"),
-    py::arg("size") = py::array(),
+    py::arg("size") = ImVec2(-1, 0),
     py::arg("flags") = ImPlotSubplotFlags_None);
 
     m.def("end_subplots", ImPlot::EndSubplots);
@@ -1046,28 +1020,30 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
 
     m.def("end_legend_popup", &ImPlot::EndLegendPopup);
 
+	#pragma region Styling
+
     m.def("push_plot_style_var", [](ImPlotStyleVar idx, float val){
-        ImPlot::PushStyleVar(idx, val);
+		ImPlot::PushStyleVar(idx, val);
     },
     py::arg("idx"),
     py::arg("val"));
-
     m.def("push_plot_style_var", [](ImPlotStyleVar idx, int val){
-        ImPlot::PushStyleVar(idx, val);
+		ImPlot::PushStyleVar(idx, val);
     },
     py::arg("idx"),
     py::arg("val"));
-
     m.def("push_plot_style_var", [](ImPlotStyleVar idx, ImVec2 val){
-        ImPlot::PushStyleVar(idx, val);
+		ImPlot::PushStyleVar(idx, val);
     },
     py::arg("idx"),
     py::arg("val"));
-
+	
     m.def("pop_plot_style_var", [](int count) {
-        ImPlot::PopStyleVar(count);
+		ImPlot::PopStyleVar(count);
     },
     py::arg("count") = 1);
+	
+	#pragma endregion
 
     m.def("is_axis_hovered", [](ImAxis axis) {
         ImPlotPlot* plot = ImPlot::GetCurrentPlot();
@@ -1077,4 +1053,7 @@ void loadImplotPythonBindings(pybind11::module& m, ImViz& viz) {
         return plot->Axes[axis].Hovered;
     },
     py::arg("axis"));
+
+    #pragma endregion
+
 }
